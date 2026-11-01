@@ -163,9 +163,10 @@ function viewWeek() {
     const day = new Date(sunday.getFullYear(), sunday.getMonth(), sunday.getDate() + i);
     const on = trained.has(day.toDateString());
     if (on) count++;
-    return `<div><span class="${on ? 'on' : ''}"></span>${d}</div>`;
+    const today = day.toDateString() === now.toDateString();
+    return `<div class="${today ? 'today' : ''}"><span class="${on ? 'on' : ''}"></span>${d}</div>`;
   }).join('');
-  return `<div class="card"><div class="row between"><h3>השבוע</h3><span class="muted small">${count} אימונים</span></div><div class="week">${cells}</div></div>`;
+  return `<div class="card"><div class="row between"><h3>השבוע</h3><span class="muted small">${count === 1 ? 'אימון אחד' : `${count} אימונים`}</span></div><div class="week">${cells}</div></div>`;
 }
 
 // The template after the one used last (cycling A → B → A …).
@@ -228,7 +229,7 @@ function viewActive() {
             : `<button class="set-n ${s.fail ? 'fail' : ''}" data-act="fail" data-e="${i}" data-s="${j}" aria-label="סמן סט עד כשל" aria-pressed="${!!s.fail}">${++n}${s.fail ? '<small>כשל</small>' : ''}</button>`}</div>
           ${stepper(i, j, 'w', s.w, s.pw, 'decimal')}
           ${stepper(i, j, 'r', s.r, s.pr, 'numeric')}
-          <button class="check" data-act="set-done" data-e="${i}" data-s="${j}" aria-label="סמן סט כבוצע">✓</button>
+          <button class="check" data-act="set-done" data-e="${i}" data-s="${j}" aria-label="סמן סט כבוצע" aria-pressed="${!!s.done}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg></button>
         </div>
       </div>`).join('');
     return `
@@ -238,9 +239,9 @@ function viewActive() {
             <div class="area">${groupOf(e.name)}</div>
             <div class="ex-name">${esc(e.name)}</div>
             <div class="prev">${prev ? 'פעם קודמת: ' + prev.map(prevLabel).join(' · ') : 'תרגיל חדש'}</div>
-            ${e.up ? `<div class="up">⬆ עמדת ביעד – המשקל הועלה ב-${fmtW(e.up)} ק״ג</div>` : ''}
+            ${e.up ? `<div class="up">עמדת ביעד בפעם הקודמת, אז היום +${fmtW(e.up)} ק״ג</div>` : ''}
           </div>
-          <button class="rest-pill" data-act="ex-rest" data-e="${i}">⏱ ${e.rest} ש׳</button>
+          <button class="rest-pill" data-act="ex-rest" data-e="${i}" aria-label="שנה זמן מנוחה">מנוחה ${e.rest} ש׳</button>
         </div>
         <div class="set-grid set-head"><span>סט</span><span>ק״ג</span><span>חזרות</span><span></span></div>
         ${rows}
@@ -301,8 +302,8 @@ function viewTemplates() {
         <input type="checkbox" data-f="set-lastfail" ${db.settings.lastSetFail ? 'checked' : ''}>
         <span>הסט האחרון בכל תרגיל הוא עד כשל<br><span class="muted small">מסומן אוטומטית בתחילת אימון. אפשר לבטל לסט מסוים בלחיצה על המספר שלו.</span></span>
       </label>
-      <button class="btn block" data-act="export">⬇️ ייצוא גיבוי (קובץ JSON)</button>
-      <button class="btn block" data-act="import">⬆️ שחזור מגיבוי</button>
+      <button class="btn block" data-act="export">ייצוא גיבוי (קובץ JSON)</button>
+      <button class="btn block" data-act="import">שחזור מגיבוי</button>
       <input type="file" id="import-file" accept="application/json,.json" hidden>
       <p class="muted small" style="margin-bottom:0">הנתונים נשמרים רק בטלפון הזה. מומלץ לייצא גיבוי מדי פעם.</p>
     </div>`;
@@ -362,11 +363,13 @@ function viewHistory() {
     </details>`).join('');
 }
 
-function chart(points, unit) {
+// markBest circles the highest point in red — only where higher means a record.
+function chart(points, unit, markBest) {
   const W = 340, H = 190, L = 40, R = 10, T = 12, B = 26;
   if (!points.length) return '';
   const ys = points.map((p) => p.y);
   let min = Math.min(...ys), max = Math.max(...ys);
+  const best = markBest ? max : null;
   if (min === max) { min -= 5; max += 5; }
   const padY = (max - min) * 0.1;
   min = Math.max(0, min - padY); max += padY;
@@ -380,7 +383,7 @@ function chart(points, unit) {
       ${ticks.map((v) => `<line class="grid-l" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="ax" x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${max - min < 10 ? v.toFixed(1) : Math.round(v)}</text>`).join('')}
       ${area ? `<path class="ar" d="${area}"/>` : ''}
       <path class="ln" d="${path}"/>
-      ${points.map((p, i) => `<circle class="pt" cx="${x(i)}" cy="${y(p.y)}" r="3.5"><title>${fmtDateShort(p.t)}: ${fmtW(p.y)} ${unit}</title></circle>`).join('')}
+      ${points.map((p, i) => `<circle class="pt ${p.y === best ? 'best' : ''}" cx="${x(i)}" cy="${y(p.y)}" r="${p.y === best ? 6 : 3.5}"><title>${fmtDateShort(p.t)}: ${fmtW(p.y)} ${unit}</title></circle>`).join('')}
       <text class="ax" x="${L}" y="${H - 6}" text-anchor="start">${fmtDateShort(points[0].t)}</text>
       ${points.length > 1 ? `<text class="ax" x="${W - R}" y="${H - 6}" text-anchor="end">${fmtDateShort(points[points.length - 1].t)}</text>` : ''}
     </svg>`;
@@ -442,7 +445,7 @@ function viewProgress() {
 
   const recent = sessions.slice(-8).reverse().map((s) => {
     const best = s.e.sets.reduce((a, b) => (e1rm(b.w, b.r) > e1rm(a.w, a.r) ? b : a));
-    return `<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)">
+    return `<div class="row between" style="padding:6px 0;border-top:1px solid var(--rule)">
       <span class="muted small">${fmtDate(s.t)}</span>
       <span class="chips" style="margin:0">${s.e.sets.map((x) => chip(x, x === best ? 'pr' : '')).join('')}</span>
     </div>`;
@@ -461,7 +464,7 @@ function viewProgress() {
     </div>
     <div class="card">
       <div class="seg">${metrics.map(([k, l]) => `<button class="${ui.progMetric === k ? 'on' : ''}" data-act="metric" data-k="${k}">${l}</button>`).join('')}</div>
-      ${chart(points, 'ק״ג')}
+      ${chart(points, 'ק״ג', true)}
       <p class="muted small" style="margin:6px 0 0">${ui.progMetric === 'e1rm' ? 'כוח משוער = המשקל המקסימלי שהיית מרים לחזרה אחת, מחושב מהסט הטוב ביותר.' : ui.progMetric === 'vol' ? 'נפח = משקל × חזרות, מסוכם על כל הסטים.' : 'המשקל הכבד ביותר באימון.'}</p>
     </div>
     <div class="card"><h3>אימונים אחרונים</h3><div style="margin-top:8px">${recent}</div></div>`;
@@ -518,7 +521,7 @@ function viewMetricForm() {
     </div>` : '';
 
   return `
-    ${d.fromImage ? '<div class="card note">✨ הנתונים נקראו מהתמונה. כדאי לעבור עליהם ולתקן אם משהו לא נקרא נכון.</div>' : ''}
+    ${d.fromImage ? '<div class="card note">הנתונים נקראו מהתמונה. כדאי לעבור עליהם ולתקן אם משהו לא נקרא נכון.</div>' : ''}
     <div class="card">
       <label class="field">תאריך המדידה<input type="date" data-f="m-date" value="${esc(d.date)}"></label>
       <div class="mgrid">
@@ -540,20 +543,20 @@ function viewMetrics() {
     <div class="card steps">
       <div class="row between"><h3>קליטת נתונים מ-Claude</h3><button class="icon-btn" data-act="paste-close" aria-label="סגור">✕</button></div>
       <ol>
-        <li>העתק את ההוראה:<button class="btn sm" data-act="paste-copy">📄 העתק הוראה ל-Claude</button></li>
+        <li>העתק את ההוראה:<button class="btn sm" data-act="paste-copy">העתק הוראה ל-Claude</button></li>
         <li>פתח את Claude, צרף את תמונת הדוח והדבק את ההוראה.</li>
         <li>העתק את התשובה שתקבל, חזור לכאן והדבק:
-          <button class="btn sm" data-act="paste-read">📥 הדבק מהלוח</button>
+          <button class="btn sm" data-act="paste-read">הדבק מהלוח</button>
           <textarea id="paste-text" data-f="paste-text" rows="4" dir="ltr" placeholder="או הדבק כאן ידנית…">${esc(ui.pasteText)}</textarea>
         </li>
       </ol>
       <button class="btn primary block" data-act="paste-parse">קלוט נתונים</button>
-    </div>` : '<button class="btn primary block" data-act="paste-open" style="margin-top:0">📋 קליטת נתונים מ-Claude</button>';
+    </div>` : '<button class="btn primary block" data-act="paste-open" style="margin-top:0">קליטת נתונים מ-Claude</button>';
 
   const upload = ui.reading
     ? '<div class="card center reading"><div class="spinner"></div><div style="margin-top:10px">קורא את הנתונים מהדוח…</div><div class="muted small">זה לוקח בדרך כלל כמה שניות</div></div>'
     : `${paste}
-       ${hasKey ? '<button class="btn block" data-act="m-upload">📷 קריאה אוטומטית מתמונה</button><input type="file" id="m-file" accept="image/*" hidden>' : ''}
+       ${hasKey ? '<button class="btn block" data-act="m-upload">קריאה אוטומטית מתמונה</button><input type="file" id="m-file" accept="image/*" hidden>' : ''}
        <button class="btn ghost block" data-act="m-manual">+ הזנה ידנית</button>`;
 
   let latest = '', chartCard = '', rows = '';
@@ -908,7 +911,7 @@ function finishWorkout() {
   releaseWakeLock();
   render();
   window.scrollTo(0, 0);
-  toast(prs.length ? `🏆 שיא חדש: ${prs.join(', ')}` : 'כל הכבוד! האימון נשמר 💪', prs.length ? 4000 : 2600);
+  toast(prs.length ? `שיא חדש: ${prs.join(', ')}` : 'האימון נשמר', prs.length ? 4000 : 2600);
 }
 
 function discardWorkout(skipConfirm) {
