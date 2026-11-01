@@ -72,10 +72,22 @@ const fmtTime = (ts) => new Date(ts).toLocaleTimeString('he-IL', { hour: '2-digi
 
 const sortedWorkouts = () => [...db.workouts].sort((a, b) => b.start - a.start);
 
+// Working sets only — warmup sets (wu: true) don't count toward records, volume or progress.
+const work = (sets) => sets.filter((s) => !s.wu);
+
 function lastSetsFor(name) {
   for (const w of sortedWorkouts()) {
     const e = w.exercises.find((x) => x.name === name);
-    if (e && e.sets.length) return e.sets;
+    const sets = e && work(e.sets);
+    if (sets && sets.length) return sets;
+  }
+  return null;
+}
+
+function lastWarmupFor(name) {
+  for (const w of sortedWorkouts()) {
+    const s = w.exercises.find((x) => x.name === name)?.sets.find((x) => x.wu);
+    if (s) return s;
   }
   return null;
 }
@@ -85,7 +97,7 @@ function bestFor(name) {
   for (const w of db.workouts) {
     for (const e of w.exercises) {
       if (e.name !== name) continue;
-      for (const s of e.sets) {
+      for (const s of work(e.sets)) {
         if (!maxW || s.w > maxW.w || (s.w === maxW.w && s.r > maxW.r)) maxW = s;
         maxE = Math.max(maxE, e1rm(s.w, s.r));
       }
@@ -103,7 +115,10 @@ function allExerciseNames() {
 
 const datalist = () => `<datalist id="exnames">${allExerciseNames().map((n) => `<option value="${esc(n)}">`).join('')}</datalist>`;
 
-const volume = (w) => w.exercises.reduce((sum, e) => sum + e.sets.reduce((a, s) => a + s.w * s.r, 0), 0);
+const volume = (w) => w.exercises.reduce((sum, e) => sum + work(e.sets).reduce((a, s) => a + s.w * s.r, 0), 0);
+const chip = (s, cls = '') => (s.wu
+  ? `<span class="chip wu"><span dir="rtl">חימום</span> ${setLabel(s)}</span>`
+  : `<span class="chip ${cls}">${setLabel(s)}</span>`);
 
 let toastTimer;
 function toast(msg, ms = 2600) {
@@ -157,9 +172,10 @@ function viewActive() {
   const w = db.active;
   const exs = w.exercises.map((e, i) => {
     const prev = lastSetsFor(e.name);
+    let n = 0;
     const rows = e.sets.map((s, j) => `
-      <tr class="${s.done ? 'done' : ''}">
-        <td class="n">${j + 1}</td>
+      <tr class="${s.done ? 'done' : ''} ${s.wu ? 'wu' : ''}">
+        <td class="n">${s.wu ? '<span title="סט חימום">ח׳</span>' : ++n}</td>
         <td><input type="number" inputmode="decimal" step="any" data-f="w" data-e="${i}" data-s="${j}" value="${esc(s.w)}" placeholder="${esc(s.pw)}"></td>
         <td><input type="number" inputmode="numeric" data-f="r" data-e="${i}" data-s="${j}" value="${esc(s.r)}" placeholder="${esc(s.pr)}"></td>
         <td class="chk"><button class="check" data-act="set-done" data-e="${i}" data-s="${j}" aria-label="סמן סט כבוצע">✓</button></td>
@@ -268,7 +284,7 @@ function viewHistory() {
       ${w.exercises.map((e) => `
         <div class="hist-ex">
           <b>${esc(e.name)}</b>
-          <div class="chips">${e.sets.map((s) => `<span class="chip">${setLabel(s)}</span>`).join('')}</div>
+          <div class="chips">${e.sets.map((s) => chip(s)).join('')}</div>
         </div>`).join('')}
       <div class="row" style="margin-top:12px">
         <button class="btn sm" data-act="hist-tpl" data-id="${w.id}">שמור כתבנית</button>
@@ -317,7 +333,10 @@ function viewProgress() {
   if (!names.includes(ui.progEx)) ui.progEx = names[0];
 
   const sessions = [...db.workouts].sort((a, b) => a.start - b.start)
-    .map((w) => ({ t: w.start, e: w.exercises.find((x) => x.name === ui.progEx) }))
+    .map((w) => {
+      const e = w.exercises.find((x) => x.name === ui.progEx);
+      return { t: w.start, e: e && { ...e, sets: work(e.sets) } };
+    })
     .filter((s) => s.e && s.e.sets.length);
   const metricOf = {
     e1rm: (e) => Math.max(...e.sets.map((s) => e1rm(s.w, s.r))),
@@ -332,7 +351,7 @@ function viewProgress() {
     const best = s.e.sets.reduce((a, b) => (e1rm(b.w, b.r) > e1rm(a.w, a.r) ? b : a));
     return `<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)">
       <span class="muted small">${fmtDate(s.t)}</span>
-      <span class="chips" style="margin:0">${s.e.sets.map((x) => `<span class="chip ${x === best ? 'pr' : ''}">${setLabel(x)}</span>`).join('')}</span>
+      <span class="chips" style="margin:0">${s.e.sets.map((x) => chip(x, x === best ? 'pr' : '')).join('')}</span>
     </div>`;
   }).join('');
 
@@ -371,13 +390,19 @@ function render() {
 }
 
 // ---------- Workout actions ----------
-function makeExercise(name, setCount, reps, rest) {
+function makeExercise(name, setCount, reps, rest, warmup) {
   const prev = lastSetsFor(name);
   const n = setCount || (prev ? prev.length : 3);
   const sets = Array.from({ length: n }, (_, j) => {
     const p = prev && (prev[j] || prev[prev.length - 1]);
     return { w: '', r: '', pw: p ? fmtW(p.w) : '', pr: p ? String(p.r) : (reps ? String(reps) : ''), done: false };
   });
+  if (warmup) {
+    // Suggest last time's warmup, or ~50% of last working weight (rounded to 2.5) for 10 reps.
+    const last = lastWarmupFor(name);
+    const half = prev && prev[0].w ? Math.round((prev[0].w * 0.5) / 2.5) * 2.5 : '';
+    sets.unshift({ wu: true, w: '', r: '', pw: last ? fmtW(last.w) : (half ? fmtW(half) : ''), pr: last ? String(last.r) : '10', done: false });
+  }
   return { id: uid(), name, rest: rest || db.settings.defaultRest, sets };
 }
 
@@ -387,7 +412,7 @@ function startWorkout(tpl) {
     templateId: tpl ? tpl.id : null,
     name: tpl ? tpl.name : 'אימון חופשי',
     start: Date.now(),
-    exercises: tpl ? tpl.exercises.map((e) => makeExercise(e.name, e.sets, e.reps, e.rest)) : [],
+    exercises: tpl ? tpl.exercises.map((e, i) => makeExercise(e.name, e.sets, e.reps, e.rest, i === 0)) : [],
   };
   save();
   requestWakeLock();
@@ -398,7 +423,10 @@ function startWorkout(tpl) {
 function finishWorkout() {
   const w = db.active;
   const exercises = w.exercises
-    .map((e) => ({ name: e.name, sets: e.sets.filter((s) => s.done).map((s) => ({ w: num(s.w) || 0, r: num(s.r) || 0 })) }))
+    .map((e) => ({
+      name: e.name,
+      sets: e.sets.filter((s) => s.done).map((s) => ({ w: num(s.w) || 0, r: num(s.r) || 0, ...(s.wu ? { wu: true } : {}) })),
+    }))
     .filter((e) => e.sets.length);
   const undone = w.exercises.reduce((a, e) => a + e.sets.filter((s) => !s.done && (s.w !== '' || s.r !== '')).length, 0);
 
@@ -410,7 +438,8 @@ function finishWorkout() {
 
   const prs = exercises.filter((e) => {
     const { maxE } = bestFor(e.name);
-    return maxE > 0 && Math.max(...e.sets.map((s) => e1rm(s.w, s.r))) > maxE;
+    const sets = work(e.sets);
+    return maxE > 0 && sets.length && Math.max(...sets.map((s) => e1rm(s.w, s.r))) > maxE;
   }).map((e) => e.name);
 
   db.workouts.push({ id: w.id, templateId: w.templateId, name: w.name || 'אימון', start: w.start, end: Date.now(), exercises });
@@ -554,7 +583,7 @@ document.addEventListener('click', (ev) => {
       const set = ex.sets[s];
       if (!set.done) {
         // Empty weight: use last time's value, or carry over the previous set's weight.
-        if (set.w === '') set.w = set.pw || (s > 0 ? ex.sets[s - 1].w : '');
+        if (set.w === '') set.w = set.pw || (s > 0 && !ex.sets[s - 1].wu ? ex.sets[s - 1].w : '');
         if (set.r === '') set.r = set.pr;
         if (num(set.r) == null) { toast('הזן מספר חזרות'); return; }
         set.done = true;
@@ -583,7 +612,7 @@ document.addEventListener('click', (ev) => {
     case 'ex-add': {
       const name = $('#new-ex').value.trim();
       if (!name) return;
-      db.active.exercises.push(makeExercise(name, 0, 0, 0));
+      db.active.exercises.push(makeExercise(name, 0, 0, 0, db.active.exercises.length === 0));
       save(); render();
       break;
     }
@@ -635,7 +664,9 @@ document.addEventListener('click', (ev) => {
       if (!name) return;
       db.templates.push({
         id: uid(), name: name.trim(),
-        exercises: w.exercises.map((x) => ({ id: uid(), name: x.name, sets: x.sets.length, reps: x.sets[0].r, rest: db.settings.defaultRest })),
+        exercises: w.exercises.filter((x) => work(x.sets).length).map((x) => ({
+          id: uid(), name: x.name, sets: work(x.sets).length, reps: work(x.sets)[0].r, rest: db.settings.defaultRest,
+        })),
       });
       save(); toast('נשמרה תבנית חדשה');
       break;

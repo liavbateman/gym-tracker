@@ -176,6 +176,9 @@ label.field input, label.field select { margin-top: 4px; }
   font-size: 18px;
 }
 tr.done .check { background: var(--good); border-color: var(--good); color: #04140b; }
+tr.wu td.n { color: #ffb36b; font-size: 13px; }
+tr.wu input { border-style: dashed; }
+.chip.wu { color: var(--muted); border-style: dashed; }
 
 .rest-pill { font-size: 12px; color: var(--muted); background: var(--bg); border-radius: 99px; padding: 3px 8px; border: 1px solid var(--line); }
 
