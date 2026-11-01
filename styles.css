@@ -253,8 +253,13 @@ label.field input, label.field select { margin-top: 4px; color: var(--ink); }
 
 /* Muscles worked: red for the main movers, orange for the helpers */
 .muscles { display: flex; align-items: center; gap: 12px; margin-top: 10px; padding: 8px 10px; border: 1px solid var(--rule); border-radius: 6px; }
-.muscle-figs { display: flex; gap: 4px; flex: none; }
-.muscle-figs svg { width: 34px; height: 78px; display: block; }
+.muscle-figs { display: flex; gap: 8px; flex: none; }
+.body-fig { margin: 0; text-align: center; }
+.body-fig + .body-fig { padding-inline-start: 8px; border-inline-start: 1px dashed var(--rule); }
+.muscle-figs svg { width: 42px; height: 96px; display: block; }
+.muscle-figs .marks { fill: var(--ink-soft); stroke: var(--ink-soft); stroke-width: .7; stroke-linecap: round; }
+.muscle-figs .marks .hair { stroke: none; }
+.body-fig figcaption { font-size: 11px; line-height: 1; margin-top: 3px; color: var(--ink-soft); font-weight: 700; }
 .muscle-figs g { fill: var(--rule); }
 .muscle-figs g.ms, .dot.ms { fill: var(--mus-2); background: var(--mus-2); }
 .muscle-figs g.mp, .dot.mp { fill: var(--mus-1); background: var(--mus-1); }

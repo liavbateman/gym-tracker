@@ -259,15 +259,24 @@ const BODY_BACK = [
   ['hamstrings', '<ellipse cx="20.3" cy="70" rx="4.3" ry="10"/><ellipse cx="29.7" cy="70" rx="4.3" ry="10"/>'],
   ['calves', '<ellipse cx="19.8" cy="94" rx="3.4" ry="9"/><ellipse cx="30.2" cy="94" rx="3.4" ry="9"/>'],
 ];
-const bodySvg = (parts, m, label) => `<svg viewBox="0 0 50 114" role="img" aria-label="${label}">${parts.map(([k, shapes]) =>
-  `<g class="${m.p.includes(k) ? 'mp' : m.s.includes(k) ? 'ms' : ''}">${shapes}</g>`).join('')}</svg>`;
+// Drawn on top so the two sides read apart at a glance: a face and navel in front, hair and spine behind.
+const BODY_MARKS = {
+  front: '<circle cx="23" cy="7.5" r=".8"/><circle cx="27" cy="7.5" r=".8"/><path d="M23.3 10.6q1.7 1.2 3.4 0" fill="none"/><circle cx="25" cy="42" r=".7"/>',
+  back: '<path class="hair" d="M19.5 8.5a5.5 5.5 0 0 1 11 0q-1 3.5-5.5 4.2-4.5-.7-5.5-4.2z"/><path d="M25 17v30" fill="none"/>',
+};
+const bodySvg = (parts, m, side, label) => `
+  <figure class="body-fig">
+    <svg viewBox="0 0 50 114">${parts.map(([k, shapes]) =>
+      `<g class="${m.p.includes(k) ? 'mp' : m.s.includes(k) ? 'ms' : ''}">${shapes}</g>`).join('')}<g class="marks">${BODY_MARKS[side]}</g></svg>
+    <figcaption>${label}</figcaption>
+  </figure>`;
 const muscleNames = (list) => list.map((k) => MUSCLE_NAMES[k] || k).join(', ');
 function muscleMap(name, area) {
   const m = musclesFor(name, area);
   if (!m.p.length) return '';
   return `
     <div class="muscles">
-      <div class="muscle-figs" aria-hidden="true">${bodySvg(BODY_FRONT, m, 'מלפנים')}${bodySvg(BODY_BACK, m, 'מאחור')}</div>
+      <div class="muscle-figs" aria-hidden="true">${bodySvg(BODY_FRONT, m, 'front', 'קדימה')}${bodySvg(BODY_BACK, m, 'back', 'אחורה')}</div>
       <div class="muscle-list">
         <div><i class="dot mp"></i><b>ראשי:</b> ${esc(muscleNames(m.p))}</div>
         ${m.s.length ? `<div><i class="dot ms"></i><b>משני:</b> ${esc(muscleNames(m.s))}</div>` : ''}
