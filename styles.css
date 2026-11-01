@@ -534,7 +534,18 @@ details.adv summary { cursor: pointer; }
   10% { transform: translate(-10px, 6px); } 25% { transform: translate(9px, -8px); } 40% { transform: translate(-7px, -4px); }
   55% { transform: translate(6px, 7px); } 70% { transform: translate(-4px, 3px); } 85% { transform: translate(2px, -2px); }
 }
-@media (prefers-reduced-motion: reduce) { .bateman.go, .bateman.go * { animation: none !important; } }
+/* Every kick: a jolt sized by --amp; the drops also flash the whole screen. */
+.bateman-card.hit { animation: bateman-hit .32s ease-out; }
+.bateman.drop { animation: bateman-drop .35s ease-out; }
+@keyframes bateman-hit {
+  0% { transform: scale(var(--zoom, 1.04)) translate(calc(var(--amp) * -1), calc(var(--amp) * .6)) rotate(-1.5deg); }
+  25% { transform: scale(var(--zoom, 1.04)) translate(var(--amp), calc(var(--amp) * -.7)) rotate(1.2deg); }
+  50% { transform: translate(calc(var(--amp) * -.5), calc(var(--amp) * .4)) rotate(-.6deg); }
+  75% { transform: translate(calc(var(--amp) * .25), 0); }
+  100% { transform: none; }
+}
+@keyframes bateman-drop { 0% { background: #ffd9a0; } 100% { background: #000; } }
+@media (prefers-reduced-motion: reduce) { .bateman.go, .bateman.go *, .bateman-card.hit, .bateman.drop { animation: none !important; } }
 
 /* ---------- Exercise demo sheet ---------- */
 .demo-link { display: inline-block; margin: 2px 0 0; padding: 4px 0; font-size: 13px; color: var(--ink); }
