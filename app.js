@@ -810,13 +810,13 @@ const HE_EN = [
   ['כפיפת מרפקים', 'curl'], ['כפיפות מרפקים', 'curl'], ['פטיש', 'hammer curl'],
   ['פשיטת מרפקים', 'triceps extension'], ['פשיטות מרפקים', 'triceps extension'], ['פרנץ', 'triceps extension'],
   ['סקאל קראשר', 'skullcrusher'], ['פשיטת גב', 'hyperextensions'], ['היפר', 'hyperextensions'],
-  ['פולי עליון', 'pulldown'], ['פולי תחתון', 'seated cable rows'], ['פולי', 'pulldown'],
+  ['פולי עליון', 'lat pulldown'], ['פולי תחתון', 'seated cable rows'], ['פולי', 'lat pulldown'],
   ['חתירה', 'row'], ['מתח', 'pullups'], ['מכרעים', 'lunge'], ['מכרע', 'lunge'], ['לאנג', 'lunge'],
   ['היפ טראסט', 'hip thrust'], ['גשר ישבן', 'glute bridge'],
   ['הרחקת ירכיים', 'thigh abductor'], ['קירוב ירכיים', 'thigh adductor'],
   ['הרחקה לצדדים', 'lateral raise'], ['הרחקות לצדדים', 'lateral raise'], ['הרחקה', 'lateral raise'], ['הרחקות', 'lateral raise'],
   ['הרמה קדמית', 'front raise'], ['ארנולד', 'arnold press'], ['פייס פול', 'face pull'], ['שראג', 'shrug'],
-  ['פרפר', 'flyes'], ['קרוס אובר', 'crossover'], ['פול אובר', 'pullover'], ['מקבילים', 'dips'],
+  ['פרפר הפוך', 'reverse fly'], ['פרפר', 'fly'], ['פק דק', 'pec deck'], ['בטרפליי', 'butterfly'],['קרוס אובר', 'crossover'], ['פול אובר', 'pullover'], ['מקבילים', 'dips'],
   ['שכיבות סמיכה', 'pushups'], ['פלאנק', 'plank'], ['כפיפות בטן', 'crunch'], ['קראנץ', 'crunch'], ['כפיפות גו', 'crunch'],
   ['בשיפוע', 'incline'], ['מוט', 'barbell'], ['משקולות', 'dumbbell'], ['משקולת', 'dumbbell'], ['דאמבל', 'dumbbell'],
   ['כבל', 'cable'], ['מכונה', 'machine'], ['מכונת', 'machine'], ['סמית', 'smith'], ['קטלבל', 'kettlebell'],
@@ -832,17 +832,44 @@ function toEnglish(q) {
   return [...out, ...(q.match(/[a-z0-9]+/gi) || [])].join(' ');
 }
 
-// Plural "s" is dropped on both sides so "pullups" matches "Pullup" and "flyes" matches "Flye".
-const exTokens = (s) => String(s).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).map((t) => (t.length > 3 ? t.replace(/s$/, '') : t));
-function searchExercises(list, q) {
-  const qt = [...new Set(exTokens(q))];
-  if (!qt.length) return [];
+// Plural "s" is dropped on both sides so "pullups" matches "Pullup", and spelling variants share one token.
+const TOKEN_SYN = { flye: 'fly', flie: 'fly', db: 'dumbbell', bb: 'barbell', chinup: 'pullup', abdominal: 'ab', abs: 'ab' };
+const exTokens = (s) => String(s).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
+  .map((t) => (t.length > 3 ? t.replace(/s$/, '') : t)).map((t) => TOKEN_SYN[t] || t);
+// Words people search by that the database's name for the exercise doesn't contain.
+const EX_ALIASES = [
+  [/butterfly/i, 'fly pec deck chest'], [/pulldown/i, 'lat pull down'], [/pushdown/i, 'push down'],
+  [/^pullup|^v-bar pullup/i, 'pull up'], [/^chin-up/i, 'pullup pull up'], [/^push-?up/i, 'pushup'],
+  [/skull ?crusher/i, 'lying triceps extension'], [/romanian/i, 'rdl'], [/leg extension/i, 'quad'],
+];
+const EQUIP = { machine: 'machine', cable: 'cable', barbell: 'barbell', dumbbell: 'dumbbell', kettlebells: 'kettlebell', bands: 'band', 'body only': 'bodyweight', 'e-z curl bar': 'ez', 'exercise ball': 'ball', 'medicine ball': 'ball' };
+const GROUP_MUSCLES = {
+  'חזה': ['chest'], 'גב': ['lats', 'middle back', 'lower back', 'traps'], 'כתפיים': ['shoulders'],
+  'רגליים': ['quadriceps', 'hamstrings', 'glutes', 'calves', 'adductors', 'abductors'],
+  'יד קדמית': ['biceps', 'forearms'], 'יד אחורית': ['triceps'], 'בטן': ['abdominals'],
+};
+const PLAIN_WORDS = ['medium', 'grip', 'version']; // describe the standard form, so no penalty
+// Words in the name count most, then equipment and aliases; exercises for the app's body area of the exercise
+// get a boost, and every name word the search didn't ask for costs a little ("Reverse Flyes" for "fly").
+function searchExercises(list, q, group) {
+  const words = exTokens(q);
+  if (!words.length) return [];
+  const qt = [...new Set(words)];
+  const pairs = words.slice(1).map((w, i) => words[i] + w); // "pull up" also finds "Pullups"
+  const muscles = GROUP_MUSCLES[group] || [];
   return list.map((x) => {
     const nt = exTokens(x.name);
+    const extra = exTokens([EQUIP[x.equipment] || '', ...EX_ALIASES.filter(([re]) => re.test(x.name)).map(([, a]) => a)].join(' '));
     let score = 0;
-    for (const t of qt) score += nt.includes(t) ? 2 : nt.some((n) => n.startsWith(t) || t.startsWith(n)) ? 1 : 0;
-    return { x, score: score - nt.length * 0.1 }; // shorter names win ties: "Barbell Squat" over "Barbell Squat To A Bench"
-  }).filter((r) => r.score > qt.length * 0.9).sort((a, b) => b.score - a.score).slice(0, 12).map((r) => r.x);
+    for (const t of qt) {
+      score += nt.includes(t) ? 3 : extra.includes(t) ? 2 : t.length > 2 && nt.some((n) => n.startsWith(t) || (n.length > 2 && t.startsWith(n))) ? 1 : 0;
+    }
+    for (const p of pairs) if (nt.includes(p)) score += 3;
+    if (!score) return null;
+    if ((x.primaryMuscles || []).some((m) => muscles.includes(m))) score += 3;
+    score -= nt.filter((n) => !qt.includes(n) && !pairs.includes(n) && !PLAIN_WORDS.includes(n)).length * 0.3;
+    return { x, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 20).map((r) => r.x);
 }
 
 let exList = null;
@@ -873,7 +900,7 @@ async function runDemoSearch() {
   const q = toEnglish(d.q);
   try {
     const list = await loadExercises();
-    d.results = searchExercises(list, q);
+    d.results = searchExercises(list, q, groupOf(d.name));
     if (!d.results.length) d.error = q ? 'לא נמצאו תרגילים. נסה מילים אחרות, למשל באנגלית.' : 'לא הצלחתי לתרגם את השם. נסה לכתוב אותו באנגלית.';
   } catch {
     d.error = 'אין חיבור לאינטרנט. החיפוש צריך רשת.';
