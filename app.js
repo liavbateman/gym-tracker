@@ -521,14 +521,6 @@ function viewProgress() {
   const { maxW, maxE } = bestFor(ui.progEx);
   const metrics = [['e1rm', 'כוח משוער'], ['max', 'משקל מקס׳'], ['vol', 'נפח']];
 
-  const recent = sessions.slice(-8).reverse().map((s) => {
-    const best = s.e.sets.reduce((a, b) => (e1rm(b.w, b.r) > e1rm(a.w, a.r) ? b : a));
-    return `<div class="row between" style="padding:6px 0;border-top:1px solid var(--rule)">
-      <span class="muted small">${fmtDate(s.t)}</span>
-      <span class="chips" style="margin:0">${s.e.sets.map((x) => chip(x, x === best ? 'pr' : '')).join('')}</span>
-    </div>`;
-  }).join('');
-
   return `
     ${top}
     ${areaCard}
@@ -545,7 +537,79 @@ function viewProgress() {
       ${chart(points, 'ק״ג', true)}
       <p class="muted small" style="margin:6px 0 0">${ui.progMetric === 'e1rm' ? 'כוח משוער = המשקל המקסימלי שהיית מרים לחזרה אחת, מחושב מהסט הטוב ביותר.' : ui.progMetric === 'vol' ? 'נפח = משקל × חזרות, מסוכם על כל הסטים.' : 'המשקל הכבד ביותר באימון.'}</p>
     </div>
-    <div class="card"><h3>אימונים אחרונים</h3><div style="margin-top:8px">${recent}</div></div>`;
+    ${viewExerciseDash(sessions, maxE)}`;
+}
+
+// Per-exercise dashboard: momentum, what to aim for next time, rep maxes and the record timeline.
+// Bodyweight exercises (no weight logged) are scored by reps instead of estimated strength.
+function viewExerciseDash(sessions, maxE) {
+  if (!sessions.length) return '';
+  const weighted = maxE > 0;
+  const score = (s) => (weighted ? e1rm(s.w, s.r) : s.r);
+  const topOf = (e) => e.sets.reduce((a, b) => (score(b) > score(a) ? b : a));
+  const tops = sessions.map((s) => ({ t: s.t, set: topOf(s.e) }));
+  const last = tops[tops.length - 1];
+
+  // Momentum tiles
+  const DAY = 86400000;
+  const now = Date.now();
+  const gain = tops.length > 1 ? (score(last.set) - score(tops[0].set)) / score(tops[0].set) : null;
+  const month = sessions.filter((s) => s.t >= now - 30 * DAY).length;
+  const ago = Math.round((new Date(isoDay(now)) - new Date(isoDay(last.t))) / DAY);
+  const records = [];
+  let best = score(tops[0].set);
+  for (const x of tops.slice(1)) {
+    if (score(x.set) > best) { records.push({ ...x, gain: score(x.set) - best }); best = score(x.set); }
+  }
+  const tile = (v, l, cls = '') => `<div class="dash-tile ${cls}"><div class="v">${v}</div><div class="l">${l}</div></div>`;
+  const tiles = [
+    tile(gain === null ? '–' : `<span dir="ltr">${gain > 0 ? '+' : ''}${Math.round(gain * 100)}%</span>`, 'מאז הפעם הראשונה', gain > 0 ? 'up' : gain < 0 ? 'down' : ''),
+    tile(month, 'פעמים ב־30 יום'),
+    tile(ago === 0 ? 'היום' : ago === 1 ? 'אתמול' : ago, ago > 1 ? 'ימים מהפעם האחרונה' : 'הפעם האחרונה'),
+    tile(records.length, records.length === 1 ? 'שיא שנשבר' : 'שיאים שנשברו'),
+  ].join('');
+
+  // Next-time targets, built from last session's best set
+  const { w, r } = last.set;
+  const goal = (l, set, rec) => `<div class="goal ${rec ? 'rec' : ''}"><div class="l">${l}</div><div class="v" dir="ltr">${setLabel(set)}</div></div>`;
+  let goals;
+  if (weighted) {
+    let rw = Math.ceil(maxE / (1 + r / 30) / WEIGHT_STEP) * WEIGHT_STEP;
+    if (e1rm(rw, r) <= maxE) rw += WEIGHT_STEP;
+    goals = goal('עוד חזרה', { w, r: r + 1 }) + goal('עוד משקל', { w: w + WEIGHT_STEP, r })
+      + goal('לשיא חדש', { w: rw, r }, true);
+  } else {
+    const maxR = Math.max(...tops.map((x) => x.set.r));
+    goals = goal('עוד חזרה', { w: 0, r: r + 1 }) + goal('לשיא חדש', { w: 0, r: maxR + 1 }, true);
+  }
+
+  // What the current estimated max means at other rep counts
+  const repMax = weighted ? `
+      <h4 class="dash-h">כמה אתה אמור להרים לפי חזרות</h4>
+      <div class="rm-grid">${[1, 3, 5, 8, 10, 12].map((n) => `
+        <div><b>${fmtW(n <= 1 ? Math.floor(maxE / WEIGHT_STEP) * WEIGHT_STEP : Math.floor(maxE / (1 + n / 30) / WEIGHT_STEP) * WEIGHT_STEP)}</b><span>${n === 1 ? 'חזרה' : `${n} חזרות`}</span></div>`).join('')}
+      </div>
+      <p class="muted small" style="margin:6px 0 0">לפי ה־1RM המשוער שלך, מעוגל למטה ל־${fmtW(WEIGHT_STEP)} ק״ג.</p>` : '';
+
+  const timeline = records.length ? `
+      <h4 class="dash-h">ציר השיאים</h4>
+      ${records.slice(-5).reverse().map((x) => `
+        <div class="rec-row">
+          <span class="muted small">${fmtDateFull(x.t)}</span>
+          <span class="chip pr">${setLabel(x.set)}</span>
+          <span class="delta up" dir="ltr">+${weighted ? `${fmtW(Math.round(x.gain * 2) / 2)} ק״ג` : x.gain}</span>
+        </div>`).join('')}` : '';
+
+  return `
+    <div class="card dash">
+      <h3>תמונת מצב</h3>
+      <div class="dash-tiles">${tiles}</div>
+      <h4 class="dash-h">היעד לפעם הבאה</h4>
+      <div class="goals">${goals}</div>
+      <p class="muted small" style="margin:6px 0 0">לפי הסט הטוב בפעם האחרונה: <span dir="ltr">${setLabel(last.set)}</span>. בחר אחד.</p>
+      ${repMax}
+      ${timeline}
+    </div>`;
 }
 
 // ---------- Body metrics ----------
