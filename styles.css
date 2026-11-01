@@ -78,6 +78,21 @@ button { cursor: pointer; touch-action: manipulation; }
   flex: none;
   border-radius: 9px;
 }
+.topbar .gear {
+  margin-inline-start: auto; /* RTL: pushes it to the left edge */
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  background: none;
+  border: 0;
+  border-radius: 50%;
+  color: var(--ink-soft);
+}
+.topbar .gear svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.topbar .gear.on { color: var(--ink); }
+.topbar .gear.on svg { stroke-width: 2.2; }
 .topbar h1 {
   margin: 0;
   font-family: var(--display);

@@ -623,9 +623,13 @@ function viewTemplates() {
 
   return `
     ${list || '<div class="empty">אין תבניות עדיין</div>'}
-    <button class="btn primary block" data-act="tpl-new">+ תבנית חדשה</button>
+    <button class="btn primary block" data-act="tpl-new">+ תבנית חדשה</button>`;
+}
 
-    <h2>הגדרות וגיבוי</h2>
+function viewSettings() {
+  const hasKey = !!getApiKey();
+  return `
+    <h2 style="margin-top:0">אימון</h2>
     <div class="card">
       <label class="field">זמן מנוחה ברירת מחדל (שניות)
         <input type="number" inputmode="numeric" data-f="defrest" value="${db.settings.defaultRest}">
@@ -634,10 +638,22 @@ function viewTemplates() {
         <input type="checkbox" data-f="set-lastfail" ${db.settings.lastSetFail ? 'checked' : ''}>
         <span>הסט האחרון בכל תרגיל הוא עד כשל<br><span class="muted small">מסומן אוטומטית בתחילת אימון. אפשר לבטל לסט מסוים בלחיצה על המספר שלו.</span></span>
       </label>
-      <button class="btn block" data-act="export">ייצוא גיבוי (קובץ JSON)</button>
+    </div>
+
+    <h2>גיבוי</h2>
+    <div class="card">
+      <button class="btn block" data-act="export" style="margin-top:0">ייצוא גיבוי (קובץ JSON)</button>
       <button class="btn block" data-act="import">שחזור מגיבוי</button>
       <input type="file" id="import-file" accept="application/json,.json" hidden>
       <p class="muted small" style="margin-bottom:0">הנתונים נשמרים רק בטלפון הזה. מומלץ לייצא גיבוי מדי פעם.</p>
+    </div>
+
+    <h2>קריאה אוטומטית עם Claude</h2>
+    <div class="card">
+      <label class="field">מפתח Claude API ${hasKey ? '<span class="ok">✓ שמור</span>' : ''}
+        <input type="password" data-f="apikey" value="${esc(getApiKey())}" placeholder="sk-ant-…" autocomplete="off" dir="ltr">
+      </label>
+      <p class="muted small" style="margin-bottom:0">אופציונלי, בתשלום לפי שימוש. עם מפתח, האפליקציה קוראת דוחות הרכב גוף מתמונה ומביאה המלצות ישירות מ-Claude בלי העתק-הדבק. זה נפרד מהמנוי ל-Claude ומחויב לפי שימוש (כמה סנטים לדוח). המפתח נשמר רק בטלפון הזה ולא נכלל בקובץ הגיבוי.</p>
     </div>`;
 }
 
@@ -1010,14 +1026,7 @@ function viewMetrics() {
 
   return `
     ${upload}
-    ${list.length ? latest + recs + chartCard + '<h2>כל המדידות</h2>' + rows : '<div class="empty">עוד אין מדידות.<br>צלם את דוח ה-InBody (או כל דוח הרכב גוף), תן ל-Claude לקרוא אותו והדבק את התשובה כאן.</div>'}
-    <details class="card adv">
-      <summary class="muted small">מתקדם: קריאה אוטומטית עם מפתח API (בתשלום לפי שימוש)</summary>
-      <label class="field" style="margin-top:10px">מפתח Claude API ${hasKey ? '<span class="ok">✓ שמור</span>' : ''}
-        <input type="password" data-f="apikey" value="${esc(getApiKey())}" placeholder="sk-ant-…" autocomplete="off" dir="ltr">
-      </label>
-      <p class="muted small" style="margin-bottom:0">עם מפתח, האפליקציה שולחת את התמונה ישירות ל-Claude בלי העתק-הדבק. זה נפרד מהמנוי ל-Claude ומחויב לפי שימוש (כמה סנטים לדוח). המפתח נשמר רק בטלפון הזה ולא נכלל בקובץ הגיבוי.</p>
-    </details>`;
+    ${list.length ? latest + recs + chartCard + '<h2>כל המדידות</h2>' + rows : '<div class="empty">עוד אין מדידות.<br>צלם את דוח ה-InBody (או כל דוח הרכב גוף), תן ל-Claude לקרוא אותו והדבק את התשובה כאן.</div>'}`;
 }
 
 function newMetricDraft(vals = {}, date = isoDay(Date.now()), history = [], fromImage = false) {
@@ -1444,7 +1453,7 @@ function viewRecs() {
       ${ui.recLoading
         ? '<div class="center reading"><div class="spinner"></div><div style="margin-top:10px">Claude מנתח את הנתונים…</div></div>'
         : `<button class="btn primary block" data-act="rec-ai">${hasKey ? (ai ? 'בקש המלצות מחדש' : 'קבל המלצות מ-Claude') : 'העתק בקשה ל-Claude'}</button>`}
-      ${hasKey ? '' : '<p class="muted small" style="margin-bottom:0">הבקשה תועתק עם הנתונים שלך – הדבק אותה בצ׳אט עם Claude (עם חיפוש באינטרנט מופעל). עם מפתח API (בהגדרות המתקדמות למטה) התשובה והמקורות יופיעו כאן.</p>'}
+      ${hasKey ? '' : '<p class="muted small" style="margin-bottom:0">הבקשה תועתק עם הנתונים שלך – הדבק אותה בצ׳אט עם Claude (עם חיפוש באינטרנט מופעל). עם מפתח API (בהגדרות ⚙ למעלה) התשובה והמקורות יופיעו כאן.</p>'}
       ${ai ? `<div class="ai-text">${aiHtml(ai.text)}</div>
         ${ai.sources?.length ? `<div class="sources"><b>מקורות</b>${ai.sources.map((x) => `<a href="${esc(x.url)}" target="_blank" rel="noopener"><span dir="auto">${esc(x.title || x.url)}</span><span class="muted small" dir="ltr">${esc(hostOf(x.url))}</span></a>`).join('')}</div>` : ''}
         <p class="muted small" style="margin-bottom:0">התקבל ב-${fmtDateFull(ai.t)}</p>` : ''}
@@ -1754,7 +1763,9 @@ topbarObs.observe(document.querySelector('.topbar'));
 function render() {
   document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === ui.tab));
   let title, html;
+  document.querySelector('.gear').classList.toggle('on', ui.tab === 'settings');
   switch (ui.tab) {
+    case 'settings': title = 'הגדרות'; html = viewSettings(); break;
     case 'templates':
       title = ui.draft ? (ui.draft.isNew ? 'תבנית חדשה' : 'עריכת תבנית') : 'תבניות';
       html = ui.draft ? viewEditor() : viewTemplates();
@@ -2068,7 +2079,10 @@ document.addEventListener('click', (ev) => {
   unlockAudio();
   const tabBtn = ev.target.closest('[data-tab]');
   if (tabBtn) {
-    ui.tab = tabBtn.dataset.tab;
+    const t = tabBtn.dataset.tab;
+    // The gear toggles: a second tap returns to the tab you came from.
+    if (t === 'settings' && ui.tab === 'settings') ui.tab = ui.prevTab || 'workout';
+    else { if (t === 'settings') ui.prevTab = ui.tab; ui.tab = t; }
     render();
     window.scrollTo(0, 0);
     return;
@@ -2265,7 +2279,7 @@ document.addEventListener('click', (ev) => {
       else copyText(recPrompt()).then((ok) => toast(ok ? 'הבקשה הועתקה עם הנתונים שלך. הדבק אותה בצ׳אט עם Claude' : 'ההעתקה נכשלה', 3500));
       break;
     case 'm-upload':
-      if (!getApiKey()) { toast('כדי לקרוא תמונות צריך להזין מפתח Claude API (למטה)', 3500); $('[data-f="apikey"]')?.focus(); return; }
+      if (!getApiKey()) { toast('כדי לקרוא תמונות צריך להזין מפתח Claude API בהגדרות', 3500); ui.tab = 'settings'; render(); window.scrollTo(0, 0); $('[data-f="apikey"]')?.focus(); return; }
       $('#m-file').click();
       break;
     case 'paste-open': ui.pasteOpen = true; render(); break;
