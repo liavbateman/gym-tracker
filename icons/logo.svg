@@ -1,39 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Bateman logo: an italic B with a heavy barbell bending through its waist, on logbook graph paper. -->
-  <defs>
-    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
-      <path d="M32 0H0V32" fill="none" stroke="#F8FAFB" stroke-opacity=".07" stroke-width="2"/>
-    </pattern>
-    <radialGradient id="glow" cx=".5" cy=".45" r=".6">
-      <stop offset="0" stop-color="#22377A"/>
-      <stop offset="1" stop-color="#0E1838"/>
-    </radialGradient>
-    <g id="plate-big">
-      <rect x="-19" y="-92" width="38" height="184" rx="9"/>
-      <rect x="-5" y="-74" width="10" height="148" rx="5" fill="#14234B" opacity=".55"/>
-    </g>
-    <g id="plate-small">
-      <rect x="-13" y="-62" width="26" height="124" rx="7"/>
-    </g>
-    <path id="b" d="M184 128V384M160 128H260a64 64 0 0 1 0 128H184M184 256H274a64 64 0 0 1 0 128H160"
-          fill="none" stroke-width="48" stroke-linejoin="round"/>
-  </defs>
-  <rect width="512" height="512" fill="url(#glow)"/>
-  <rect width="512" height="512" fill="url(#grid)"/>
+  <!-- Bateman logo: a chamfered B split by the barbell that forms its waist. -->
+  <rect width="512" height="512" fill="#0B0F17"/>
 
-  <!-- the B, italic, with a correction-pen shadow -->
-  <g transform="translate(256 256) skewX(-11) translate(-256 -256)">
-    <use href="#b" stroke="#D2283C" transform="translate(12 12)"/>
-    <use href="#b" stroke="#F8FAFB"/>
-  </g>
+  <path d="M188 227V144H280L312 176V195L280 227ZM188 285V368H290L322 336V317L290 285Z"
+        fill="none" stroke="#F4F6F8" stroke-width="30" stroke-linejoin="miter"/>
 
-  <!-- loaded barbell, bending under the weight -->
-  <path d="M54 292 Q256 220 458 292" fill="none" stroke="#14234B" stroke-width="34" stroke-linecap="round"/>
-  <path d="M54 292 Q256 220 458 292" fill="none" stroke="#E6F53A" stroke-width="22" stroke-linecap="round"/>
-  <g fill="#E6F53A" stroke="#14234B" stroke-width="5">
-    <use href="#plate-big" transform="translate(96 278) rotate(-15)"/>
-    <use href="#plate-small" transform="translate(130 269) rotate(-12)"/>
-    <use href="#plate-big" transform="translate(416 278) rotate(15)"/>
-    <use href="#plate-small" transform="translate(382 269) rotate(12)"/>
+  <g fill="#DCEB3B">
+    <rect x="76" y="251" width="360" height="10" rx="5"/>
+    <rect x="96" y="196" width="14" height="120" rx="7"/>
+    <rect x="120" y="216" width="14" height="80" rx="7"/>
+    <rect x="402" y="196" width="14" height="120" rx="7"/>
+    <rect x="378" y="216" width="14" height="80" rx="7"/>
   </g>
 </svg>
