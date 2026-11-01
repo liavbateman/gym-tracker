@@ -130,6 +130,8 @@ input[type=number] { text-align: center; -moz-appearance: textfield; }
 input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
 label.field { display: block; font-size: 13px; color: var(--muted); }
+.check-row { display: flex; gap: 10px; align-items: flex-start; margin: 4px 0 6px; line-height: 1.4; }
+.check-row input { width: 22px; height: 22px; margin: 0; flex: none; accent-color: var(--accent); }
 label.field input, label.field select { margin-top: 4px; }
 
 /* Template list on start screen */
@@ -206,6 +208,22 @@ tr.done .check { background: var(--good); border-color: var(--good); color: #041
 tr.wu td.n { color: #ffb36b; font-size: 13px; }
 tr.wu input { border-style: dashed; }
 .chip.wu { color: var(--muted); border-style: dashed; }
+.chip.fail { border-color: var(--bad); }
+.chip.fail span { color: var(--bad); }
+.t-fail { color: var(--bad); }
+.set-n {
+  width: 24px;
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  font-weight: 700;
+  line-height: 1.1;
+}
+.set-n.fail { background: rgba(255, 84, 104, .18); color: var(--bad); }
+.set-n small { display: block; font-size: 9px; font-weight: 700; }
 
 .rest-pill { font-size: 12px; color: var(--muted); background: var(--bg); border-radius: 99px; padding: 3px 8px; border: 1px solid var(--line); }
 

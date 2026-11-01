@@ -3,7 +3,7 @@
 // ---------- Storage ----------
 const KEY = 'gym-tracker-v1';
 const TIMER_KEY = 'gym-tracker-timer';
-const DEFAULT_SETTINGS = { defaultRest: 90, increment: 2.5 };
+const DEFAULT_SETTINGS = { defaultRest: 90, increment: 2.5, lastSetFail: true };
 
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -122,7 +122,9 @@ const datalist = () => `<datalist id="exnames">${allExerciseNames().map((n) => `
 const volume = (w) => w.exercises.reduce((sum, e) => sum + work(e.sets).reduce((a, s) => a + s.w * s.r, 0), 0);
 const chip = (s, cls = '') => (s.wu
   ? `<span class="chip wu"><span dir="rtl">חימום</span> ${setLabel(s)}</span>`
-  : `<span class="chip ${cls}">${setLabel(s)}</span>`);
+  : `<span class="chip ${cls} ${s.fail ? 'fail' : ''}">${setLabel(s)}${s.fail ? ' <span dir="rtl">כשל</span>' : ''}</span>`);
+// Inline (non-chip) version for the "last time" line.
+const prevLabel = (s) => `<span dir="ltr">${setLabel(s)}</span>${s.fail ? ' <span class="t-fail">כשל</span>' : ''}`;
 
 let toastTimer;
 function toast(msg, ms = 2600) {
@@ -198,7 +200,9 @@ function viewActive() {
     let n = 0;
     const rows = e.sets.map((s, j) => `
       <tr class="${s.done ? 'done' : ''} ${s.wu ? 'wu' : ''}">
-        <td class="n">${s.wu ? '<span title="סט חימום">ח׳</span>' : ++n}</td>
+        <td class="n">${s.wu
+          ? '<span title="סט חימום">ח׳</span>'
+          : `<button class="set-n ${s.fail ? 'fail' : ''}" data-act="fail" data-e="${i}" data-s="${j}" aria-label="סמן סט עד כשל" aria-pressed="${!!s.fail}">${++n}${s.fail ? '<small>כשל</small>' : ''}</button>`}</td>
         <td>${stepper(i, j, 'w', s.w, s.pw, 'decimal')}</td>
         <td>${stepper(i, j, 'r', s.r, s.pr, 'numeric')}</td>
         <td class="chk"><button class="check" data-act="set-done" data-e="${i}" data-s="${j}" aria-label="סמן סט כבוצע">✓</button></td>
@@ -209,7 +213,7 @@ function viewActive() {
         <div class="row between">
           <div class="grow">
             <div class="ex-name">${esc(e.name)}</div>
-            <div class="prev">${prev ? 'פעם קודמת: <span dir="ltr">' + prev.map(setLabel).join(' · ') + '</span>' : 'תרגיל חדש'}</div>
+            <div class="prev">${prev ? 'פעם קודמת: ' + prev.map(prevLabel).join(' · ') : 'תרגיל חדש'}</div>
             ${e.up ? `<div class="up">⬆ עמדת ביעד – המשקל הועלה ב-${fmtW(e.up)} ק״ג</div>` : ''}
           </div>
           <button class="rest-pill" data-act="ex-rest" data-e="${i}">⏱ ${e.rest} ש׳</button>
@@ -224,6 +228,7 @@ function viewActive() {
   }).join('');
 
   return `
+    <p class="muted small" style="margin:0 0 10px">טיפ: לחיצה על מספר הסט מסמנת שהלכת בו <b class="t-fail">עד כשל</b>.</p>
     <div class="wk-head">
       <input type="text" data-f="wname" value="${esc(w.name)}" aria-label="שם האימון">
       <span class="elapsed" id="elapsed"></span>
@@ -265,6 +270,10 @@ function viewTemplates() {
         <input type="number" inputmode="decimal" step="any" data-f="set-inc" value="${db.settings.increment}">
       </label>
       <p class="muted small">כשעומדים ביעד החזרות בכל הסטים, המשקל בפעם הבאה עולה בקפיצה הזו. אפשר לקבוע קפיצה שונה לכל תרגיל בעריכת התבנית.</p>
+      <label class="check-row">
+        <input type="checkbox" data-f="set-lastfail" ${db.settings.lastSetFail ? 'checked' : ''}>
+        <span>הסט האחרון בכל תרגיל הוא עד כשל<br><span class="muted small">מסומן אוטומטית בתחילת אימון. אפשר לבטל לסט מסוים בלחיצה על המספר שלו.</span></span>
+      </label>
       <button class="btn block" data-act="export">⬇️ ייצוא גיבוי (קובץ JSON)</button>
       <button class="btn block" data-act="import">⬆️ שחזור מגיבוי</button>
       <input type="file" id="import-file" accept="application/json,.json" hidden>
@@ -441,6 +450,7 @@ function makeExercise(src, warmup) {
     const pr = up && target ? String(target) : p ? String(p.r) : (target ? String(target) : '');
     return { w: '', r: '', pw, pr, done: false };
   });
+  if (db.settings.lastSetFail && sets.length) sets[sets.length - 1].fail = true;
   if (warmup) {
     // Suggest last time's warmup, or ~50% of the working weight (rounded to 2.5) for 10 reps.
     const last = lastWarmupFor(name);
@@ -470,7 +480,9 @@ function finishWorkout() {
   const exercises = w.exercises
     .map((e) => ({
       name: e.name,
-      sets: e.sets.filter((s) => s.done).map((s) => ({ w: num(s.w) || 0, r: num(s.r) || 0, ...(s.wu ? { wu: true } : {}) })),
+      sets: e.sets.filter((s) => s.done).map((s) => ({
+        w: num(s.w) || 0, r: num(s.r) || 0, ...(s.wu ? { wu: true } : {}), ...(s.fail ? { fail: true } : {}),
+      })),
     }))
     .filter((e) => e.sets.length);
   const undone = w.exercises.reduce((a, e) => a + e.sets.filter((s) => !s.done && (s.w !== '' || s.r !== '')).length, 0);
@@ -659,6 +671,16 @@ document.addEventListener('click', (ev) => {
       save(); render();
       break;
     }
+    case 'fail': {
+      const set = ex.sets[s];
+      set.fail = !set.fail;
+      save(); render();
+      if (set.fail) {
+        toast('הסט סומן כ"עד כשל" – הזן כמה חזרות עשית', 2000);
+        if (set.r === '') document.querySelector(`input[data-f="r"][data-e="${e}"][data-s="${s}"]`)?.focus();
+      }
+      break;
+    }
     case 'step': {
       // Weight moves by the exercise's increment, reps by 1; an empty field starts from its placeholder.
       const set = ex.sets[s], f = el.dataset.f;
@@ -696,7 +718,7 @@ document.addEventListener('click', (ev) => {
     case 'timer-sub': if (timer) { timer.end -= 15000; saveTimer(); tick(); } break;
     case 'timer-stop': stopTimer(); break;
 
-    case 'tpl-new': ui.draft = { id: uid(), name: '', exercises: [{ id: uid(), name: '', sets: 3, reps: 10, rest: db.settings.defaultRest }], isNew: true }; render(); window.scrollTo(0, 0); break;
+    case 'tpl-new': ui.draft = { id: uid(), name: '', exercises: [{ id: uid(), name: '', sets: 2, reps: 8, rest: db.settings.defaultRest }], isNew: true }; render(); window.scrollTo(0, 0); break;
     case 'tpl-edit': ui.draft = { ...structuredClone(db.templates.find((t) => t.id === el.dataset.id)), isNew: false }; render(); window.scrollTo(0, 0); break;
     case 'tpl-cancel': ui.draft = null; render(); break;
     case 'tpl-del':
@@ -719,7 +741,7 @@ document.addEventListener('click', (ev) => {
       toast('התבנית נשמרה');
       break;
     }
-    case 'tex-add': ui.draft.exercises.push({ id: uid(), name: '', sets: 3, reps: 10, rest: db.settings.defaultRest }); render(); break;
+    case 'tex-add': ui.draft.exercises.push({ id: uid(), name: '', sets: 2, reps: 8, rest: db.settings.defaultRest }); render(); break;
     case 'tex-del': ui.draft.exercises.splice(i, 1); render(); break;
     case 'tex-up':
     case 'tex-down': {
@@ -782,6 +804,7 @@ document.addEventListener('input', (ev) => {
 document.addEventListener('change', (ev) => {
   const el = ev.target;
   if (el.dataset.f === 'prog-ex') { ui.progEx = el.value; render(); }
+  if (el.dataset.f === 'set-lastfail') { db.settings.lastSetFail = el.checked; save(); }
   if (el.id === 'import-file' && el.files[0]) { importData(el.files[0]); el.value = ''; }
 });
 
