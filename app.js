@@ -2300,6 +2300,8 @@ document.addEventListener('click', (ev) => {
       break;
     case 'demo': openDemo(el.dataset.e != null ? ex.name : ui.draft.exercises[i].name); break;
     case 'demo-close': ui.demo = null; renderSheet(); break;
+    case 'bateman': $('#bateman').classList.remove('hidden'); break;
+    case 'bateman-close': $('#bateman').classList.add('hidden'); break;
     case 'demo-search': runDemoSearch(); break;
     case 'demo-variant': runDemoSearch(+el.dataset.k); break;
     case 'demo-change': ui.demo.picking = true; renderSheet(); if (!ui.demo.results) runDemoSearch(); break;
@@ -2381,6 +2383,7 @@ document.addEventListener('keydown', (ev) => {
   if (ev.key === 'Enter' && ev.target.id === 'swap-name') $('[data-act="swap-custom"]').click();
   if (ev.key === 'Enter' && ev.target.id === 'demo-q') { ev.target.blur(); runDemoSearch(); }
   if (ev.key === 'Escape' && ui.demo) { ui.demo = null; renderSheet(); }
+  if (ev.key === 'Escape') $('#bateman').classList.add('hidden');
 });
 
 // ---------- Swipe to delete a set ----------

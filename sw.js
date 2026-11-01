@@ -3,7 +3,7 @@ const CACHE = 'gym-tracker-v36';
 // Exercise demo data and photos never change, so they're served cache-first and kept across app updates.
 const MEDIA = 'gym-tracker-media';
 const MEDIA_URL = 'https://cdn.jsdelivr.net/gh/yuhonas/free-exercise-db@';
-const FILES = ['./', 'index.html', 'styles.css', 'app.js', 'manifest.json', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/logo.svg',
+const FILES = ['./', 'index.html', 'styles.css', 'app.js', 'manifest.json', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/logo.svg', 'icons/bateman.jpg',
   'fonts/fonts.css', 'fonts/ibm-400-hebrew.woff2', 'fonts/ibm-400-latin.woff2', 'fonts/ibm-500-hebrew.woff2', 'fonts/ibm-500-latin.woff2',
   'fonts/ibm-700-hebrew.woff2', 'fonts/ibm-700-latin.woff2', 'fonts/karantina-400-hebrew.woff2', 'fonts/karantina-400-latin.woff2',
   'fonts/karantina-700-hebrew.woff2', 'fonts/karantina-700-latin.woff2'];
