@@ -1261,6 +1261,7 @@ function saveAlt(e, name) {
 }
 
 function startWorkout(tpl) {
+  if (!confirm(`להתחיל את "${tpl ? tpl.name : 'אימון חופשי'}"? שעון האימון יתחיל לרוץ.`)) return;
   db.active = {
     id: uid(),
     templateId: tpl ? tpl.id : null,
