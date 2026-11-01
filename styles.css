@@ -225,6 +225,23 @@ input[type=date], input[type=password] {
   font-size: 16px;
   color-scheme: dark;
 }
+textarea {
+  width: 100%;
+  margin-top: 8px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  font: inherit;
+  font-size: 14px;
+  color: inherit;
+  resize: vertical;
+}
+textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.steps ol { margin: 10px 0 0; padding-inline-start: 20px; line-height: 1.5; }
+.steps li { margin-bottom: 12px; }
+.steps li .btn { display: block; margin-top: 6px; }
+details.adv summary { cursor: pointer; }
 .mgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 12px; }
 .mgrid .unit { font-size: 11px; }
 .stat .u { font-size: 15px; font-weight: 700; color: var(--muted); }

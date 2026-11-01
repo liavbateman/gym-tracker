@@ -51,7 +51,7 @@ function save() {
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 
 // ---------- Helpers ----------
-const ui = { tab: 'workout', draft: null, progEx: null, progMetric: 'e1rm', mdraft: null, bodyMetric: 'pbf', reading: false };
+const ui = { tab: 'workout', draft: null, progEx: null, progMetric: 'e1rm', mdraft: null, bodyMetric: 'pbf', reading: false, pasteOpen: false, pasteText: '' };
 
 const num = (v) => {
   if (v === '' || v == null) return null;
@@ -443,11 +443,25 @@ function viewMetrics() {
   const list = sortedMetrics();
   const hasKey = !!getApiKey();
 
+  const paste = ui.pasteOpen ? `
+    <div class="card steps">
+      <div class="row between"><h3>קליטת נתונים מ-Claude</h3><button class="icon-btn" data-act="paste-close" aria-label="סגור">✕</button></div>
+      <ol>
+        <li>העתק את ההוראה:<button class="btn sm" data-act="paste-copy">📄 העתק הוראה ל-Claude</button></li>
+        <li>פתח את Claude, צרף את תמונת הדוח והדבק את ההוראה.</li>
+        <li>העתק את התשובה שתקבל, חזור לכאן והדבק:
+          <button class="btn sm" data-act="paste-read">📥 הדבק מהלוח</button>
+          <textarea id="paste-text" data-f="paste-text" rows="4" dir="ltr" placeholder="או הדבק כאן ידנית…">${esc(ui.pasteText)}</textarea>
+        </li>
+      </ol>
+      <button class="btn primary block" data-act="paste-parse">קלוט נתונים</button>
+    </div>` : '<button class="btn primary block" data-act="paste-open" style="margin-top:0">📋 קליטת נתונים מ-Claude</button>';
+
   const upload = ui.reading
     ? '<div class="card center reading"><div class="spinner"></div><div style="margin-top:10px">קורא את הנתונים מהדוח…</div><div class="muted small">זה לוקח בדרך כלל כמה שניות</div></div>'
-    : `<button class="btn primary block" data-act="m-upload" style="margin-top:0">📷 העלה תמונה של דוח מדידה</button>
-       <button class="btn ghost block" data-act="m-manual">+ הזנה ידנית</button>
-       <input type="file" id="m-file" accept="image/*" hidden>`;
+    : `${paste}
+       ${hasKey ? '<button class="btn block" data-act="m-upload">📷 קריאה אוטומטית מתמונה</button><input type="file" id="m-file" accept="image/*" hidden>' : ''}
+       <button class="btn ghost block" data-act="m-manual">+ הזנה ידנית</button>`;
 
   let latest = '', chartCard = '', rows = '';
   if (list.length) {
@@ -482,14 +496,14 @@ function viewMetrics() {
 
   return `
     ${upload}
-    ${list.length ? latest + chartCard + '<h2>כל המדידות</h2>' + rows : '<div class="empty">עוד אין מדידות.<br>צלם את דוח ה-InBody (או כל דוח הרכב גוף) והנתונים ייקלטו אוטומטית.</div>'}
-    <h2>קריאת תמונות</h2>
-    <div class="card">
-      <label class="field">מפתח Claude API ${hasKey ? '<span class="ok">✓ שמור</span>' : ''}
+    ${list.length ? latest + chartCard + '<h2>כל המדידות</h2>' + rows : '<div class="empty">עוד אין מדידות.<br>צלם את דוח ה-InBody (או כל דוח הרכב גוף), תן ל-Claude לקרוא אותו והדבק את התשובה כאן.</div>'}
+    <details class="card adv">
+      <summary class="muted small">מתקדם: קריאה אוטומטית עם מפתח API (בתשלום לפי שימוש)</summary>
+      <label class="field" style="margin-top:10px">מפתח Claude API ${hasKey ? '<span class="ok">✓ שמור</span>' : ''}
         <input type="password" data-f="apikey" value="${esc(getApiKey())}" placeholder="sk-ant-…" autocomplete="off" dir="ltr">
       </label>
-      <p class="muted small" style="margin-bottom:0">כדי לקרוא נתונים מתמונה, האפליקציה שולחת את התמונה ל-Claude של Anthropic. המפתח נשמר רק בטלפון הזה ולא נכלל בקובץ הגיבוי. אפשר ליצור מפתח ב-console.anthropic.com.</p>
-    </div>`;
+      <p class="muted small" style="margin-bottom:0">עם מפתח, האפליקציה שולחת את התמונה ישירות ל-Claude בלי העתק-הדבק. זה נפרד מהמנוי ל-Claude ומחויב לפי שימוש (כמה סנטים לדוח). המפתח נשמר רק בטלפון הזה ולא נכלל בקובץ הגיבוי.</p>
+    </details>`;
 }
 
 function newMetricDraft(vals = {}, date = isoDay(Date.now()), history = [], fromImage = false) {
@@ -576,6 +590,60 @@ Fields:
 - history: every column of the "Body Composition History" table except the current test, with its date and the weight, smm and pbf values printed for it. Empty array if there is no such table.
 
 Read the measured value itself, not the normal range printed next to it in parentheses. Printouts often put a space after the decimal point ("86. 8" means 86.8). Use null for anything not on the report or not legible. Set is_report to false if the image is not a body composition report.`;
+
+// Same instructions for the copy-paste flow through the user's own Claude chat (no API key needed).
+const CHAT_PROMPT = `${REPORT_PROMPT}
+
+Reply with only a JSON object and nothing else, in this shape:
+{"is_report": true, "date": "YYYY-MM-DD", ${MFIELDS.map((f) => `"${f.k}": 0`).join(', ')}, "history": [{"date": "YYYY-MM-DD", "weight": 0, "smm": 0, "pbf": 0}]}`;
+
+const pad2 = (n) => String(n).padStart(2, '0');
+function normDate(s) {
+  s = String(s ?? '').trim();
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return `${m[1]}-${pad2(m[2])}-${pad2(m[3])}`;
+  m = s.match(/^(\d{1,2})[./](\d{1,2})[./](\d{2}|\d{4})\b/);
+  if (m) return `${m[3].length === 2 ? '20' + m[3] : m[3]}-${pad2(m[2])}-${pad2(m[1])}`;
+  return null;
+}
+
+// Pull the JSON object out of a pasted chat reply (it may come wrapped in a code block or extra text).
+function parseReportText(text) {
+  const s = String(text), a = s.indexOf('{'), b = s.lastIndexOf('}');
+  if (a < 0 || b <= a) return null;
+  let r;
+  try { r = JSON.parse(s.slice(a, b + 1)); } catch { return null; }
+  if (!r || typeof r !== 'object') return null;
+  const out = { is_report: r.is_report !== false, date: normDate(r.date) };
+  for (const f of MFIELDS) out[f.k] = num(r[f.k]);
+  out.history = (Array.isArray(r.history) ? r.history : [])
+    .map((h) => ({ date: normDate(h?.date), weight: num(h?.weight), smm: num(h?.smm), pbf: num(h?.pbf) }))
+    .filter((h) => h.date);
+  return out;
+}
+
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch { /* fall back below */ }
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  document.body.appendChild(ta);
+  ta.select();
+  const ok = document.execCommand('copy');
+  ta.remove();
+  return ok;
+}
+
+function importPasted() {
+  const r = parseReportText(ui.pasteText);
+  if (!r) { toast('לא נמצאו נתונים בטקסט. ודא שהעתקת את כל התשובה של Claude', 3500); return; }
+  if (!r.is_report) { toast('Claude לא זיהה דוח הרכב גוף בתמונה', 3500); return; }
+  if (MFIELDS.every((f) => r[f.k] == null)) { toast('לא נמצאו ערכים בתשובה', 3500); return; }
+  ui.mdraft = newMetricDraft(r, r.date || isoDay(Date.now()), r.history, true);
+  ui.pasteOpen = false;
+  ui.pasteText = '';
+  render();
+  window.scrollTo(0, 0);
+}
 
 async function readReport(file) {
   const apiKey = getApiKey();
@@ -936,6 +1004,18 @@ document.addEventListener('click', (ev) => {
       if (!getApiKey()) { toast('כדי לקרוא תמונות צריך להזין מפתח Claude API (למטה)', 3500); $('[data-f="apikey"]')?.focus(); return; }
       $('#m-file').click();
       break;
+    case 'paste-open': ui.pasteOpen = true; render(); break;
+    case 'paste-close': ui.pasteOpen = false; ui.pasteText = ''; render(); break;
+    case 'paste-copy':
+      copyText(CHAT_PROMPT).then((ok) => toast(ok ? 'ההוראה הועתקה. עכשיו פתח את Claude' : 'ההעתקה נכשלה'));
+      break;
+    case 'paste-read':
+      if (!navigator.clipboard?.readText) { $('#paste-text').focus(); return; }
+      navigator.clipboard.readText()
+        .then((t) => { ui.pasteText = t; render(); importPasted(); })
+        .catch(() => { toast('אין גישה ללוח, הדבק ידנית בתיבה'); $('#paste-text')?.focus(); });
+      break;
+    case 'paste-parse': importPasted(); break;
     case 'm-manual': ui.mdraft = newMetricDraft(); render(); window.scrollTo(0, 0); break;
     case 'm-edit': {
       const m = db.metrics.find((x) => x.id === el.dataset.id);
@@ -976,6 +1056,7 @@ document.addEventListener('input', (ev) => {
     case 'm-date': ui.mdraft.date = el.value; break;
     case 'm-val': ui.mdraft.vals[el.dataset.k] = el.value; break;
     case 'apikey': setApiKey(el.value.trim()); break;
+    case 'paste-text': ui.pasteText = el.value; break;
   }
 });
 
