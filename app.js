@@ -49,6 +49,7 @@ function load() {
 let db = load();
 if (!Array.isArray(db.metrics)) db.metrics = [];
 if (!db.muscles || typeof db.muscles !== 'object') db.muscles = {}; // exercise name -> body area, when set by hand
+if (!db.demos || typeof db.demos !== 'object') db.demos = {}; // exercise name -> chosen technique demo
 
 // ---------- Body areas ----------
 const GROUPS = ['חזה', 'גב', 'כתפיים', 'רגליים', 'יד קדמית', 'יד אחורית', 'בטן', 'אחר'];
@@ -239,6 +240,7 @@ function viewActive() {
           <div class="grow">
             <div class="area">${groupOf(e.name)}</div>
             <div class="ex-name">${esc(e.name)}</div>
+            <button class="link-btn demo-link" data-act="demo" data-e="${i}">▶ ${db.demos[e.name] ? 'הדגמה' : 'חפש הדגמה'}</button>
             <div class="prev">${prev ? 'פעם קודמת: ' + prev.map(prevLabel).join(' · ') : 'תרגיל חדש'}</div>
           </div>
           <button class="rest-pill" data-act="ex-rest" data-e="${i}" aria-label="שנה זמן מנוחה">מנוחה ${e.rest} ש׳</button>
@@ -311,6 +313,7 @@ function viewEditor() {
     <div class="tex">
       <div class="row">
         <input type="text" class="grow" list="exnames" data-f="tex-name" data-i="${i}" value="${esc(e.name)}" placeholder="שם התרגיל">
+        <button class="icon-btn" data-act="demo" data-i="${i}" aria-label="הדגמת התרגיל">▶</button>
         <button class="icon-btn" data-act="tex-up" data-i="${i}" aria-label="הזז למעלה">▲</button>
         <button class="icon-btn" data-act="tex-down" data-i="${i}" aria-label="הזז למטה">▼</button>
         <button class="icon-btn" data-act="tex-del" data-i="${i}" aria-label="הסר">✕</button>
@@ -785,6 +788,149 @@ async function handleReportFile(file) {
   }
 }
 
+// ---------- Exercise demos ----------
+// Technique demos come from free-exercise-db (public domain, ~870 exercises, two photos each: start and end position).
+// The app alternates the two photos so they play like a short GIF. The chosen demo is saved per exercise name.
+const EXDB = 'https://cdn.jsdelivr.net/gh/yuhonas/free-exercise-db@main/';
+const exImg = (p) => EXDB + 'exercises/' + p;
+
+// Hebrew → English search terms. Checked in order and each match is removed, so specific phrases come before
+// the general words they contain.
+const HE_EN = [
+  ['פשיטת מרפקים בכבל', 'triceps pushdown'], ['פשיטות מרפקים בכבל', 'triceps pushdown'],
+  ['לחיצת חזה בשיפוע שלילי', 'decline bench press'], ['לחיצת חזה בשיפוע', 'incline bench press'],
+  ['לחיצת חזה', 'bench press'], ['לחיצת כתפיים', 'shoulder press'], ['לחיצה צבאית', 'military press'],
+  ['לחיצת רגליים', 'leg press'], ['לחיצה', 'press'],
+  ['דדליפט רומני', 'romanian deadlift'], ['דדליפט', 'deadlift'],
+  ['סקוואט בולגרי', 'split squat'], ['סקוואט קדמי', 'front squat'], ['גובלט', 'goblet squat'], ['סקוואט', 'squat'],
+  ['הרמות רגליים בתלייה', 'hanging leg raise'], ['הרמת רגליים בתלייה', 'hanging leg raise'],
+  ['הרמת עקבים', 'calf raise'], ['הרמות עקבים', 'calf raise'],
+  ['פשיטת ברכיים', 'leg extensions'], ['פשיטות ברכיים', 'leg extensions'],
+  ['כפיפת ברכיים', 'leg curl'], ['כפיפות ברכיים', 'leg curl'],
+  ['כפיפת מרפקים', 'curl'], ['כפיפות מרפקים', 'curl'], ['פטיש', 'hammer curl'],
+  ['פשיטת מרפקים', 'triceps extension'], ['פשיטות מרפקים', 'triceps extension'], ['פרנץ', 'triceps extension'],
+  ['סקאל קראשר', 'skullcrusher'], ['פשיטת גב', 'hyperextensions'], ['היפר', 'hyperextensions'],
+  ['פולי עליון', 'pulldown'], ['פולי תחתון', 'seated cable rows'], ['פולי', 'pulldown'],
+  ['חתירה', 'row'], ['מתח', 'pullups'], ['מכרעים', 'lunge'], ['מכרע', 'lunge'], ['לאנג', 'lunge'],
+  ['היפ טראסט', 'hip thrust'], ['גשר ישבן', 'glute bridge'],
+  ['הרחקת ירכיים', 'thigh abductor'], ['קירוב ירכיים', 'thigh adductor'],
+  ['הרחקה לצדדים', 'lateral raise'], ['הרחקות לצדדים', 'lateral raise'], ['הרחקה', 'lateral raise'], ['הרחקות', 'lateral raise'],
+  ['הרמה קדמית', 'front raise'], ['ארנולד', 'arnold press'], ['פייס פול', 'face pull'], ['שראג', 'shrug'],
+  ['פרפר', 'flyes'], ['קרוס אובר', 'crossover'], ['פול אובר', 'pullover'], ['מקבילים', 'dips'],
+  ['שכיבות סמיכה', 'pushups'], ['פלאנק', 'plank'], ['כפיפות בטן', 'crunch'], ['קראנץ', 'crunch'], ['כפיפות גו', 'crunch'],
+  ['בשיפוע', 'incline'], ['מוט', 'barbell'], ['משקולות', 'dumbbell'], ['משקולת', 'dumbbell'], ['דאמבל', 'dumbbell'],
+  ['כבל', 'cable'], ['מכונה', 'machine'], ['מכונת', 'machine'], ['סמית', 'smith'], ['קטלבל', 'kettlebell'],
+  ['גומי', 'bands'], ['ישיבה', 'seated'], ['עמידה', 'standing'], ['שכיבה', 'lying'], ['יד אחת', 'one arm'],
+];
+const hasHebrew = (s) => /[֐-׿]/.test(s);
+function toEnglish(q) {
+  q = String(q || '');
+  if (!hasHebrew(q)) return q.trim();
+  const out = [];
+  for (const [he, en] of HE_EN) if (q.includes(he)) { out.push(en); q = q.split(he).join(' '); }
+  // Keep any Latin words the name already had (e.g. "לחיצת חזה Smith").
+  return [...out, ...(q.match(/[a-z0-9]+/gi) || [])].join(' ');
+}
+
+// Plural "s" is dropped on both sides so "pullups" matches "Pullup" and "flyes" matches "Flye".
+const exTokens = (s) => String(s).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).map((t) => (t.length > 3 ? t.replace(/s$/, '') : t));
+function searchExercises(list, q) {
+  const qt = [...new Set(exTokens(q))];
+  if (!qt.length) return [];
+  return list.map((x) => {
+    const nt = exTokens(x.name);
+    let score = 0;
+    for (const t of qt) score += nt.includes(t) ? 2 : nt.some((n) => n.startsWith(t) || t.startsWith(n)) ? 1 : 0;
+    return { x, score: score - nt.length * 0.1 }; // shorter names win ties: "Barbell Squat" over "Barbell Squat To A Bench"
+  }).filter((r) => r.score > qt.length * 0.9).sort((a, b) => b.score - a.score).slice(0, 12).map((r) => r.x);
+}
+
+let exList = null;
+function loadExercises() {
+  exList ||= fetch(EXDB + 'dist/exercises.json').then((r) => { if (!r.ok) throw new Error(); return r.json(); });
+  exList.catch(() => { exList = null; }); // retry on the next search
+  return exList;
+}
+
+const demoAnim = (images, big) => `
+  <div class="demo-anim ${big ? 'big' : ''}" dir="ltr">
+    <img src="${esc(exImg(images[0]))}" alt="" loading="lazy" crossorigin="anonymous">
+    ${images[1] ? `<img src="${esc(exImg(images[1]))}" alt="" loading="lazy" crossorigin="anonymous">` : ''}
+  </div>`;
+
+function openDemo(name) {
+  if (!name.trim()) { toast('קודם תן שם לתרגיל'); return; }
+  ui.demo = { name, q: toEnglish(name), results: null, loading: false, error: '', picking: !db.demos[name] };
+  renderSheet();
+  if (ui.demo.picking) runDemoSearch();
+}
+
+async function runDemoSearch() {
+  const d = ui.demo;
+  d.picking = true;
+  d.loading = true; d.error = ''; d.results = null;
+  renderSheet();
+  const q = toEnglish(d.q);
+  try {
+    const list = await loadExercises();
+    d.results = searchExercises(list, q);
+    if (!d.results.length) d.error = q ? 'לא נמצאו תרגילים. נסה מילים אחרות, למשל באנגלית.' : 'לא הצלחתי לתרגם את השם. נסה לכתוב אותו באנגלית.';
+  } catch {
+    d.error = 'אין חיבור לאינטרנט. החיפוש צריך רשת.';
+  }
+  d.loading = false;
+  if (ui.demo === d) renderSheet();
+}
+
+function viewDemo() {
+  const d = ui.demo;
+  const saved = db.demos[d.name];
+  let body;
+  if (!d.picking && saved) {
+    body = `
+      ${demoAnim(saved.images, true)}
+      <div class="demo-en" dir="ltr">${esc(saved.name)}</div>
+      ${saved.instructions?.length ? `<ol class="demo-steps" dir="ltr">${saved.instructions.map((s) => `<li>${esc(s)}</li>`).join('')}</ol>` : ''}
+      <div class="row" style="margin-top:12px">
+        <button class="btn sm" data-act="demo-change">החלף הדגמה</button>
+        <button class="btn sm danger" data-act="demo-clear">הסר</button>
+      </div>`;
+  } else {
+    const results = d.loading
+      ? '<div class="center" style="padding:24px 0"><div class="spinner"></div></div>'
+      : d.error ? `<p class="muted small">${esc(d.error)}</p>`
+      : (d.results || []).map((x) => `
+        <button class="demo-pick" data-act="demo-pick" data-id="${esc(x.id)}">
+          ${demoAnim(x.images)}
+          <span class="demo-en" dir="ltr">${esc(x.name)}</span>
+          <span class="muted small">${esc(x.equipment || '')}</span>
+        </button>`).join('');
+    body = `
+      <div class="row">
+        <input type="search" class="grow" data-f="demo-q" id="demo-q" value="${esc(d.q)}" placeholder="שם התרגיל (עברית או אנגלית)" dir="auto" enterkeyhint="search">
+        <button class="btn" data-act="demo-search">חפש</button>
+      </div>
+      <p class="muted small" style="margin:8px 0 0">בחר את ההדגמה המתאימה. היא תישמר לתרגיל הזה.</p>
+      <div class="demo-grid">${results}</div>
+      ${saved ? '<button class="btn block" data-act="demo-back">חזרה להדגמה השמורה</button>' : ''}`;
+  }
+  return `
+    <div class="sheet-panel" data-act="none" role="dialog" aria-modal="true" aria-label="הדגמת תרגיל">
+      <div class="row between" style="margin-bottom:12px">
+        <h3 class="grow">${esc(d.name)}</h3>
+        <button class="icon-btn" data-act="demo-close" aria-label="סגור">✕</button>
+      </div>
+      ${body}
+    </div>`;
+}
+
+function renderSheet() {
+  const el = $('#sheet');
+  el.classList.toggle('hidden', !ui.demo);
+  document.body.classList.toggle('sheet-open', !!ui.demo);
+  el.innerHTML = ui.demo ? viewDemo() : '';
+}
+
 function render() {
   document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === ui.tab));
   let title, html;
@@ -1197,6 +1343,23 @@ document.addEventListener('click', (ev) => {
     case 'm-del':
       if (confirm('למחוק את המדידה?')) { db.metrics = db.metrics.filter((m) => m.id !== ui.mdraft.id); ui.mdraft = null; save(); render(); }
       break;
+    case 'demo': openDemo(el.dataset.e != null ? ex.name : ui.draft.exercises[i].name); break;
+    case 'demo-close': ui.demo = null; renderSheet(); break;
+    case 'demo-search': runDemoSearch(); break;
+    case 'demo-change': ui.demo.picking = true; renderSheet(); if (!ui.demo.results) runDemoSearch(); break;
+    case 'demo-back': ui.demo.picking = false; renderSheet(); break;
+    case 'demo-pick': {
+      const x = ui.demo.results.find((r) => r.id === el.dataset.id);
+      db.demos[ui.demo.name] = { id: x.id, name: x.name, images: x.images.slice(0, 2), instructions: x.instructions || [] };
+      ui.demo.picking = false;
+      save(); render(); renderSheet();
+      break;
+    }
+    case 'demo-clear':
+      delete db.demos[ui.demo.name];
+      ui.demo = null;
+      save(); render(); renderSheet();
+      break;
     case 'export': exportData(); break;
     case 'import': $('#import-file').click(); break;
   }
@@ -1228,6 +1391,7 @@ document.addEventListener('input', (ev) => {
     case 'm-val': ui.mdraft.vals[el.dataset.k] = el.value; break;
     case 'apikey': setApiKey(el.value.trim()); break;
     case 'paste-text': ui.pasteText = el.value; break;
+    case 'demo-q': ui.demo.q = el.value; break;
   }
 });
 
@@ -1243,6 +1407,8 @@ document.addEventListener('change', (ev) => {
 
 document.addEventListener('keydown', (ev) => {
   if (ev.key === 'Enter' && ev.target.id === 'new-ex') $('[data-act="ex-add"]').click();
+  if (ev.key === 'Enter' && ev.target.id === 'demo-q') { ev.target.blur(); runDemoSearch(); }
+  if (ev.key === 'Escape' && ui.demo) { ui.demo = null; renderSheet(); }
 });
 
 // ---------- Swipe to delete a set ----------
