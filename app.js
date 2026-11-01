@@ -227,7 +227,10 @@ function viewActive() {
         <div class="set-grid set-head"><span>סט</span><span>ק״ג</span><span>חזרות</span><span></span></div>
         ${rows}
         <div class="row between" style="margin-top:8px">
-          <button class="btn sm" data-act="set-add" data-e="${i}">+ סט</button>
+          <div class="row">
+            <button class="btn sm" data-act="set-add" data-e="${i}">+ סט</button>
+            ${e.sets.some((s) => s.wu) ? '' : `<button class="btn sm" data-act="wu-add" data-e="${i}">+ חימום</button>`}
+          </div>
           <button class="link-btn" data-act="ex-del" data-e="${i}">הסר תרגיל</button>
         </div>
       </div>`;
@@ -458,14 +461,15 @@ function makeExercise(src, warmup) {
     return { w: '', r: '', pw, pr, done: false };
   });
   if (db.settings.lastSetFail && sets.length) sets[sets.length - 1].fail = true;
-  if (warmup) {
-    // Suggest last time's warmup, or ~50% of the working weight (rounded to 2.5) for 10 reps.
-    const last = lastWarmupFor(name);
-    const base = up || (prev && prev[0].w);
-    const half = base ? Math.round((base * 0.5) / 2.5) * 2.5 : '';
-    sets.unshift({ wu: true, w: '', r: '', pw: last ? fmtW(last.w) : (half ? fmtW(half) : ''), pr: last ? String(last.r) : '10', done: false });
-  }
+  if (warmup) sets.unshift(makeWarmup(name, up || (prev && prev[0].w)));
   return { id: uid(), name, rest: num(src.rest) || db.settings.defaultRest, target: target || '', inc, up: up ? inc : 0, sets };
+}
+
+// Suggest last time's warmup, or ~50% of the working weight (rounded to 2.5) for 10 reps.
+function makeWarmup(name, workWeight) {
+  const last = lastWarmupFor(name);
+  const half = workWeight ? Math.round((workWeight * 0.5) / 2.5) * 2.5 : '';
+  return { wu: true, w: '', r: '', pw: last ? fmtW(last.w) : (half ? fmtW(half) : ''), pr: last ? String(last.r) : '10', done: false };
 }
 
 function startWorkout(tpl) {
@@ -705,6 +709,12 @@ document.addEventListener('click', (ev) => {
       break;
     }
     case 'set-del': ex.sets.splice(s, 1); save(); render(); break;
+    case 'wu-add': {
+      const first = ex.sets.find((x) => !x.wu);
+      ex.sets.unshift(makeWarmup(ex.name, first && (num(first.w) ?? num(first.pw))));
+      save(); render();
+      break;
+    }
     case 'ex-del':
       if (confirm(`להסיר את "${ex.name}" מהאימון?`)) { db.active.exercises.splice(e, 1); save(); render(); }
       break;
