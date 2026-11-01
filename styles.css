@@ -9,6 +9,8 @@
   --hl: #E6F53A;        /* highlighter: done sets, what's next */
   --hl-ink: #14234B;
   --red: #D2283C;       /* correction pen: records, deleting */
+  --mus-1: #E5332A;     /* muscles: main movers */
+  --mus-2: #F5961E;     /* muscles: helpers */
   --field: #FFFFFF;
   --display: "Karantina", "IBM Plex Sans Hebrew", sans-serif;
   --body: "IBM Plex Sans Hebrew", -apple-system, "Segoe UI", Arial, sans-serif;
@@ -29,6 +31,8 @@
     --hl: #DCEB3B;
     --hl-ink: #0F141C;
     --red: #FF5A6A;
+    --mus-1: #FF4D3D;
+    --mus-2: #FFA53A;
     --field: #0F141C;
     color-scheme: dark;
   }
@@ -246,6 +250,18 @@ label.field input, label.field select { margin-top: 4px; color: var(--ink); }
 
 .ex-name { font-family: var(--display); font-weight: 700; font-size: 30px; line-height: 1.05; }
 .prev { font-size: 12px; color: var(--ink-soft); margin-top: 3px; }
+
+/* Muscles worked: red for the main movers, orange for the helpers */
+.muscles { display: flex; align-items: center; gap: 12px; margin-top: 10px; padding: 8px 10px; border: 1px solid var(--rule); border-radius: 6px; }
+.muscle-figs { display: flex; gap: 4px; flex: none; }
+.muscle-figs svg { width: 34px; height: 78px; display: block; }
+.muscle-figs g { fill: var(--rule); }
+.muscle-figs g.ms, .dot.ms { fill: var(--mus-2); background: var(--mus-2); }
+.muscle-figs g.mp, .dot.mp { fill: var(--mus-1); background: var(--mus-1); }
+.muscle-list { font-size: 13px; line-height: 1.5; min-width: 0; }
+.muscle-list b { font-weight: 700; }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-inline-end: 6px; vertical-align: 0; }
+.tex .muscles { margin-top: 8px; }
 
 /* Set rows: a grid that slides over a red delete layer when swiped */
 .set-grid { display: grid; grid-template-columns: 26px 1fr 1fr 44px; gap: 4px; align-items: center; }

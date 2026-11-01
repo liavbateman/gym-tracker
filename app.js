@@ -183,6 +183,98 @@ function areaRuns(list, areaOf) {
 }
 const areaDivider = (area, n) => `<div class="area-div"><b>${area}</b><span>${n === 1 ? 'תרגיל אחד' : `${n} תרגילים`}</span></div>`;
 
+// ---------- Muscles worked ----------
+// Muscle keys are free-exercise-db's, so a picked demo's own muscle list can be used as is.
+const MUSCLE_NAMES = {
+  chest: 'חזה', shoulders: 'כתפיים', triceps: 'יד אחורית', biceps: 'יד קדמית', forearms: 'אמות', abdominals: 'בטן',
+  lats: 'רחב גבי', 'middle back': 'גב אמצעי', 'lower back': 'גב תחתון', traps: 'טרפזים', neck: 'צוואר',
+  quadriceps: 'ארבע ראשי', hamstrings: 'המסטרינג', glutes: 'ישבן', calves: 'תאומים', adductors: 'מקרבים', abductors: 'מרחיקים',
+};
+// [name pattern, primary, secondary], most specific first.
+const MUSCLE_HINTS = [
+  [/פרפר הפוך|פייס פול/, ['shoulders'], ['traps', 'middle back']],
+  [/מקבילים/, ['triceps', 'chest'], ['shoulders']],
+  [/פרפר|פק דק|פלאי/, ['chest'], ['shoulders']],
+  [/חזה|שכיבות סמיכה/, ['chest'], ['shoulders', 'triceps']],
+  [/הרחק/, ['shoulders'], ['traps']],
+  [/כתפ|צבאית|ארנולד/, ['shoulders'], ['triceps', 'traps']],
+  [/שראג/, ['traps'], ['forearms']],
+  [/פול ?אובר/, ['lats'], ['chest', 'triceps']],
+  [/מתח|פולי עליון/, ['lats'], ['biceps', 'middle back']],
+  [/חתיר|פולי תחתון/, ['middle back', 'lats'], ['biceps', 'traps', 'shoulders']],
+  [/פלאנק/, ['abdominals'], ['shoulders', 'lower back']],
+  [/בטן|כפיפות גו|קראנץ|הרמות רגליים/, ['abdominals'], []],
+  [/רומני|RDL|גוד מורנינג/i, ['hamstrings', 'glutes'], ['lower back']],
+  [/דדליפט/, ['lower back', 'glutes', 'hamstrings'], ['quadriceps', 'traps', 'forearms']],
+  [/היפ|גשר/, ['glutes'], ['hamstrings']],
+  [/פשיטת ברכ/, ['quadriceps'], []],
+  [/כפיפת ברכ/, ['hamstrings'], ['calves']],
+  [/עקב|תאומ/, ['calves'], []],
+  [/מקרב/, ['adductors'], []],
+  [/מרחיק/, ['abductors'], ['glutes']],
+  [/סקוואט|לחיצת רגליים|מכרע|לאנג|האק|גובלט/, ['quadriceps', 'glutes'], ['hamstrings', 'adductors']],
+  [/פטיש/, ['biceps', 'forearms'], []],
+  [/כפיפת מרפק|כפיפות מרפק|בייספס/, ['biceps'], ['forearms']],
+  [/פשיטת מרפק|פשיטות מרפק|טרייספס|פרנץ|סקאל/, ['triceps'], []],
+];
+// When the name says nothing more specific: what the body area mostly works.
+const AREA_MUSCLES = {
+  'חזה': [['chest'], ['shoulders', 'triceps']], 'גב': [['lats', 'middle back'], ['biceps', 'traps']],
+  'כתפיים': [['shoulders'], ['triceps', 'traps']], 'רגליים': [['quadriceps', 'glutes'], ['hamstrings', 'calves']],
+  'יד קדמית': [['biceps'], ['forearms']], 'יד אחורית': [['triceps'], []], 'בטן': [['abdominals'], []],
+};
+// The chosen demo's muscles if it has them, else the name's, else the body area's.
+function musclesFor(name, area = groupOf(name)) {
+  const d = db.demos[name];
+  if (d?.pm?.length) return { p: d.pm, s: (d.sm || []).filter((m) => !d.pm.includes(m)) };
+  const hit = MUSCLE_HINTS.find(([re]) => re.test(name || ''));
+  const [p, s] = hit ? hit.slice(1) : AREA_MUSCLES[area] || [[], []];
+  return { p, s };
+}
+
+// Front and back figures; each part is tagged with the muscle it stands for.
+const BODY_FRONT = [
+  ['', '<circle cx="25" cy="8" r="5.5"/><rect x="22.5" y="13" width="5" height="4"/><path d="M18 47h14l1.5 6h-17z"/><circle cx="7" cy="56" r="2.3"/><circle cx="43" cy="56" r="2.3"/><ellipse cx="20" cy="83" rx="3" ry="2.5"/><ellipse cx="30" cy="83" rx="3" ry="2.5"/><ellipse cx="19.5" cy="110" rx="3.2" ry="2"/><ellipse cx="30.5" cy="110" rx="3.2" ry="2"/>'],
+  ['traps', '<path d="M19.5 18l3-1.5h5l3 1.5-2 1.5h-7z"/>'],
+  ['shoulders', '<ellipse cx="13.5" cy="21.5" rx="4.8" ry="4.3"/><ellipse cx="36.5" cy="21.5" rx="4.8" ry="4.3"/>'],
+  ['chest', '<rect x="16.5" y="19" width="8.2" height="10.5" rx="3"/><rect x="25.3" y="19" width="8.2" height="10.5" rx="3"/>'],
+  ['biceps', '<ellipse cx="10.5" cy="32" rx="3.2" ry="6.8"/><ellipse cx="39.5" cy="32" rx="3.2" ry="6.8"/>'],
+  ['forearms', '<ellipse cx="8.3" cy="46" rx="2.8" ry="7"/><ellipse cx="41.7" cy="46" rx="2.8" ry="7"/>'],
+  ['abdominals', '<rect x="18.5" y="30.5" width="13" height="16" rx="3"/>'],
+  ['quadriceps', '<ellipse cx="20" cy="68" rx="4.6" ry="12"/><ellipse cx="30" cy="68" rx="4.6" ry="12"/>'],
+  ['adductors', '<ellipse cx="23.6" cy="62" rx="1.5" ry="6"/><ellipse cx="26.4" cy="62" rx="1.5" ry="6"/>'],
+  ['calves', '<ellipse cx="19.8" cy="96" rx="3" ry="10"/><ellipse cx="30.2" cy="96" rx="3" ry="10"/>'],
+];
+const BODY_BACK = [
+  ['', '<circle cx="25" cy="8" r="5.5"/><circle cx="7" cy="56" r="2.3"/><circle cx="43" cy="56" r="2.3"/><ellipse cx="20" cy="83" rx="3" ry="2.5"/><ellipse cx="30" cy="83" rx="3" ry="2.5"/><ellipse cx="19.5" cy="110" rx="3.2" ry="2"/><ellipse cx="30.5" cy="110" rx="3.2" ry="2"/>'],
+  ['shoulders', '<ellipse cx="13.5" cy="21.5" rx="4.8" ry="4.3"/><ellipse cx="36.5" cy="21.5" rx="4.8" ry="4.3"/>'],
+  ['lats', '<path d="M16.5 24l4.5 3.5 1.5 13-4.5-1.5q-3-7-1.5-15z"/><path d="M33.5 24l-4.5 3.5-1.5 13 4.5-1.5q3-7 1.5-15z"/>'],
+  ['middle back', '<rect x="21.5" y="25" width="7" height="11" rx="2"/>'],
+  ['traps', '<path d="M22.5 13h5v3l3.5 2-6 8-6-8 3.5-2z"/>'],
+  ['lower back', '<rect x="20.5" y="37" width="9" height="9.5" rx="2.5"/>'],
+  ['triceps', '<ellipse cx="10.5" cy="32" rx="3.2" ry="6.8"/><ellipse cx="39.5" cy="32" rx="3.2" ry="6.8"/>'],
+  ['forearms', '<ellipse cx="8.3" cy="46" rx="2.8" ry="7"/><ellipse cx="41.7" cy="46" rx="2.8" ry="7"/>'],
+  ['glutes', '<ellipse cx="21" cy="53" rx="4.6" ry="5.5"/><ellipse cx="29" cy="53" rx="4.6" ry="5.5"/>'],
+  ['abductors', '<ellipse cx="15.8" cy="54" rx="1.5" ry="4.5"/><ellipse cx="34.2" cy="54" rx="1.5" ry="4.5"/>'],
+  ['hamstrings', '<ellipse cx="20.3" cy="70" rx="4.3" ry="10"/><ellipse cx="29.7" cy="70" rx="4.3" ry="10"/>'],
+  ['calves', '<ellipse cx="19.8" cy="94" rx="3.4" ry="9"/><ellipse cx="30.2" cy="94" rx="3.4" ry="9"/>'],
+];
+const bodySvg = (parts, m, label) => `<svg viewBox="0 0 50 114" role="img" aria-label="${label}">${parts.map(([k, shapes]) =>
+  `<g class="${m.p.includes(k) ? 'mp' : m.s.includes(k) ? 'ms' : ''}">${shapes}</g>`).join('')}</svg>`;
+const muscleNames = (list) => list.map((k) => MUSCLE_NAMES[k] || k).join(', ');
+function muscleMap(name, area) {
+  const m = musclesFor(name, area);
+  if (!m.p.length) return '';
+  return `
+    <div class="muscles">
+      <div class="muscle-figs" aria-hidden="true">${bodySvg(BODY_FRONT, m, 'מלפנים')}${bodySvg(BODY_BACK, m, 'מאחור')}</div>
+      <div class="muscle-list">
+        <div><i class="dot mp"></i><b>ראשי:</b> ${esc(muscleNames(m.p))}</div>
+        ${m.s.length ? `<div><i class="dot ms"></i><b>משני:</b> ${esc(muscleNames(m.s))}</div>` : ''}
+      </div>
+    </div>`;
+}
+
 // Saved alternatives first, then exercises from the same body area (ones done before ahead of the stock list).
 function altsFor(name) {
   const g = groupOf(name);
@@ -416,6 +508,7 @@ function viewActive() {
             <button class="link-btn" data-act="ex-del" data-e="${i}">הסר תרגיל</button>
           </div>
         </div>
+        ${muscleMap(e.name, groupOf(e.swapOf || e.name))}
         ${ui.swap === i ? viewSwap(e, i) : ''}
       </div>`;
   };
@@ -556,6 +649,7 @@ function viewEditor() {
         <button class="icon-btn" data-act="tex-down" data-i="${i}" aria-label="הזז למטה">▼</button>
         <button class="icon-btn" data-act="tex-del" data-i="${i}" aria-label="הסר">✕</button>
       </div>
+      ${e.name.trim() ? muscleMap(e.name, draftGroup(e)) : ''}
       <div class="grid">
         <label class="field">סטים<input type="number" inputmode="numeric" data-f="tex-sets" data-i="${i}" value="${esc(e.sets)}"></label>
         <label class="field">חזרות<input type="number" inputmode="numeric" data-f="tex-reps" data-i="${i}" value="${esc(e.reps)}"></label>
@@ -1858,7 +1952,7 @@ document.addEventListener('click', (ev) => {
     case 'demo-back': ui.demo.picking = false; renderSheet(); break;
     case 'demo-pick': {
       const x = ui.demo.results.find((r) => r.id === el.dataset.id);
-      db.demos[ui.demo.name] = { id: x.id, name: x.name, images: x.images.slice(0, 2), instructions: x.instructions || [] };
+      db.demos[ui.demo.name] = { id: x.id, name: x.name, images: x.images.slice(0, 2), instructions: x.instructions || [], pm: x.primaryMuscles || [], sm: x.secondaryMuscles || [] };
       ui.demo.picking = false;
       save(); render(); renderSheet();
       break;
@@ -1998,6 +2092,18 @@ document.addEventListener('click', (ev) => {
 // ---------- Boot ----------
 if (db.active) requestWakeLock();
 render();
+// Demos picked before muscles were stored get them from the exercise database.
+if (Object.values(db.demos).some((d) => !d.pm)) {
+  loadExercises().then((list) => {
+    const byId = new Map(list.map((x) => [x.id, x]));
+    for (const d of Object.values(db.demos)) {
+      const x = byId.get(d.id);
+      if (x && !d.pm) { d.pm = x.primaryMuscles || []; d.sm = x.secondaryMuscles || []; }
+    }
+    save();
+    if (!document.activeElement?.matches('input, select, textarea')) render();
+  }).catch(() => {});
+}
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   // An installed iPhone app is usually resumed, not relaunched, so check for a new version whenever it comes back
