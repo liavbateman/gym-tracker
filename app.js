@@ -173,6 +173,15 @@ function markStretch(w, phase, id, on) {
 }
 const guessGroup = (name) => (GROUP_HINTS.find(([, re]) => re.test(name || '')) || ['אחר'])[0];
 const groupOf = (name) => db.muscles[name] || guessGroup(name);
+// Template-editor exercises can carry an area picked in the editor before it's saved.
+const draftGroup = (e) => e.group || groupOf(e.name);
+// Indices grouped by body area, areas in order of first appearance, exercise order kept within each area.
+function areaRuns(list, areaOf) {
+  const runs = new Map();
+  list.forEach((x, i) => { const a = areaOf(x); if (!runs.has(a)) runs.set(a, []); runs.get(a).push(i); });
+  return [...runs];
+}
+const areaDivider = (area, n) => `<div class="area-div"><b>${area}</b><span>${n === 1 ? 'תרגיל אחד' : `${n} תרגילים`}</span></div>`;
 
 // Saved alternatives first, then exercises from the same body area (ones done before ahead of the stock list).
 function altsFor(name) {
@@ -365,7 +374,7 @@ const stepper = (e, s, f, value, placeholder, mode) => `
 
 function viewActive() {
   const w = db.active;
-  const exs = w.exercises.map((e, i) => {
+  const card = (e, i) => {
     const prev = lastSetsFor(e.name);
     let n = 0;
     // Each set row slides sideways on swipe to reveal a delete button underneath (see swipe handling below).
@@ -388,7 +397,6 @@ function viewActive() {
       <div class="card">
         <div class="row between">
           <div class="grow">
-            <div class="area">${groupOf(e.name)}</div>
             <div class="ex-name">${esc(e.name)}</div>
             ${e.swapOf ? `<div class="muted small">במקום ${esc(e.swapOf)} · <button class="link-btn" data-act="unswap" data-e="${i}" style="padding:0">התפנה? חזור</button></div>` : ''}
             <button class="link-btn demo-link" data-act="demo" data-e="${i}">▶ ${db.demos[e.name] ? 'הדגמה' : 'חפש הדגמה'}</button>
@@ -410,7 +418,10 @@ function viewActive() {
         </div>
         ${ui.swap === i ? viewSwap(e, i) : ''}
       </div>`;
-  }).join('');
+  };
+  // Shown grouped by body area; data-e indices still point at the exercise's place in the workout.
+  const exs = areaRuns(w.exercises, (e) => groupOf(e.name))
+    .map(([area, idx]) => areaDivider(area, idx.length) + idx.map((i) => card(w.exercises[i], i)).join('')).join('');
 
   return `
     <p class="muted small" style="margin:0 0 10px">טיפ: לחיצה על מספר הסט מסמנת שהלכת בו <b class="t-fail">עד כשל</b>. כדי למחוק סט – החלק אותו הצידה.</p>
@@ -530,7 +541,13 @@ function viewTemplates() {
 
 function viewEditor() {
   const d = ui.draft;
+  // Keep each body area's exercises together, so ▲▼ move within an area (or move the whole area past its neighbor).
+  const runs = areaRuns(d.exercises, draftGroup);
+  d.exercises = runs.flatMap(([, idx]) => idx.map((i) => d.exercises[i]));
+  const firstOf = new Set(); let k = 0;
+  for (const [, idx] of runs) { firstOf.add(k); k += idx.length; }
   const exs = d.exercises.map((e, i) => `
+    ${firstOf.has(i) ? areaDivider(draftGroup(e), d.exercises.filter((x) => draftGroup(x) === draftGroup(e)).length) : ''}
     <div class="tex">
       <div class="row">
         <input type="text" class="grow" list="exnames" data-f="tex-name" data-i="${i}" value="${esc(e.name)}" placeholder="שם התרגיל">
@@ -545,7 +562,7 @@ function viewEditor() {
         <label class="field">מנוחה (ש׳)<input type="number" inputmode="numeric" data-f="tex-rest" data-i="${i}" value="${esc(e.rest)}"></label>
         <label class="field">משקל (ק״ג)<input type="number" inputmode="decimal" step="any" data-f="tex-w" data-i="${i}" value="${esc(e.w ?? '')}" placeholder="—"></label>
         <label class="field span2">אזור גוף
-          <select data-f="tex-group" data-i="${i}">${GROUPS.map((g) => `<option ${g === (e.group || guessGroup(e.name)) ? 'selected' : ''}>${g}</option>`).join('')}</select>
+          <select data-f="tex-group" data-i="${i}">${GROUPS.map((g) => `<option ${g === draftGroup(e) ? 'selected' : ''}>${g}</option>`).join('')}</select>
         </label>
       </div>
     </div>`).join('');
@@ -1762,7 +1779,15 @@ document.addEventListener('click', (ev) => {
       const j = act === 'tex-up' ? i - 1 : i + 1;
       const arr = ui.draft.exercises;
       if (j < 0 || j >= arr.length) return;
-      [arr[i], arr[j]] = [arr[j], arr[i]];
+      if (draftGroup(arr[i]) === draftGroup(arr[j])) [arr[i], arr[j]] = [arr[j], arr[i]];
+      else {
+        // At the edge of its area: swap the whole area with the neighboring one.
+        const runs = areaRuns(arr, draftGroup);
+        const r = runs.findIndex(([a]) => a === draftGroup(arr[i]));
+        const o = act === 'tex-up' ? r - 1 : r + 1;
+        [runs[r], runs[o]] = [runs[o], runs[r]];
+        ui.draft.exercises = runs.flatMap(([, idx]) => idx.map((x) => arr[x]));
+      }
       render();
       break;
     }
@@ -1874,6 +1899,7 @@ document.addEventListener('input', (ev) => {
 document.addEventListener('change', (ev) => {
   const el = ev.target;
   if (el.dataset.f === 'prog-ex') { ui.progEx = el.value; render(); }
+  if (el.dataset.f === 'tex-group') render(); // regroup under the new area
   if (el.dataset.f === 'wdate' && dayTs(el.value)) {
     db.active.date = el.value;
     if (backdated(db.active)) stopTimer();

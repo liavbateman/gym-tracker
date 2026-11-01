@@ -320,6 +320,12 @@ input[type=date].pill-in, .pill-in {
 .add-set { margin-top: 6px; }
 
 /* Template editor */
+/* Divider between body areas in the template editor and the active workout. */
+.area-div { display: flex; align-items: baseline; gap: 8px; margin: 22px 0 8px; }
+.area-div:first-child { margin-top: 4px; }
+.area-div b { font-family: var(--display); font-size: 28px; line-height: 1; }
+.area-div span { font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
+.area-div::after { content: ''; flex: 1; border-top: 2px solid var(--ink); align-self: center; }
 .tex { background: var(--sheet); border: 1px solid var(--rule); border-radius: 4px; padding: 10px; margin-bottom: 8px; }
 .tex .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 10px; margin-top: 10px; }
 .tex .grid .field { font-size: 12px; min-width: 0; }
