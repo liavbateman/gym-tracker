@@ -114,7 +114,7 @@ main {
   inset: auto 0 0 0;
   z-index: 10;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   height: calc(var(--nav-h) + var(--safe-b));
   padding-bottom: var(--safe-b);
   background: var(--sheet);
@@ -213,6 +213,8 @@ label.field input, label.field select { margin-top: 4px; color: var(--ink); }
 .week .today span { border: 2px solid var(--ink); }
 
 /* Template list on start screen */
+.tpl-wrap { position: relative; }
+.tpl-edit { position: absolute; top: 10px; left: 10px; margin: 0; background: var(--sheet); }
 .tpl {
   display: block;
   width: 100%;

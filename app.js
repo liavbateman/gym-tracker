@@ -442,12 +442,16 @@ function nextTemplateId() {
 function viewStart() {
   const nextId = nextTemplateId();
   const ordered = [...db.templates].sort((a, b) => (b.id === nextId) - (a.id === nextId));
+  // Tapping a template starts it; the small button in its corner opens it in the editor.
   const tpls = ordered.map((t) => `
-    <button class="tpl ${t.id === nextId ? 'next' : ''}" data-act="start" data-id="${t.id}">
-      ${t.id === nextId ? '<span class="badge">הבא בתור</span>' : ''}
-      <div class="name">${esc(t.name)}</div>
-      <div class="sub">${t.exercises.map((e) => esc(e.name)).join(' · ') || 'אין תרגילים'}</div>
-    </button>`).join('');
+    <div class="tpl-wrap">
+      <button class="tpl ${t.id === nextId ? 'next' : ''}" data-act="start" data-id="${t.id}">
+        ${t.id === nextId ? '<span class="badge">הבא בתור</span>' : ''}
+        <div class="name">${esc(t.name)}</div>
+        <div class="sub">${t.exercises.map((e) => esc(e.name)).join(' · ') || 'אין תרגילים'}</div>
+      </button>
+      <button class="btn sm tpl-edit" data-act="tpl-edit" data-id="${t.id}">עריכה</button>
+    </div>`).join('');
 
   const last = sortedWorkouts()[0];
   const lastCard = last ? `
@@ -460,8 +464,11 @@ function viewStart() {
   return `
     ${viewWeek()}
     <h2>התחל אימון</h2>
-    ${tpls || '<p class="muted">אין עדיין תבניות. אפשר ליצור בלשונית "תבניות".</p>'}
-    <button class="btn ghost block" data-act="start-empty">+ אימון ריק</button>
+    ${tpls || '<p class="muted">אין עדיין תבניות. צור תבנית כדי להתחיל אימון ממנה.</p>'}
+    <div class="row">
+      <button class="btn ghost grow" data-act="tpl-new">+ תבנית חדשה</button>
+      <button class="btn ghost grow" data-act="start-empty">+ אימון ריק</button>
+    </div>
     ${viewMusic()}
     ${lastCard}`;
 }
@@ -475,6 +482,7 @@ const stepper = (e, s, f, value, placeholder, mode) => `
 
 function viewActive() {
   const w = db.active;
+  const tpl = db.templates.find((t) => t.id === w.templateId);
   const card = (e, i) => {
     const prev = lastSetsFor(e.name);
     let n = 0;
@@ -534,6 +542,7 @@ function viewActive() {
     <div class="wk-date">
       <input type="date" class="pill-in" data-f="wdate" value="${esc(w.date || isoDay(w.start))}" max="${isoDay(Date.now())}" aria-label="תאריך האימון">
       ${backdated(w) ? `<span class="pill-in mins"><input type="number" inputmode="numeric" data-f="wmins" value="${esc(w.mins ?? 60)}" aria-label="משך בדקות">דק׳</span><span class="muted small">טיימר כבוי</span>` : ''}
+      ${tpl ? `<button class="link-btn" data-act="tpl-edit" data-id="${tpl.id}" style="margin-inline-start:auto">ערוך תבנית</button>` : ''}
     </div>
     ${viewStretch(w, 'pre')}
     ${exs}
@@ -609,23 +618,6 @@ function viewSwap(e, i) {
     </div>`;
 }
 
-function viewTemplates() {
-  const list = db.templates.map((t) => `
-    <div class="card">
-      <div class="row between">
-        <h3 class="grow">${esc(t.name)}</h3>
-        <button class="btn sm" data-act="tpl-edit" data-id="${t.id}">עריכה</button>
-      </div>
-      <div class="muted small" style="margin-top:8px;line-height:1.6">
-        ${t.exercises.map((e) => `${esc(e.name)} – <span dir="ltr">${e.sets}×${e.reps}</span> <span class="area inline">${groupOf(e.name)}</span>`).join('<br>') || 'אין תרגילים'}
-      </div>
-    </div>`).join('');
-
-  return `
-    ${list || '<div class="empty">אין תבניות עדיין</div>'}
-    <button class="btn primary block" data-act="tpl-new">+ תבנית חדשה</button>`;
-}
-
 function viewSettings() {
   const hasKey = !!getApiKey();
   return `
@@ -687,6 +679,7 @@ function viewEditor() {
     </div>`).join('');
 
   return `
+    ${db.active ? '<p class="muted small" style="margin:0 0 10px">השינויים נשמרים בתבנית לאימונים הבאים. האימון הפעיל לא משתנה – ביטול או שמירה יחזירו אותך אליו.</p>' : ''}
     <label class="field">שם התבנית<input type="text" data-f="tname" value="${esc(d.name)}" placeholder="למשל: אימון A"></label>
     <h2>תרגילים</h2>
     ${exs}
@@ -1766,17 +1759,16 @@ function render() {
   document.querySelector('.gear').classList.toggle('on', ui.tab === 'settings');
   switch (ui.tab) {
     case 'settings': title = 'הגדרות'; html = viewSettings(); break;
-    case 'templates':
-      title = ui.draft ? (ui.draft.isNew ? 'תבנית חדשה' : 'עריכת תבנית') : 'תבניות';
-      html = ui.draft ? viewEditor() : viewTemplates();
-      break;
     case 'history': title = 'היסטוריה'; html = viewHistory(); break;
     case 'progress': title = 'התקדמות'; html = viewProgress(); break;
     case 'body':
       title = ui.mdraft ? (ui.mdraft.isNew ? 'מדידה חדשה' : 'עריכת מדידה') : 'מדדי גוף';
       html = viewMetrics();
       break;
-    default: title = db.active ? 'אימון פעיל' : 'אימון'; html = db.active ? viewActive() : viewStart();
+    // Templates live inside the workout tab: the editor opens over the start screen or the active workout and returns to it.
+    default:
+      if (ui.draft) { title = ui.draft.isNew ? 'תבנית חדשה' : 'עריכת תבנית'; html = viewEditor(); }
+      else { title = db.active ? 'אימון פעיל' : 'אימון'; html = db.active ? viewActive() : viewStart(); }
   }
   $('#title').textContent = title;
   $('#view').innerHTML = html;
@@ -2202,7 +2194,7 @@ document.addEventListener('click', (ev) => {
       render(); window.scrollTo(0, 0);
       break;
     }
-    case 'tpl-cancel': ui.draft = null; render(); break;
+    case 'tpl-cancel': ui.draft = null; render(); window.scrollTo(0, 0); break;
     // Deleting takes two taps: the button opens an in-page confirmation, so a stray tap can't remove a template.
     case 'tpl-del': ui.draft.confirmDel = true; render(); break;
     case 'tpl-del-no': ui.draft.confirmDel = false; render(); break;
@@ -2225,7 +2217,7 @@ document.addEventListener('click', (ev) => {
       }
       const idx = db.templates.findIndex((t) => t.id === d.id);
       if (idx >= 0) db.templates[idx] = tpl; else db.templates.push(tpl);
-      ui.draft = null; save(); render();
+      ui.draft = null; save(); render(); window.scrollTo(0, 0);
       toast('התבנית נשמרה');
       break;
     }
