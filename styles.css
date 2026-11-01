@@ -243,9 +243,10 @@ label.field input, label.field select { margin-top: 4px; }
 
 /* Template editor */
 .tex { background: var(--card2); border-radius: 12px; padding: 10px; margin-bottom: 8px; }
-.tex .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px; }
-.tex .grid .field { font-size: 12px; white-space: nowrap; }
-.tex .grid input { padding: 9px 4px; }
+.tex .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 10px; margin-top: 10px; }
+.tex .grid .field { font-size: 12px; min-width: 0; }
+.tex .grid input { display: block; width: 100%; padding: 9px 4px; }
+.tex > .row input { min-width: 0; }
 
 /* History */
 details.hist summary { list-style: none; cursor: pointer; }
