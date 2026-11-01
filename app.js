@@ -1734,6 +1734,7 @@ function viewDemo() {
   }
   return `
     <div class="sheet-panel" data-act="none" role="dialog" aria-modal="true" aria-label="הדגמת תרגיל">
+      <div class="sheet-grab" aria-hidden="true"></div>
       <div class="row between" style="margin-bottom:12px">
         <h3 class="grow">${esc(d.name)}</h3>
         <button class="icon-btn" data-act="demo-close" aria-label="סגור">✕</button>
@@ -2549,6 +2550,59 @@ document.addEventListener('keydown', (ev) => {
   if (ev.key === 'Escape' && ui.demo) { ui.demo = null; renderSheet(); }
   if (ev.key === 'Escape') closeBateman();
 });
+
+// ---------- Pull the demo sheet down to close it ----------
+// Once the panel is scrolled to the top, dragging further down moves the whole sheet with the finger
+// (iPhone style). Let go far enough or with a quick flick and it slides away; otherwise it springs back.
+let sheetDrag = null;
+const sheetEl = $('#sheet');
+sheetEl.addEventListener('touchstart', (ev) => {
+  const panel = ev.target.closest('.sheet-panel');
+  if (!panel || ev.touches.length > 1) { sheetDrag = null; return; }
+  const y = ev.touches[0].clientY;
+  sheetDrag = { panel, y, t: ev.timeStamp, origin: null, dy: 0, v: 0 };
+}, { passive: true });
+
+sheetEl.addEventListener('touchmove', (ev) => {
+  const d = sheetDrag;
+  if (!d) return;
+  const y = ev.touches[0].clientY;
+  if (d.origin == null) {
+    // Start pulling the moment a downward move happens with nothing left to scroll up to.
+    if (y > d.y && d.panel.scrollTop <= 0) { d.origin = y; d.panel.style.transition = sheetEl.style.transition = 'none'; }
+  } else {
+    d.dy = Math.max(0, y - d.origin);
+    if (d.dy === 0 && y < d.y) { d.origin = null; d.panel.style.transform = ''; return; } // back to scrolling
+    ev.preventDefault();
+    d.panel.style.transform = `translateY(${d.dy}px)`;
+    sheetEl.style.backgroundColor = `rgba(15, 20, 28, ${0.45 * Math.max(0, 1 - d.dy / d.panel.offsetHeight)})`;
+  }
+  const dt = ev.timeStamp - d.t;
+  if (dt > 0) d.v = (y - d.y) / dt;
+  d.y = y; d.t = ev.timeStamp;
+}, { passive: false });
+
+function endSheetDrag() {
+  const d = sheetDrag;
+  sheetDrag = null;
+  if (!d || d.origin == null) return;
+  const { panel } = d;
+  const ease = 'transform .28s cubic-bezier(.2, .8, .2, 1), background-color .28s';
+  panel.style.transition = sheetEl.style.transition = ease;
+  if (d.dy > Math.min(140, panel.offsetHeight * 0.3) || (d.v > 0.5 && d.dy > 24)) {
+    panel.style.transform = 'translateY(100%)';
+    sheetEl.style.backgroundColor = 'rgba(15, 20, 28, 0)';
+    setTimeout(() => {
+      sheetEl.style.transition = sheetEl.style.backgroundColor = '';
+      if (ui.demo) { ui.demo = null; renderSheet(); }
+    }, 280);
+  } else {
+    panel.style.transform = '';
+    sheetEl.style.backgroundColor = '';
+  }
+}
+sheetEl.addEventListener('touchend', endSheetDrag);
+sheetEl.addEventListener('touchcancel', endSheetDrag);
 
 // ---------- Swipe to delete a set ----------
 // Drag a set row sideways (either direction). Past the threshold it stays open over a "מחק" button;

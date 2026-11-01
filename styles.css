@@ -556,7 +556,10 @@ body.sheet-open { overflow: hidden; }
   width: 100%; max-width: 600px; max-height: 88vh; overflow-y: auto; overscroll-behavior: contain;
   background: var(--sheet); border-top: 2px solid var(--ink); border-radius: 14px 14px 0 0;
   padding: 16px 16px calc(20px + var(--safe-b));
+  will-change: transform;
 }
+/* Grab handle: the sheet closes when pulled down from the top. */
+.sheet-grab { width: 38px; height: 5px; border-radius: 3px; background: var(--rule); margin: -8px auto 10px; }
 .demo-anim { position: relative; aspect-ratio: 4 / 3; border-radius: 8px; overflow: hidden; background: #fff; border: 1px solid var(--rule); }
 .demo-anim img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
 /* Two photos (start / end position) alternate so the movement plays like a GIF. */
