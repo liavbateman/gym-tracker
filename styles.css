@@ -544,3 +544,7 @@ body.sheet-open { overflow: hidden; }
 .rec h4 { margin: 0 0 4px; font-size: 15px; }
 .rec p { margin: 0 0 8px; line-height: 1.6; font-size: 14px; }
 .ai-text { white-space: pre-wrap; line-height: 1.65; font-size: 14px; margin-top: 14px; border-top: 1px solid var(--rule); padding-top: 12px; }
+.rec-head { margin: 18px 0 2px; }
+.sources { display: grid; gap: 8px; margin: 14px 0 10px; border-top: 1px solid var(--rule); padding-top: 12px; font-size: 14px; }
+.sources a { display: flex; flex-direction: column; color: var(--ink); text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
+.sources a .muted { text-decoration: none; }

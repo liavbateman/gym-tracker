@@ -1274,6 +1274,66 @@ const bmiLabel = (b) => (b < 18.5 ? 'תת-משקל' : b < 25 ? 'תקין' : b < 
 const round50 = (n) => Math.round(n / 50) * 50;
 const r1 = (n) => fmtW(Math.round(n * 10) / 10);
 
+// Movement patterns a balanced program covers, with a stock exercise to suggest when one is missing.
+const PATTERNS = [
+  { k: 'hpush', l: 'דחיקה אופקית (חזה)', re: /לחיצת חזה|שכיבות סמיכה|מקבילים|bench|chest press|push.?up|\bdips?\b/i, add: 'לחיצת חזה במשקולות' },
+  { k: 'vpush', l: 'דחיקה אנכית (כתפיים)', re: /לחיצת כתפיים|לחיצה צבאית|ארנולד|overhead press|shoulder press|military/i, add: 'לחיצת כתפיים במשקולות' },
+  { k: 'hpull', l: 'משיכה אופקית (חתירה)', re: /חתיר|פולי תחתון|\brow/i, add: 'חתירה במשקולת' },
+  { k: 'vpull', l: 'משיכה אנכית (מתח)', re: /מתח|פולי עליון|pull.?up|chin.?up|pulldown/i, add: 'פולי עליון' },
+  { k: 'squat', l: 'סקוואט / לחיצת רגליים', re: /סקוואט|לחיצת רגליים|מכרע|לאנג|squat|leg press|lunge/i, add: 'סקוואט גובלט' },
+  { k: 'hinge', l: 'כפיפת ירך (דדליפט)', re: /דדליפט|היפ טראסט|גשר ישבן|deadlift|hip thrust|\brdl\b|good ?morning/i, add: 'דדליפט רומני' },
+  { k: 'rear', l: 'כתף אחורית', re: /פייס|פרפר הפוך|face ?pull|rear delt|reverse fly/i, add: 'פייס פול' },
+];
+const COMPOUND = ['hpush', 'vpush', 'hpull', 'vpull', 'squat', 'hinge'];
+const ISOLATION = /הרחק|פרפר|פק דק|כפיפ(ת|ות) מרפק|פשיט(ת|ות)|הרמת עקבים|פטיש|פרנץ|סקאל|כפיפת ברכיים|curl|extension|raise|\bfly/i;
+const patternsOf = (name) => PATTERNS.filter((p) => p.re.test(name)).map((p) => p.k);
+const isCompound = (name) => !ISOLATION.test(name) && patternsOf(name).some((k) => COMPOUND.includes(k));
+
+// Review the templates' exercise choice: missing movement patterns, push/pull balance, order, reps, rest and length.
+function programReview() {
+  const tpls = db.templates.filter((t) => t.exercises.length);
+  if (!tpls.length) return [];
+  const out = [];
+  const all = tpls.flatMap((t) => t.exercises);
+  const sets = Object.fromEntries(PATTERNS.map((p) => [p.k, 0]));
+  for (const e of all) for (const k of patternsOf(e.name)) sets[k] += e.sets;
+
+  const missing = PATTERNS.filter((p) => !sets[p.k]);
+  if (missing.length) {
+    out.push({
+      t: 'דפוסי תנועה חסרים',
+      d: `אין בתבניות ${missing.map((p) => `<b>${p.l}</b>`).join(', ')}. תוכנית מאוזנת עובדת על כל דפוסי התנועה הבסיסיים – כדאי להוסיף: ${missing.map((p) => p.add).join(', ')}.`,
+    });
+  }
+
+  const push = sets.hpush + sets.vpush, pull = sets.hpull + sets.vpull;
+  if (push && pull && push > pull * 1.3) {
+    out.push({ t: 'יחס דחיקה–משיכה', d: `בתבניות ${push} סטים של דחיקה מול ${pull} של משיכה. עודף דחיקה מושך את הכתפיים קדימה ומגביר סיכון לפציעה – כוון ליחס של 1:1 לפחות, למשל עוד 2–3 סטים של חתירה או פייס פול.` });
+  } else if (push && pull && pull > push * 1.6) {
+    out.push({ t: 'יחס דחיקה–משיכה', d: `${pull} סטים של משיכה מול ${push} בלבד של דחיקה – אפשר להוסיף סטים של לחיצת חזה או כתפיים.` });
+  }
+
+  for (const t of tpls) {
+    const notes = [];
+    // Big compound lifts first, while fresh; isolation work after.
+    const firstIso = t.exercises.findIndex((e) => ISOLATION.test(e.name));
+    const lateCompound = firstIso >= 0 && t.exercises.slice(firstIso + 1).find((e) => isCompound(e.name));
+    if (lateCompound) notes.push(`הזז את "${esc(lateCompound.name)}" לפני "${esc(t.exercises[firstIso].name)}" – תרגילים מורכבים כדאי לעשות ראשונים, כשהכוח במיטבו.`);
+    const heavyShortRest = t.exercises.filter((e) => isCompound(e.name) && e.reps <= 8 && e.rest < 120);
+    if (heavyShortRest.length) notes.push(`${heavyShortRest.map((e) => `"${esc(e.name)}"`).join(', ')}: ב-${heavyShortRest[0].reps} חזרות או פחות כדאי לנוח 2–3 דקות, כדי שהסט הבא לא ייחלש.`);
+    const oddReps = t.exercises.filter((e) => e.reps > 20 || e.reps < 4);
+    if (oddReps.length) notes.push(`${oddReps.map((e) => `"${esc(e.name)}" (${e.reps})`).join(', ')}: טווח חזרות חריג. לרוב התרגילים 5–15 חזרות עובדות הכי טוב לבניית שריר.`);
+    const manySets = t.exercises.filter((e) => e.sets > 5);
+    if (manySets.length) notes.push(`${manySets.map((e) => `"${esc(e.name)}"`).join(', ')}: יותר מ-5 סטים לתרגיל אחד – עדיף לפצל לשני תרגילים שונים לאותו שריר.`);
+    const total = t.exercises.reduce((a, e) => a + e.sets, 0);
+    if (t.exercises.length > 8 || total > 28) notes.push(`${t.exercises.length} תרגילים ו-${total} סטים – אימון ארוך מדי. האיכות יורדת אחרי כ-20–25 סטים; כדאי לפצל לאימון נוסף.`);
+    if (notes.length) out.push({ t: `תבנית: ${esc(t.name)}`, d: notes.map((n) => `• ${n}`).join('<br>') });
+  }
+
+  if (!out.length) out.push({ t: 'התוכנית מאוזנת', d: 'כל דפוסי התנועה הבסיסיים מכוסים, יחס הדחיקה–משיכה תקין והתרגילים המורכבים באים ראשונים. המשך להתקדם בעומסים.' });
+  return out;
+}
+
 function buildRecs() {
   const p = bodyProfile();
   if (!p) return null;
@@ -1366,6 +1426,7 @@ function viewRecs() {
     p.ffm != null && [r1(p.ffm), 'מסה רזה (ק״ג)'],
   ].filter(Boolean);
   const ai = db.aiRec, hasKey = !!getApiKey();
+  const review = programReview();
 
   return `
     <div class="card recs">
@@ -1374,18 +1435,26 @@ function viewRecs() {
       ${p.height ? '' : `<div class="card note">חסר גובה – בלעדיו אי אפשר לחשב BMI ומדד שריר. <button class="btn sm" data-act="m-edit" data-id="${p.m.id}">הוסף גובה למדידה</button></div>`}
       ${stats.length ? `<div class="stats">${stats.map(([n, l]) => `<div class="stat"><div class="v" dir="ltr">${n}</div><div class="l">${l}</div></div>`).join('')}</div>` : ''}
       ${r.recs.map((x) => `<div class="rec"><h4>${x.t}</h4><p>${x.d}</p></div>`).join('')}
+      ${review.length ? `<h3 class="rec-head">סקירת התרגילים בתוכנית</h3>${review.map((x) => `<div class="rec"><h4>${x.t}</h4><p>${x.d}</p></div>`).join('')}` : ''}
       <p class="muted small" style="margin-bottom:0">לפי ${p.height ? `גובה ${fmtW(p.height)} ס״מ, ` : ''}משקל ${fmtW(p.weight)} ק״ג${p.pbf != null ? ' והרכב הגוף' : ''} מ-${fmtDateFull(p.m.t)} ומהאימונים של 4 השבועות האחרונים. אלה המלצות כלליות, לא תחליף למאמן או לדיאטנית.</p>
     </div>
     <div class="card">
       <h3>המלצות מותאמות מ-Claude</h3>
-      <p class="muted small" style="margin:6px 0 10px">Claude יקבל את המדדים, האימונים והתבניות שלך${goal ? ` (מטרה: ${GOALS[goal].l})` : ''} ויציע שינויים קונקרטיים בתוכנית.</p>
+      <p class="muted small" style="margin:6px 0 10px">Claude יקבל את המדדים, האימונים והתבניות שלך${goal ? ` (מטרה: ${GOALS[goal].l})` : ''}, יעבור על כל תרגיל בתוכנית ויציע שיפורים – מבוסס על חיפוש באתרי הכושר והמחקר המובילים, עם קישורים למקורות.</p>
       ${ui.recLoading
         ? '<div class="center reading"><div class="spinner"></div><div style="margin-top:10px">Claude מנתח את הנתונים…</div></div>'
         : `<button class="btn primary block" data-act="rec-ai">${hasKey ? (ai ? 'בקש המלצות מחדש' : 'קבל המלצות מ-Claude') : 'העתק בקשה ל-Claude'}</button>`}
-      ${hasKey ? '' : '<p class="muted small" style="margin-bottom:0">הבקשה תועתק עם הנתונים שלך – הדבק אותה בצ׳אט עם Claude. עם מפתח API (בהגדרות המתקדמות למטה) התשובה תופיע כאן.</p>'}
-      ${ai ? `<div class="ai-text">${aiHtml(ai.text)}</div><p class="muted small" style="margin-bottom:0">התקבל ב-${fmtDateFull(ai.t)}</p>` : ''}
+      ${hasKey ? '' : '<p class="muted small" style="margin-bottom:0">הבקשה תועתק עם הנתונים שלך – הדבק אותה בצ׳אט עם Claude (עם חיפוש באינטרנט מופעל). עם מפתח API (בהגדרות המתקדמות למטה) התשובה והמקורות יופיעו כאן.</p>'}
+      ${ai ? `<div class="ai-text">${aiHtml(ai.text)}</div>
+        ${ai.sources?.length ? `<div class="sources"><b>מקורות</b>${ai.sources.map((x) => `<a href="${esc(x.url)}" target="_blank" rel="noopener"><span dir="auto">${esc(x.title || x.url)}</span><span class="muted small" dir="ltr">${esc(hostOf(x.url))}</span></a>`).join('')}</div>` : ''}
+        <p class="muted small" style="margin-bottom:0">התקבל ב-${fmtDateFull(ai.t)}</p>` : ''}
     </div>`;
 }
+
+// Leading sites for bodybuilding, fat loss and muscle gain, plus research sources. Claude's web search is limited to these.
+const REC_DOMAINS = ['strongerbyscience.com', 'bodybuilding.com', 'muscleandstrength.com', 't-nation.com', 'examine.com', 'menshealth.com',
+  'barbellmedicine.com', 'nsca.com', 'acsm.org', 'issaonline.com', 'pubmed.ncbi.nlm.nih.gov', 'ncbi.nlm.nih.gov'];
+const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return ''; } };
 
 // Light formatting of Claude's reply: headings and **bold** in bold, list markers as bullets, the rest as plain text.
 const aiHtml = (text) => esc(text)
@@ -1398,7 +1467,9 @@ function recPrompt() {
   const v = (n) => (n == null ? '?' : r1(n));
   const hist = sortedMetrics().slice(0, 8).map((m) => `- ${isoDay(m.t)}: ${MFIELDS.filter((f) => m[f.k] != null).map((f) => `${f.k}=${fmtW(m[f.k])}`).join(', ')}`).join('\n');
   const sets = tr ? [...tr.sets].filter(([, c]) => c).map(([g, c]) => `${g}: ${v(c)}`).join(', ') : 'no workouts logged';
-  const tpls = db.templates.map((t) => `- ${t.name}: ${t.exercises.map((e) => `${e.name} ${e.sets}x${e.reps}${e.w ? ` @${e.w}kg` : ''}`).join('; ')}`).join('\n');
+  const review = programReview();
+  const strip = (h) => h.replace(/<br>/g, ' ').replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#39;/g, "'");
+  const tpls = db.templates.map((t) => `- ${t.name}: ${t.exercises.map((e) => `${e.name} ${e.sets}x${e.reps}${e.w ? ` @${e.w}kg` : ''}, rest ${e.rest}s`).join('; ')}`).join('\n');
   return `I'm a ${sex === 'f' ? 'woman' : 'man'} who lifts weights. Based on my body metrics and training below, give me concrete recommendations to improve and optimize my training.
 
 Body (latest): height ${v(p.height)} cm, weight ${v(p.weight)} kg, body fat ${v(p.pbf)}%, lean mass ${v(p.ffm)} kg, BMI ${v(p.bmi)}, normalized FFMI ${v(p.ffmi)}, visceral fat level ${v(p.visceral)}, BMR ${v(p.bmr)} kcal.
@@ -1412,7 +1483,14 @@ Last 4 weeks: ${tr ? `${v(tr.perWeek)} workouts per week. Working sets per week 
 My workout templates:
 ${tpls || '- none'}
 
-Please cover: whether the goal fits me, weekly volume per muscle group, specific changes to my templates (exercises to add, drop or change, sets and reps), progression, training frequency, cardio, and daily calories and protein. Be specific to my numbers. Answer in Hebrew, short and practical, as a bulleted list under a few short headings. No tables.`;
+The app's own automatic review of my templates flagged:
+${review.length ? review.map((x) => `- ${strip(x.t)}: ${strip(x.d)}`).join('\n') : '- nothing'}
+
+Go through my program exercise by exercise. For each template say what works, and where you have reservations (exercise choice, order, sets, reps, rest, redundancy, missing muscles or movement patterns, fit with my goal), suggest a concrete improvement or replacement exercise. Then cover weekly volume per muscle group, progression, training frequency, cardio, and daily calories and protein for my numbers.
+
+Base your recommendations on reliable sources: search the leading bodybuilding, fat loss and muscle gain sites and research summaries (${REC_DOMAINS.slice(0, 8).join(', ')}) and rely on what they say rather than on general impressions. Cite the sources you used.
+
+Answer in Hebrew, short and practical, as a bulleted list under a few short headings (one heading per template). No tables.`;
 }
 
 async function fetchAiRecs() {
@@ -1421,18 +1499,30 @@ async function fetchAiRecs() {
   try {
     sdk = await import(SDK_URL).catch(() => { throw new Error('אין חיבור לאינטרנט'); });
     const client = new sdk.default({ apiKey: getApiKey(), dangerouslyAllowBrowser: true });
-    const res = await client.beta.messages.create({
-      model: 'claude-opus-5-5',
-      max_tokens: 16000,
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
-      output_config: { effort: 'medium' },
-      messages: [{ role: 'user', content: recPrompt() }],
-    });
-    if (res.stop_reason === 'refusal') throw new Error('Claude לא החזיר המלצות');
-    const text = res.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
+    // Long searches can pause the turn; send the partial answer back so Claude continues where it stopped.
+    const messages = [{ role: 'user', content: recPrompt() }], blocks = [];
+    for (let i = 0; i < 5; i++) {
+      const res = await client.beta.messages.create({
+        model: 'claude-opus-5-5',
+        max_tokens: 16000,
+        betas: ['server-side-fallback-2026-07-01'],
+        fallbacks: 'default',
+        output_config: { effort: 'medium' },
+        tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 8, allowed_domains: REC_DOMAINS }],
+        messages,
+      });
+      if (res.stop_reason === 'refusal') throw new Error('Claude לא החזיר המלצות');
+      blocks.push(...res.content);
+      if (res.stop_reason !== 'pause_turn') break;
+      messages.push({ role: 'assistant', content: res.content });
+    }
+    const text = blocks.filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
     if (!text) throw new Error('התקבלה תשובה ריקה, נסה שוב');
-    db.aiRec = { t: Date.now(), text };
+    // Sources Claude cited; if it cited none, the pages its searches found.
+    let sources = blocks.flatMap((b) => (b.type === 'text' && b.citations) || []).filter((c) => c.url).map((c) => ({ url: c.url, title: c.title }));
+    if (!sources.length) sources = blocks.filter((b) => b.type === 'web_search_tool_result' && Array.isArray(b.content)).flatMap((b) => b.content).map((x) => ({ url: x.url, title: x.title }));
+    sources = [...new Map(sources.filter((x) => /^https?:/.test(x.url)).map((x) => [x.url, x])).values()].slice(0, 12);
+    db.aiRec = { t: Date.now(), text, sources };
     save();
   } catch (e) {
     const err = sdk ? apiError(sdk, e) : e;
