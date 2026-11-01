@@ -295,6 +295,13 @@ function viewActive() {
       <input type="text" data-f="wname" value="${esc(w.name)}" aria-label="שם האימון">
       <span class="elapsed" id="elapsed"></span>
     </div>
+    <div class="card wk-date">
+      <div class="row">
+        <label class="field grow">תאריך האימון<input type="date" data-f="wdate" value="${esc(w.date || isoDay(w.start))}" max="${isoDay(Date.now())}"></label>
+        ${backdated(w) ? `<label class="field" style="width:110px">משך (דקות)<input type="number" inputmode="numeric" data-f="wmins" value="${esc(w.mins ?? 60)}"></label>` : ''}
+      </div>
+      ${backdated(w) ? '<p class="muted small" style="margin:8px 0 0">מזין אימון שכבר עשית – הטיימר והמנוחה כבויים. סמן ✓ את הסטים שביצעת ושמור.</p>' : ''}
+    </div>
     ${exs}
     <div class="card">
       <div class="row">
@@ -388,6 +395,7 @@ function viewHistory() {
           <b>${esc(e.name)}</b>
           <div class="chips">${e.sets.map((s) => chip(s)).join('')}</div>
         </div>`).join('')}
+      <label class="field" style="margin-top:12px">תאריך<input type="date" data-f="hist-date" data-id="${w.id}" value="${isoDay(w.start)}" max="${isoDay(Date.now())}"></label>
       <div class="row" style="margin-top:12px">
         <button class="btn sm" data-act="hist-tpl" data-id="${w.id}">שמור כתבנית</button>
         <button class="btn sm danger" data-act="hist-del" data-id="${w.id}">מחק</button>
@@ -1097,6 +1105,9 @@ function startWorkout(tpl) {
   window.scrollTo(0, 0);
 }
 
+// A workout logged after the fact: the user picked a day other than the one it was opened on.
+const backdated = (w) => !!w.date && w.date !== isoDay(w.start);
+
 function finishWorkout() {
   const w = db.active;
   const exercises = w.exercises
@@ -1147,7 +1158,14 @@ function finishWorkout() {
     }
   }
 
-  db.workouts.push({ id: w.id, templateId: w.templateId, name: w.name || 'אימון', start: w.start, end: Date.now(), exercises });
+  let start = w.start, end = Date.now();
+  if (backdated(w)) {
+    // Keep the time of day it was entered at, on the chosen day; the duration comes from the field.
+    const t = new Date(w.start), d = new Date(dayTs(w.date));
+    start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), t.getHours(), t.getMinutes()).getTime();
+    end = start + Math.max(1, num(w.mins) ?? 60) * 60000;
+  }
+  db.workouts.push({ id: w.id, templateId: w.templateId, name: w.name || 'אימון', start, end, exercises });
   db.active = null;
   stopTimer();
   save();
@@ -1203,7 +1221,7 @@ function beep() {
 
 function tick() {
   const el = $('#elapsed');
-  if (el && db.active) el.textContent = fmtDur(Date.now() - db.active.start);
+  if (el && db.active) el.textContent = backdated(db.active) ? '' : fmtDur(Date.now() - db.active.start);
 
   const box = $('#timer');
   if (!timer) { box.classList.add('hidden'); return; }
@@ -1292,7 +1310,7 @@ document.addEventListener('click', (ev) => {
         if (set.r === '') set.r = set.pr;
         if (num(set.r) == null) { toast('הזן מספר חזרות'); return; }
         set.done = true;
-        startTimer(ex.rest);
+        if (!backdated(db.active)) startTimer(ex.rest);
       } else {
         set.done = false;
       }
@@ -1485,6 +1503,7 @@ document.addEventListener('input', (ev) => {
       break;
     }
     case 'wname': db.active.name = el.value; save(); break;
+    case 'wmins': db.active.mins = el.value; save(); break;
     case 'defrest': { const v = num(el.value); if (v && v > 0) { db.settings.defaultRest = Math.round(v); save(); } break; }
     case 'tname': ui.draft.name = el.value; break;
     case 'tex-name': ui.draft.exercises[i].name = el.value; break;
@@ -1504,6 +1523,19 @@ document.addEventListener('input', (ev) => {
 document.addEventListener('change', (ev) => {
   const el = ev.target;
   if (el.dataset.f === 'prog-ex') { ui.progEx = el.value; render(); }
+  if (el.dataset.f === 'wdate' && dayTs(el.value)) {
+    db.active.date = el.value;
+    if (backdated(db.active)) stopTimer();
+    save(); render();
+  }
+  if (el.dataset.f === 'hist-date' && dayTs(el.value)) {
+    const w = db.workouts.find((x) => x.id === el.dataset.id);
+    const t = new Date(w.start), d = new Date(dayTs(el.value));
+    const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), t.getHours(), t.getMinutes()).getTime();
+    w.end = start + (w.end - w.start);
+    w.start = start;
+    save(); render(); toast('התאריך עודכן');
+  }
   if (el.dataset.f === 'set-lastfail') { db.settings.lastSetFail = el.checked; save(); }
   if (el.id === 'import-file' && el.files[0]) { importData(el.files[0]); el.value = ''; }
   if (el.id === 'm-file' && el.files[0]) { handleReportFile(el.files[0]); el.value = ''; }
