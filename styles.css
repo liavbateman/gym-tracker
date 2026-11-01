@@ -455,3 +455,6 @@ body.sheet-open { overflow: hidden; }
 .demo-pick { text-align: left; background: var(--field); border: 1px solid var(--rule); border-radius: 10px; padding: 8px; color: var(--ink); font: inherit; }
 .demo-pick:active { border-color: var(--ink); }
 .demo-pick .muted { display: block; text-align: left; }
+.demo-variants { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.demo-variants .chip { color: var(--ink); font: inherit; font-size: 13px; padding: 5px 10px; }
+.demo-variants .chip.on { background: var(--hl); border-color: var(--hl); color: var(--hl-ink); font-weight: 600; }

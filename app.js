@@ -820,21 +820,57 @@ const HE_EN = [
   ['שכיבות סמיכה', 'pushups'], ['פלאנק', 'plank'], ['כפיפות בטן', 'crunch'], ['קראנץ', 'crunch'], ['כפיפות גו', 'crunch'],
   ['בשיפוע', 'incline'], ['מוט', 'barbell'], ['משקולות', 'dumbbell'], ['משקולת', 'dumbbell'], ['דאמבל', 'dumbbell'],
   ['כבל', 'cable'], ['מכונה', 'machine'], ['מכונת', 'machine'], ['סמית', 'smith'], ['קטלבל', 'kettlebell'],
+  ['עליות על ספסל', 'step up'], ['עליות על קופסה', 'step up'], ['אחיזה רחבה', 'wide grip'], ['אחיזה צרה', 'close grip'],
+  ['רחבה', 'wide'], ['רחב', 'wide'], ['צרה', 'narrow close'], ['צר', 'narrow close'],
   ['גומי', 'bands'], ['ישיבה', 'seated'], ['עמידה', 'standing'], ['שכיבה', 'lying'], ['יד אחת', 'one arm'],
 ];
 const hasHebrew = (s) => /[֐-׿]/.test(s);
-function toEnglish(q) {
+const HE_STOP = ['עם', 'של', 'על', 'את', 'או', 'ו', 'ב', 'ל', 'ה'];
+// Dictionary translation, plus the Hebrew words it didn't know (left for the automatic translator).
+function splitHebrew(q) {
   q = String(q || '');
-  if (!hasHebrew(q)) return q.trim();
   const out = [];
   for (const [he, en] of HE_EN) if (q.includes(he)) { out.push(en); q = q.split(he).join(' '); }
+  const rest = (q.match(/[֐-׿]+/g) || []).filter((w) => !HE_STOP.includes(w));
   // Keep any Latin words the name already had (e.g. "לחיצת חזה Smith").
-  return [...out, ...(q.match(/[a-z0-9]+/gi) || [])].join(' ');
+  return { dict: [...out, ...(q.match(/[a-z0-9]+/gi) || [])].join(' '), rest: rest.join(' ') };
+}
+
+// Automatic Hebrew → English through MyMemory (free, no key). Returns its translations, best first.
+const mtCache = new Map();
+async function machineTranslate(text) {
+  if (!mtCache.has(text)) {
+    const p = fetch(`https://api.mymemory.translated.net/get?langpair=he|en&q=${encodeURIComponent(text)}`, { signal: AbortSignal.timeout(8000) })
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((r) => [r.responseData?.translatedText, ...(r.matches || []).filter((m) => m.match >= 0.5).map((m) => m.translation)]
+        .filter((t) => t && !hasHebrew(t) && !/MYMEMORY WARNING/i.test(t)));
+    p.catch(() => mtCache.delete(text));
+    mtCache.set(text, p);
+  }
+  return mtCache.get(text).catch(() => []);
+}
+
+const cleanQuery = (s) => String(s).toLowerCase().split(/[^a-z0-9-]+/).filter((t) => t && !EN_STOP.includes(t)).join(' ');
+// A few English versions of what was typed: the gym dictionary (with the words it didn't know translated
+// automatically), then automatic translations of the whole phrase. The first one is searched by default.
+async function translateVariants(q) {
+  q = String(q || '').trim();
+  if (!hasHebrew(q)) return q ? [q] : [];
+  const { dict, rest } = splitHebrew(q);
+  const [restTr, fullTr] = await Promise.all([rest ? machineTranslate(rest) : [], machineTranslate(q)]);
+  const variants = [
+    dict && restTr[0] ? `${dict} ${restTr[0]}` : '',
+    dict,
+    ...fullTr.slice(0, 3),
+  ].map(cleanQuery).filter(Boolean);
+  return [...new Set(variants)].slice(0, 4);
 }
 
 // Plural "s" is dropped on both sides so "pullups" matches "Pullup", and spelling variants share one token.
+// Filler words ("in the machine") are dropped so they don't count as matches or misses.
 const TOKEN_SYN = { flye: 'fly', flie: 'fly', db: 'dumbbell', bb: 'barbell', chinup: 'pullup', abdominal: 'ab', abs: 'ab' };
-const exTokens = (s) => String(s).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
+const EN_STOP = ['a', 'an', 'the', 'in', 'on', 'of', 'to', 'for', 'and', 'with', 'at', 'by', 'from', 'your'];
+const exTokens = (s) => String(s).toLowerCase().split(/[^a-z0-9]+/).filter((t) => t && !EN_STOP.includes(t))
   .map((t) => (t.length > 3 ? t.replace(/s$/, '') : t)).map((t) => TOKEN_SYN[t] || t);
 // Words people search by that the database's name for the exercise doesn't contain.
 const EX_ALIASES = [
@@ -887,21 +923,26 @@ const demoAnim = (images, big) => `
 
 function openDemo(name) {
   if (!name.trim()) { toast('קודם תן שם לתרגיל'); return; }
-  ui.demo = { name, q: toEnglish(name), results: null, loading: false, error: '', picking: !db.demos[name] };
+  ui.demo = { name, q: name, variants: [], vi: 0, vq: null, results: null, loading: false, error: '', picking: !db.demos[name] };
   renderSheet();
   if (ui.demo.picking) runDemoSearch();
 }
 
-async function runDemoSearch() {
+// Translates the search box (only when its text changed) and searches with the chosen translation.
+async function runDemoSearch(vi = 0) {
   const d = ui.demo;
   d.picking = true;
-  d.loading = true; d.error = ''; d.results = null;
+  d.loading = true; d.error = ''; d.results = null; d.vi = vi;
   renderSheet();
-  const q = toEnglish(d.q);
   try {
-    const list = await loadExercises();
-    d.results = searchExercises(list, q, groupOf(d.name));
-    if (!d.results.length) d.error = q ? 'לא נמצאו תרגילים. נסה מילים אחרות, למשל באנגלית.' : 'לא הצלחתי לתרגם את השם. נסה לכתוב אותו באנגלית.';
+    const fresh = d.vq !== d.q;
+    const [list, variants] = await Promise.all([loadExercises(), fresh ? translateVariants(d.q) : d.variants]);
+    // Drop translations that find nothing ("voltage" for מתח), unless none of them find anything.
+    const useful = fresh ? variants.filter((v) => searchExercises(list, v, groupOf(d.name)).length) : variants;
+    d.variants = useful.length ? useful : variants; d.vq = d.q;
+    const q = variants[d.vi] || '';
+    d.results = q ? searchExercises(list, q, groupOf(d.name)) : [];
+    if (!d.results.length) d.error = q ? 'לא נמצאו תרגילים. נסה תרגום אחר או מילים אחרות.' : 'לא הצלחתי לתרגם. בדוק את החיבור לאינטרנט או כתוב באנגלית.';
   } catch {
     d.error = 'אין חיבור לאינטרנט. החיפוש צריך רשת.';
   }
@@ -937,6 +978,9 @@ function viewDemo() {
         <input type="search" class="grow" data-f="demo-q" id="demo-q" value="${esc(d.q)}" placeholder="שם התרגיל (עברית או אנגלית)" dir="auto" enterkeyhint="search">
         <button class="btn" data-act="demo-search">חפש</button>
       </div>
+      ${d.variants.length > 1 || (d.variants.length && hasHebrew(d.vq || '')) ? `
+        <div class="muted small" style="margin-top:10px">תרגומים לאנגלית (לחץ כדי לחפש):</div>
+        <div class="demo-variants" dir="ltr">${d.variants.map((v, k) => `<button class="chip ${k === d.vi ? 'on' : ''}" data-act="demo-variant" data-k="${k}">${esc(v)}</button>`).join('')}</div>` : ''}
       <p class="muted small" style="margin:8px 0 0">בחר את ההדגמה המתאימה. היא תישמר לתרגיל הזה.</p>
       <div class="demo-grid">${results}</div>
       ${saved ? '<button class="btn block" data-act="demo-back">חזרה להדגמה השמורה</button>' : ''}`;
@@ -1373,6 +1417,7 @@ document.addEventListener('click', (ev) => {
     case 'demo': openDemo(el.dataset.e != null ? ex.name : ui.draft.exercises[i].name); break;
     case 'demo-close': ui.demo = null; renderSheet(); break;
     case 'demo-search': runDemoSearch(); break;
+    case 'demo-variant': runDemoSearch(+el.dataset.k); break;
     case 'demo-change': ui.demo.picking = true; renderSheet(); if (!ui.demo.results) runDemoSearch(); break;
     case 'demo-back': ui.demo.picking = false; renderSheet(); break;
     case 'demo-pick': {
