@@ -524,7 +524,7 @@ function viewProgress() {
   return `
     ${top}
     ${areaCard}
-    <div class="card">
+    <div class="card ex-pick">
       <div class="area" style="margin-bottom:6px">${groupOf(ui.progEx)}</div>
       <select data-f="prog-ex" aria-label="בחר תרגיל">${byArea.map(([g, list]) => `<optgroup label="${g}">${list.map((n) => `<option ${n === ui.progEx ? 'selected' : ''}>${esc(n)}</option>`).join('')}</optgroup>`).join('')}</select>
     </div>
@@ -1144,6 +1144,10 @@ function renderSheet() {
   document.body.classList.toggle('sheet-open', !!ui.demo);
   el.innerHTML = ui.demo ? viewDemo() : '';
 }
+
+// Sticky elements below the top bar need its real height (it grows with the iPhone notch).
+const topbarObs = new ResizeObserver(([e]) => document.documentElement.style.setProperty('--top-h', `${e.target.offsetHeight}px`));
+topbarObs.observe(document.querySelector('.topbar'));
 
 function render() {
   document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === ui.tab));

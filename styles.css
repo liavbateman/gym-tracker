@@ -355,6 +355,8 @@ details.hist[open] { border-color: var(--ink); }
 .stat .v { font-family: var(--display); font-size: 44px; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; }
 .stat .l { font-size: 12px; color: var(--ink-soft); margin-top: 4px; }
 
+/* The exercise picker stays pinned under the top bar while scrolling through its charts and dashboard. */
+.ex-pick { position: sticky; top: var(--top-h, 64px); z-index: 4; box-shadow: 0 6px 10px -8px rgba(15, 20, 28, .35); }
 /* Exercise dashboard */
 .dash-h { font-size: 13px; font-weight: 700; color: var(--ink-soft); margin: 16px 0 8px; }
 .dash-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
