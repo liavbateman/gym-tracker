@@ -47,6 +47,21 @@ function load() {
 
 let db = load();
 if (!Array.isArray(db.metrics)) db.metrics = [];
+if (!db.muscles || typeof db.muscles !== 'object') db.muscles = {}; // exercise name -> body area, when set by hand
+
+// ---------- Body areas ----------
+const GROUPS = ['חזה', 'גב', 'כתפיים', 'רגליים', 'יד קדמית', 'יד אחורית', 'בטן', 'אחר'];
+const GROUP_HINTS = [
+  ['רגליים', /סקוואט|רגל|מכרע|עקב|ירך|לאנג|דדליפט|היפ|ישבן|תאומ|גובלט/],
+  ['חזה', /חזה|פרפר|מקבילים|שכיבות סמיכה|פלאי/],
+  ['גב', /חתיר|מתח|פולי|גב|פול ?אובר|שראג|משיכ/],
+  ['כתפיים', /כתפ|הרחק|פייס|ארנולד/],
+  ['יד קדמית', /כפיפת מרפק|כפיפות מרפק|בייספס|יד קדמית|פטיש/],
+  ['יד אחורית', /פשיטת מרפק|פשיטות מרפק|טרייספס|יד אחורית|פרנץ|סקאל/],
+  ['בטן', /בטן|פלאנק|כפיפות גו|קראנץ|הרמות רגליים בתלייה/],
+];
+const guessGroup = (name) => (GROUP_HINTS.find(([, re]) => re.test(name || '')) || ['אחר'])[0];
+const groupOf = (name) => db.muscles[name] || guessGroup(name);
 
 function save() {
   try { localStorage.setItem(KEY, JSON.stringify(db)); } catch { toast('שגיאה בשמירת הנתונים'); }
@@ -220,6 +235,7 @@ function viewActive() {
       <div class="card">
         <div class="row between">
           <div class="grow">
+            <div class="area">${groupOf(e.name)}</div>
             <div class="ex-name">${esc(e.name)}</div>
             <div class="prev">${prev ? 'פעם קודמת: ' + prev.map(prevLabel).join(' · ') : 'תרגיל חדש'}</div>
             ${e.up ? `<div class="up">⬆ עמדת ביעד – המשקל הועלה ב-${fmtW(e.up)} ק״ג</div>` : ''}
@@ -264,7 +280,7 @@ function viewTemplates() {
         <button class="btn sm" data-act="tpl-edit" data-id="${t.id}">עריכה</button>
       </div>
       <div class="muted small" style="margin-top:8px;line-height:1.6">
-        ${t.exercises.map((e) => `${esc(e.name)} – <span dir="ltr">${e.sets}×${e.reps}</span>`).join('<br>') || 'אין תרגילים'}
+        ${t.exercises.map((e) => `${esc(e.name)} – <span dir="ltr">${e.sets}×${e.reps}</span> <span class="area inline">${groupOf(e.name)}</span>`).join('<br>') || 'אין תרגילים'}
       </div>
     </div>`).join('');
 
@@ -307,6 +323,9 @@ function viewEditor() {
         <label class="field">חזרות<input type="number" inputmode="numeric" data-f="tex-reps" data-i="${i}" value="${esc(e.reps)}"></label>
         <label class="field">מנוחה (ש׳)<input type="number" inputmode="numeric" data-f="tex-rest" data-i="${i}" value="${esc(e.rest)}"></label>
         <label class="field">קפיצה (ק״ג)<input type="number" inputmode="decimal" step="any" data-f="tex-inc" data-i="${i}" value="${esc(e.inc ?? db.settings.increment)}"></label>
+        <label class="field span2">אזור גוף
+          <select data-f="tex-group" data-i="${i}">${GROUPS.map((g) => `<option ${g === (e.group || guessGroup(e.name)) ? 'selected' : ''}>${g}</option>`).join('')}</select>
+        </label>
       </div>
     </div>`).join('');
 
@@ -332,6 +351,7 @@ function viewHistory() {
       </summary>
       ${w.exercises.map((e) => `
         <div class="hist-ex">
+          <div class="area">${groupOf(e.name)}</div>
           <b>${esc(e.name)}</b>
           <div class="chips">${e.sets.map((s) => chip(s)).join('')}</div>
         </div>`).join('')}
@@ -379,6 +399,30 @@ function viewProgress() {
   const names = [];
   for (const w of sortedWorkouts()) for (const e of w.exercises) if (!names.includes(e.name)) names.push(e.name);
   if (!names.length) return top + '<div class="empty">אחרי כמה אימונים יופיעו כאן גרפים ושיאים אישיים לכל תרגיל.</div>';
+
+  // Working sets per body area over the chosen period.
+  const sunday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).getTime();
+  const periods = [['week', 'השבוע', sunday], ['month', 'החודש', monthStart], ['all', 'הכול', 0]];
+  if (!periods.some(([k]) => k === ui.areaPeriod)) ui.areaPeriod = 'week';
+  const from = periods.find(([k]) => k === ui.areaPeriod)[2];
+  const perArea = new Map(GROUPS.map((g) => [g, 0]));
+  for (const w of db.workouts) {
+    if (w.start < from) continue;
+    for (const e of w.exercises) perArea.set(groupOf(e.name), perArea.get(groupOf(e.name)) + work(e.sets).length);
+  }
+  const maxSets = Math.max(1, ...perArea.values());
+  const areaCard = `
+    <div class="card">
+      <div class="row between"><h3>סטים לפי אזור גוף</h3></div>
+      <div class="seg" style="margin-top:10px">${periods.map(([k, l]) => `<button class="${ui.areaPeriod === k ? 'on' : ''}" data-act="area-period" data-k="${k}">${l}</button>`).join('')}</div>
+      ${[...perArea].filter(([g, c]) => c || g !== 'אחר').map(([g, c]) => `
+        <div class="bar-row ${c ? '' : 'zero'}">
+          <span class="bar-l">${g}</span>
+          <span class="bar"><span style="width:${(c / maxSets) * 100}%"></span></span>
+          <span class="bar-v">${c}</span>
+        </div>`).join('')}
+    </div>`;
+  const byArea = GROUPS.map((g) => [g, names.filter((n) => groupOf(n) === g)]).filter(([, list]) => list.length);
   if (!names.includes(ui.progEx)) ui.progEx = names[0];
 
   const sessions = [...db.workouts].sort((a, b) => a.start - b.start)
@@ -406,8 +450,10 @@ function viewProgress() {
 
   return `
     ${top}
+    ${areaCard}
     <div class="card">
-      <select data-f="prog-ex" aria-label="בחר תרגיל">${names.map((n) => `<option ${n === ui.progEx ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>
+      <div class="area" style="margin-bottom:6px">${groupOf(ui.progEx)}</div>
+      <select data-f="prog-ex" aria-label="בחר תרגיל">${byArea.map(([g, list]) => `<optgroup label="${g}">${list.map((n) => `<option ${n === ui.progEx ? 'selected' : ''}>${esc(n)}</option>`).join('')}</optgroup>`).join('')}</select>
     </div>
     <div class="stats">
       <div class="stat"><div class="v" dir="ltr">${maxW ? setLabel(maxW) : '–'}</div><div class="l">שיא משקל</div></div>
@@ -1061,7 +1107,13 @@ document.addEventListener('click', (ev) => {
     case 'timer-stop': stopTimer(); break;
 
     case 'tpl-new': ui.draft = { id: uid(), name: '', exercises: [{ id: uid(), name: '', sets: 2, reps: 8, rest: db.settings.defaultRest }], isNew: true }; render(); window.scrollTo(0, 0); break;
-    case 'tpl-edit': ui.draft = { ...structuredClone(db.templates.find((t) => t.id === el.dataset.id)), isNew: false }; render(); window.scrollTo(0, 0); break;
+    case 'tpl-edit': {
+      const t = structuredClone(db.templates.find((x) => x.id === el.dataset.id));
+      t.exercises.forEach((x) => { x.group = db.muscles[x.name]; }); // only hand-picked areas; others stay auto-guessed
+      ui.draft = { ...t, isNew: false };
+      render(); window.scrollTo(0, 0);
+      break;
+    }
     case 'tpl-cancel': ui.draft = null; render(); break;
     case 'tpl-del':
       if (confirm('למחוק את התבנית? (אימונים שכבר נשמרו לא יימחקו)')) { db.templates = db.templates.filter((t) => t.id !== ui.draft.id); ui.draft = null; save(); render(); }
@@ -1077,6 +1129,11 @@ document.addEventListener('click', (ev) => {
           inc: num(x.inc) ?? db.settings.increment,
         })),
       };
+      for (const x of d.exercises) {
+        const name = x.name.trim();
+        if (!name || !x.group) continue;
+        if (x.group === guessGroup(name)) delete db.muscles[name]; else db.muscles[name] = x.group;
+      }
       const idx = db.templates.findIndex((t) => t.id === d.id);
       if (idx >= 0) db.templates[idx] = tpl; else db.templates.push(tpl);
       ui.draft = null; save(); render();
@@ -1113,6 +1170,7 @@ document.addEventListener('click', (ev) => {
     }
 
     case 'metric': ui.progMetric = el.dataset.k; render(); break;
+    case 'area-period': ui.areaPeriod = el.dataset.k; render(); break;
 
     case 'body-metric': ui.bodyMetric = el.dataset.k; render(); break;
     case 'm-upload':
@@ -1169,6 +1227,7 @@ document.addEventListener('input', (ev) => {
     case 'tex-reps': ui.draft.exercises[i].reps = el.value; break;
     case 'tex-rest': ui.draft.exercises[i].rest = el.value; break;
     case 'tex-inc': ui.draft.exercises[i].inc = el.value; break;
+    case 'tex-group': ui.draft.exercises[i].group = el.value; break;
     case 'set-inc': { const v = num(el.value); if (v && v > 0) { db.settings.increment = v; save(); } break; }
     case 'm-date': ui.mdraft.date = el.value; break;
     case 'm-val': ui.mdraft.vals[el.dataset.k] = el.value; break;
