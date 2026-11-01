@@ -172,14 +172,28 @@ label.field input, label.field select { margin-top: 4px; }
 .ex-name { font-weight: 700; font-size: 17px; }
 .prev { font-size: 12px; color: var(--muted); margin-top: 2px; }
 
-.sets { width: 100%; border-collapse: collapse; margin-top: 10px; }
-.sets th { font-size: 12px; color: var(--muted); font-weight: 500; padding: 0 4px 6px; }
-.sets td { padding: 3px 2px; text-align: center; }
-.sets td.n { width: 24px; color: var(--muted); font-weight: 600; }
-.sets td.chk { width: 46px; }
-.sets td.del { width: 24px; }
-.sets td.del .icon-btn { padding: 6px 2px; font-size: 13px; opacity: .6; }
-.sets input { padding: 9px 2px; }
+/* Set rows: a grid that slides over a red delete layer when swiped */
+.set-grid { display: grid; grid-template-columns: 24px 1fr 1fr 44px; gap: 4px; align-items: center; }
+.set-head { margin-top: 10px; padding-bottom: 4px; font-size: 12px; color: var(--muted); text-align: center; }
+.set-row { position: relative; margin: 4px 0; border-radius: 10px; overflow: hidden; }
+.set-actions {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: space-between;
+  background: var(--bad);
+}
+.set-actions button { width: 76px; border: 0; background: none; color: #fff; font-weight: 800; }
+.set-grid.swipe {
+  position: relative;
+  background: var(--card);
+  touch-action: pan-y;
+  transition: transform .2s ease;
+}
+.set-grid.swipe.dragging { transition: none; }
+.set-row .n { text-align: center; color: var(--muted); font-weight: 600; }
+.set-row input { padding: 9px 2px; }
+.link-btn { background: none; border: 0; color: var(--muted); font-size: 13px; text-decoration: underline; padding: 6px; }
 .stepper { display: flex; align-items: stretch; gap: 2px; }
 .stepper input { flex: 1; min-width: 0; }
 .stepper button {
@@ -195,7 +209,7 @@ label.field input, label.field select { margin-top: 4px; }
 }
 .stepper button:active { background: var(--accent); color: var(--accent-ink); }
 .up { font-size: 12px; color: var(--good); margin-top: 3px; font-weight: 600; }
-.sets tr.done input { background: rgba(47, 191, 113, .12); border-color: rgba(47, 191, 113, .5); }
+.set-row.done input { background: rgba(47, 191, 113, .12); border-color: rgba(47, 191, 113, .5); }
 .check {
   width: 44px; height: 40px;
   border-radius: 10px;
@@ -204,9 +218,9 @@ label.field input, label.field select { margin-top: 4px; }
   color: var(--muted);
   font-size: 18px;
 }
-tr.done .check { background: var(--good); border-color: var(--good); color: #04140b; }
-tr.wu td.n { color: #ffb36b; font-size: 13px; }
-tr.wu input { border-style: dashed; }
+.set-row.done .check { background: var(--good); border-color: var(--good); color: #04140b; }
+.set-row.wu .n { color: #ffb36b; font-size: 13px; }
+.set-row.wu input { border-style: dashed; }
 .chip.wu { color: var(--muted); border-style: dashed; }
 .chip.fail { border-color: var(--bad); }
 .chip.fail span { color: var(--bad); }

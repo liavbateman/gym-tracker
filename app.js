@@ -198,16 +198,22 @@ function viewActive() {
   const exs = w.exercises.map((e, i) => {
     const prev = lastSetsFor(e.name);
     let n = 0;
+    // Each set row slides sideways on swipe to reveal a delete button underneath (see swipe handling below).
     const rows = e.sets.map((s, j) => `
-      <tr class="${s.done ? 'done' : ''} ${s.wu ? 'wu' : ''}">
-        <td class="n">${s.wu
-          ? '<span title="סט חימום">ח׳</span>'
-          : `<button class="set-n ${s.fail ? 'fail' : ''}" data-act="fail" data-e="${i}" data-s="${j}" aria-label="סמן סט עד כשל" aria-pressed="${!!s.fail}">${++n}${s.fail ? '<small>כשל</small>' : ''}</button>`}</td>
-        <td>${stepper(i, j, 'w', s.w, s.pw, 'decimal')}</td>
-        <td>${stepper(i, j, 'r', s.r, s.pr, 'numeric')}</td>
-        <td class="chk"><button class="check" data-act="set-done" data-e="${i}" data-s="${j}" aria-label="סמן סט כבוצע">✓</button></td>
-        <td class="del"><button class="icon-btn" data-act="set-del" data-e="${i}" data-s="${j}" aria-label="מחק סט">✕</button></td>
-      </tr>`).join('');
+      <div class="set-row ${s.done ? 'done' : ''} ${s.wu ? 'wu' : ''}">
+        <div class="set-actions">
+          <button data-act="set-del" data-e="${i}" data-s="${j}">מחק</button>
+          <button data-act="set-del" data-e="${i}" data-s="${j}">מחק</button>
+        </div>
+        <div class="set-grid swipe">
+          <div class="n">${s.wu
+            ? '<span title="סט חימום">ח׳</span>'
+            : `<button class="set-n ${s.fail ? 'fail' : ''}" data-act="fail" data-e="${i}" data-s="${j}" aria-label="סמן סט עד כשל" aria-pressed="${!!s.fail}">${++n}${s.fail ? '<small>כשל</small>' : ''}</button>`}</div>
+          ${stepper(i, j, 'w', s.w, s.pw, 'decimal')}
+          ${stepper(i, j, 'r', s.r, s.pr, 'numeric')}
+          <button class="check" data-act="set-done" data-e="${i}" data-s="${j}" aria-label="סמן סט כבוצע">✓</button>
+        </div>
+      </div>`).join('');
     return `
       <div class="card">
         <div class="row between">
@@ -217,18 +223,18 @@ function viewActive() {
             ${e.up ? `<div class="up">⬆ עמדת ביעד – המשקל הועלה ב-${fmtW(e.up)} ק״ג</div>` : ''}
           </div>
           <button class="rest-pill" data-act="ex-rest" data-e="${i}">⏱ ${e.rest} ש׳</button>
-          <button class="icon-btn" data-act="ex-del" data-e="${i}" aria-label="הסר תרגיל">✕</button>
         </div>
-        <table class="sets">
-          <thead><tr><th>סט</th><th>ק״ג</th><th>חזרות</th><th></th><th></th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-        <button class="btn sm" data-act="set-add" data-e="${i}" style="margin-top:8px">+ סט</button>
+        <div class="set-grid set-head"><span>סט</span><span>ק״ג</span><span>חזרות</span><span></span></div>
+        ${rows}
+        <div class="row between" style="margin-top:8px">
+          <button class="btn sm" data-act="set-add" data-e="${i}">+ סט</button>
+          <button class="link-btn" data-act="ex-del" data-e="${i}">הסר תרגיל</button>
+        </div>
       </div>`;
   }).join('');
 
   return `
-    <p class="muted small" style="margin:0 0 10px">טיפ: לחיצה על מספר הסט מסמנת שהלכת בו <b class="t-fail">עד כשל</b>.</p>
+    <p class="muted small" style="margin:0 0 10px">טיפ: לחיצה על מספר הסט מסמנת שהלכת בו <b class="t-fail">עד כשל</b>. כדי למחוק סט – החלק אותו הצידה.</p>
     <div class="wk-head">
       <input type="text" data-f="wname" value="${esc(w.name)}" aria-label="שם האימון">
       <span class="elapsed" id="elapsed"></span>
@@ -424,6 +430,7 @@ function render() {
   }
   $('#title').textContent = title;
   $('#view').innerHTML = html;
+  openRow = null;
   tick();
 }
 
@@ -811,6 +818,66 @@ document.addEventListener('change', (ev) => {
 document.addEventListener('keydown', (ev) => {
   if (ev.key === 'Enter' && ev.target.id === 'new-ex') $('[data-act="ex-add"]').click();
 });
+
+// ---------- Swipe to delete a set ----------
+// Drag a set row sideways (either direction). Past the threshold it stays open over a "מחק" button;
+// deleting takes that second tap, so a stray touch can't remove a set.
+const SWIPE_OPEN = 76;
+let swipe = null, openRow = null, swallowClick = false;
+
+function closeOpenRow() {
+  if (openRow) { openRow.style.transform = ''; openRow = null; }
+}
+
+document.addEventListener('pointerdown', (ev) => {
+  const g = ev.target.closest('.swipe');
+  if (openRow && g !== openRow && !ev.target.closest('.set-actions')) closeOpenRow();
+  if (!g || (ev.pointerType === 'mouse' && ev.button !== 0)) return;
+  swipe = { g, id: ev.pointerId, x: ev.clientX, y: ev.clientY, base: g === openRow ? +g.dataset.off : 0, off: 0, active: false };
+});
+
+document.addEventListener('pointermove', (ev) => {
+  if (!swipe || ev.pointerId !== swipe.id) return;
+  const dx = ev.clientX - swipe.x, dy = ev.clientY - swipe.y;
+  if (!swipe.active) {
+    if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { swipe = null; return; } // vertical scroll
+    if (Math.abs(dx) < 10) return;
+    swipe.active = true;
+    swipe.g.classList.add('dragging');
+  }
+  swipe.off = Math.max(-120, Math.min(120, swipe.base + dx));
+  swipe.g.style.transform = `translateX(${swipe.off}px)`;
+});
+
+document.addEventListener('pointerup', () => {
+  if (!swipe) return;
+  const { g, active, off } = swipe;
+  swipe = null;
+  if (!active) return;
+  g.classList.remove('dragging');
+  swallowClick = true; // the gesture shouldn't also count as a tap on whatever was under the finger
+  setTimeout(() => { swallowClick = false; }, 0);
+  if (Math.abs(off) > 45) {
+    if (openRow !== g) closeOpenRow();
+    g.dataset.off = Math.sign(off) * SWIPE_OPEN;
+    g.style.transform = `translateX(${g.dataset.off}px)`;
+    openRow = g;
+  } else {
+    g.style.transform = '';
+    if (openRow === g) openRow = null;
+  }
+});
+
+document.addEventListener('pointercancel', () => {
+  if (!swipe) return;
+  swipe.g.classList.remove('dragging');
+  swipe.g.style.transform = swipe.base ? `translateX(${swipe.base}px)` : '';
+  swipe = null;
+});
+
+document.addEventListener('click', (ev) => {
+  if (swallowClick) { ev.stopPropagation(); ev.preventDefault(); }
+}, true);
 
 // ---------- Boot ----------
 if (db.active) requestWakeLock();
