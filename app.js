@@ -575,7 +575,14 @@ function viewEditor() {
     <button class="btn ghost block" data-act="tex-add">+ הוסף תרגיל</button>
     <button class="btn primary block" data-act="tpl-save">שמור תבנית</button>
     <button class="btn block" data-act="tpl-cancel">ביטול</button>
-    ${d.isNew ? '' : '<button class="btn danger block" data-act="tpl-del">מחק תבנית</button>'}`;
+    ${d.isNew ? '' : d.confirmDel ? `
+    <div class="card confirm-del">
+      <div><b>למחוק את "${esc(d.name || 'התבנית')}"?</b><br><span class="muted small">אימונים שכבר נשמרו לא יימחקו.</span></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn danger-fill grow" data-act="tpl-del-yes">כן, מחק</button>
+        <button class="btn grow" data-act="tpl-del-no">לא, השאר</button>
+      </div>
+    </div>` : '<button class="btn danger block" data-act="tpl-del">מחק תבנית</button>'}`;
 }
 
 function viewHistory() {
@@ -1747,9 +1754,10 @@ document.addEventListener('click', (ev) => {
       break;
     }
     case 'tpl-cancel': ui.draft = null; render(); break;
-    case 'tpl-del':
-      if (confirm('למחוק את התבנית? (אימונים שכבר נשמרו לא יימחקו)')) { db.templates = db.templates.filter((t) => t.id !== ui.draft.id); ui.draft = null; save(); render(); }
-      break;
+    // Deleting takes two taps: the button opens an in-page confirmation, so a stray tap can't remove a template.
+    case 'tpl-del': ui.draft.confirmDel = true; render(); break;
+    case 'tpl-del-no': ui.draft.confirmDel = false; render(); break;
+    case 'tpl-del-yes': db.templates = db.templates.filter((t) => t.id !== ui.draft.id); ui.draft = null; save(); render(); break;
     case 'tpl-save': {
       const d = ui.draft;
       if (!d.name.trim()) { toast('תן שם לתבנית'); return; }

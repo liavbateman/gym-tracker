@@ -153,6 +153,9 @@ h3 { font-size: 16px; font-weight: 700; margin: 0; }
 .btn.primary { background: var(--ink); color: var(--paper); }
 .btn.primary:active { opacity: .85; }
 .btn.danger { border-color: transparent; color: var(--red); }
+.btn.danger-fill { background: var(--red); border-color: var(--red); color: #fff; }
+.btn.danger-fill:active { opacity: .85; }
+.confirm-del { margin-top: 10px; border-color: var(--red); }
 .btn.ghost { border-style: dashed; border-color: var(--ink-soft); color: var(--ink-soft); }
 .btn.block { width: 100%; display: block; margin-top: 10px; }
 .btn.sm { padding: 6px 12px; font-size: 14px; border-width: 1px; }
