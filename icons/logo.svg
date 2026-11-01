@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Bateman logo: a chamfered B split by the barbell that forms its waist. -->
+  <rect width="512" height="512" fill="#0B0F17"/>
+
+  <path d="M188 227V144H280L312 176V195L280 227ZM188 285V368H290L322 336V317L290 285Z"
+        fill="none" stroke="#F4F6F8" stroke-width="30" stroke-linejoin="miter"/>
+
+  <g fill="#DCEB3B">
+    <rect x="76" y="251" width="360" height="10" rx="5"/>
+    <rect x="96" y="196" width="14" height="120" rx="7"/>
+    <rect x="120" y="216" width="14" height="80" rx="7"/>
+    <rect x="402" y="196" width="14" height="120" rx="7"/>
+    <rect x="378" y="216" width="14" height="80" rx="7"/>
+  </g>
+</svg>
