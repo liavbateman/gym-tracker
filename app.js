@@ -495,7 +495,7 @@ function viewActive() {
         </div>
         <div class="set-grid swipe">
           <div class="n">${s.wu
-            ? '<span title="סט חימום">ח׳</span>'
+            ? '<span title="סט חימום">חימום</span>'
             : `<button class="set-n ${s.fail ? 'fail' : ''}" data-act="fail" data-e="${i}" data-s="${j}" aria-label="סמן סט עד כשל" aria-pressed="${!!s.fail}">${++n}${s.fail ? '<small>כשל</small>' : ''}</button>`}</div>
           ${stepper(i, j, 'w', s.w, s.pw, 'decimal')}
           ${stepper(i, j, 'r', s.r, s.pr, 'numeric')}
