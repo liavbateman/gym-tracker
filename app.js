@@ -28,6 +28,7 @@ function seed() {
       },
     ],
     workouts: [],
+    metrics: [],
     active: null,
   };
 }
@@ -41,6 +42,7 @@ function load() {
 }
 
 let db = load();
+if (!Array.isArray(db.metrics)) db.metrics = [];
 
 function save() {
   try { localStorage.setItem(KEY, JSON.stringify(db)); } catch { toast('שגיאה בשמירת הנתונים'); }
@@ -49,7 +51,7 @@ function save() {
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 
 // ---------- Helpers ----------
-const ui = { tab: 'workout', draft: null, progEx: null, progMetric: 'e1rm' };
+const ui = { tab: 'workout', draft: null, progEx: null, progMetric: 'e1rm', mdraft: null, bodyMetric: 'pbf', reading: false };
 
 const num = (v) => {
   if (v === '' || v == null) return null;
@@ -308,7 +310,7 @@ function chart(points, unit) {
   const area = points.length > 1 ? `${path} L${x(points.length - 1).toFixed(1)},${H - B} L${x(0).toFixed(1)},${H - B} Z` : '';
   return `
     <svg class="chart" viewBox="0 0 ${W} ${H}" style="direction:ltr" role="img" aria-label="גרף התקדמות">
-      ${ticks.map((v) => `<line class="grid-l" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="ax" x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${Math.round(v)}</text>`).join('')}
+      ${ticks.map((v) => `<line class="grid-l" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="ax" x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${max - min < 10 ? v.toFixed(1) : Math.round(v)}</text>`).join('')}
       ${area ? `<path class="ar" d="${area}"/>` : ''}
       <path class="ln" d="${path}"/>
       ${points.map((p, i) => `<circle class="pt" cx="${x(i)}" cy="${y(p.y)}" r="3.5"><title>${fmtDateShort(p.t)}: ${fmtW(p.y)} ${unit}</title></circle>`).join('')}
@@ -372,6 +374,257 @@ function viewProgress() {
     <div class="card"><h3>אימונים אחרונים</h3><div style="margin-top:8px">${recent}</div></div>`;
 }
 
+// ---------- Body metrics ----------
+// better: 1 = higher is better, -1 = lower is better, 0 = neutral (colors the change vs. last measurement).
+const MFIELDS = [
+  { k: 'weight', l: 'משקל', u: 'ק״ג', better: 0 },
+  { k: 'pbf', l: 'אחוז שומן', u: '%', better: -1 },
+  { k: 'smm', l: 'מסת שריר', u: 'ק״ג', better: 1 },
+  { k: 'fat', l: 'מסת שומן', u: 'ק״ג', better: -1 },
+  { k: 'bmi', l: 'BMI', u: '', better: -1 },
+  { k: 'visceral', l: 'שומן ויסצרלי', u: 'רמה', better: -1 },
+  { k: 'score', l: 'ציון InBody', u: '', better: 1 },
+  { k: 'bmr', l: 'חילוף חומרים (BMR)', u: 'קק״ל', better: 1 },
+  { k: 'ffm', l: 'מסה רזה', u: 'ק״ג', better: 1 },
+  { k: 'tbw', l: 'מים בגוף', u: 'ליטר', better: 0 },
+  { k: 'protein', l: 'חלבון', u: 'ק״ג', better: 1 },
+  { k: 'mineral', l: 'מינרלים', u: 'ק״ג', better: 0 },
+];
+const MF = Object.fromEntries(MFIELDS.map((f) => [f.k, f]));
+const CHART_METRICS = [['pbf', 'אחוז שומן'], ['weight', 'משקל'], ['smm', 'שריר'], ['fat', 'שומן ק״ג']];
+
+const API_KEY_KEY = 'gym-tracker-apikey';
+const getApiKey = () => { try { return localStorage.getItem(API_KEY_KEY) || ''; } catch { return ''; } };
+const setApiKey = (v) => { try { v ? localStorage.setItem(API_KEY_KEY, v) : localStorage.removeItem(API_KEY_KEY); } catch { /* ignore */ } };
+
+const sortedMetrics = () => [...db.metrics].sort((a, b) => b.t - a.t);
+const isoDay = (ts) => { const d = new Date(ts); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const dayTs = (iso) => { const [y, m, d] = String(iso).split('-').map(Number); return y && m && d ? new Date(y, m - 1, d, 12).getTime() : null; };
+const fmtDateFull = (ts) => new Date(ts).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric', year: '2-digit' });
+
+function deltaHtml(k, cur, prev) {
+  if (cur == null || prev == null) return '';
+  const d = Math.round((cur - prev) * 10) / 10;
+  if (!d) return '<span class="delta">±0</span>';
+  const tone = MF[k].better ? (Math.sign(d) === MF[k].better ? 'up' : 'down') : '';
+  return `<span class="delta ${tone}" dir="ltr">${d > 0 ? '+' : ''}${fmtW(d)}</span>`;
+}
+
+function viewMetricForm() {
+  const d = ui.mdraft;
+  const hist = d.history.length ? `
+    <h2>מדידות קודמות מהדוח</h2>
+    <div class="card">
+      <p class="muted small" style="margin-top:0">נמצאו בטבלת ההיסטוריה של הדוח. מסומנות יתווספו (רק משקל, שריר ואחוז שומן).</p>
+      ${d.history.map((h, i) => `
+        <label class="hist-row">
+          <input type="checkbox" data-f="m-hist" data-i="${i}" ${h.add ? 'checked' : ''} ${h.exists ? 'disabled' : ''}>
+          <span class="grow">${fmtDateFull(dayTs(h.date))}${h.exists ? ' <span class="muted small">(כבר קיימת)</span>' : ''}</span>
+          <span class="muted small" dir="ltr">${[h.weight != null ? `${fmtW(h.weight)}kg` : '', h.smm != null ? `SMM ${fmtW(h.smm)}` : '', h.pbf != null ? `${fmtW(h.pbf)}%` : ''].filter(Boolean).join(' · ')}</span>
+        </label>`).join('')}
+    </div>` : '';
+
+  return `
+    ${d.fromImage ? '<div class="card note">✨ הנתונים נקראו מהתמונה. כדאי לעבור עליהם ולתקן אם משהו לא נקרא נכון.</div>' : ''}
+    <div class="card">
+      <label class="field">תאריך המדידה<input type="date" data-f="m-date" value="${esc(d.date)}"></label>
+      <div class="mgrid">
+        ${MFIELDS.map((f) => `<label class="field">${f.l}${f.u ? ` <span class="unit">(${f.u})</span>` : ''}<input type="number" inputmode="decimal" step="any" data-f="m-val" data-k="${f.k}" value="${esc(d.vals[f.k])}"></label>`).join('')}
+      </div>
+    </div>
+    ${hist}
+    <button class="btn primary block" data-act="m-save">שמור מדידה</button>
+    <button class="btn block" data-act="m-cancel">ביטול</button>
+    ${d.isNew ? '' : '<button class="btn danger block" data-act="m-del">מחק מדידה</button>'}`;
+}
+
+function viewMetrics() {
+  if (ui.mdraft) return viewMetricForm();
+  const list = sortedMetrics();
+  const hasKey = !!getApiKey();
+
+  const upload = ui.reading
+    ? '<div class="card center reading"><div class="spinner"></div><div style="margin-top:10px">קורא את הנתונים מהדוח…</div><div class="muted small">זה לוקח בדרך כלל כמה שניות</div></div>'
+    : `<button class="btn primary block" data-act="m-upload" style="margin-top:0">📷 העלה תמונה של דוח מדידה</button>
+       <button class="btn ghost block" data-act="m-manual">+ הזנה ידנית</button>
+       <input type="file" id="m-file" accept="image/*" hidden>`;
+
+  let latest = '', chartCard = '', rows = '';
+  if (list.length) {
+    const [cur, prev] = list;
+    const shown = ['weight', 'pbf', 'smm', 'fat', 'visceral', 'score'].filter((k) => cur[k] != null);
+    latest = `
+      <div class="row between" style="margin:18px 0 10px"><h2 style="margin:0">מדידה אחרונה</h2><span class="muted small">${fmtDateFull(cur.t)}</span></div>
+      <div class="stats">${shown.map((k) => `
+        <div class="stat">
+          <div class="v"><span dir="ltr">${fmtW(cur[k])}<span class="u">${MF[k].u === '%' ? '%' : ''}</span></span> ${prev ? deltaHtml(k, cur[k], prev[k]) : ''}</div>
+          <div class="l">${MF[k].l}${MF[k].u && MF[k].u !== '%' ? ` (${MF[k].u})` : ''}</div>
+        </div>`).join('')}
+      </div>`;
+
+    const points = [...list].reverse().filter((m) => m[ui.bodyMetric] != null).map((m) => ({ t: m.t, y: m[ui.bodyMetric] }));
+    chartCard = `
+      <div class="card">
+        <div class="seg">${CHART_METRICS.map(([k, l]) => `<button class="${ui.bodyMetric === k ? 'on' : ''}" data-act="body-metric" data-k="${k}">${l}</button>`).join('')}</div>
+        ${points.length > 1 ? chart(points, MF[ui.bodyMetric].u) : '<p class="muted small center">צריך לפחות שתי מדידות כדי להציג גרף.</p>'}
+      </div>`;
+
+    rows = list.map((m) => `
+      <details class="card hist">
+        <summary class="row between">
+          <b>${fmtDateFull(m.t)}</b>
+          <span class="muted small" dir="ltr">${[m.weight != null ? `${fmtW(m.weight)} kg` : '', m.pbf != null ? `${fmtW(m.pbf)}%` : ''].filter(Boolean).join(' · ')}</span>
+        </summary>
+        <div class="mlist">${MFIELDS.filter((f) => m[f.k] != null).map((f) => `<div><span class="muted">${f.l}</span><b dir="ltr">${fmtW(m[f.k])} ${f.u === '%' ? '%' : ''}</b></div>`).join('')}</div>
+        <button class="btn sm" data-act="m-edit" data-id="${m.id}" style="margin-top:10px">עריכה</button>
+      </details>`).join('');
+  }
+
+  return `
+    ${upload}
+    ${list.length ? latest + chartCard + '<h2>כל המדידות</h2>' + rows : '<div class="empty">עוד אין מדידות.<br>צלם את דוח ה-InBody (או כל דוח הרכב גוף) והנתונים ייקלטו אוטומטית.</div>'}
+    <h2>קריאת תמונות</h2>
+    <div class="card">
+      <label class="field">מפתח Claude API ${hasKey ? '<span class="ok">✓ שמור</span>' : ''}
+        <input type="password" data-f="apikey" value="${esc(getApiKey())}" placeholder="sk-ant-…" autocomplete="off" dir="ltr">
+      </label>
+      <p class="muted small" style="margin-bottom:0">כדי לקרוא נתונים מתמונה, האפליקציה שולחת את התמונה ל-Claude של Anthropic. המפתח נשמר רק בטלפון הזה ולא נכלל בקובץ הגיבוי. אפשר ליצור מפתח ב-console.anthropic.com.</p>
+    </div>`;
+}
+
+function newMetricDraft(vals = {}, date = isoDay(Date.now()), history = [], fromImage = false) {
+  const days = new Set(db.metrics.map((m) => isoDay(m.t)));
+  return {
+    id: uid(), isNew: true, fromImage, date,
+    vals: Object.fromEntries(MFIELDS.map((f) => [f.k, vals[f.k] != null ? String(vals[f.k]) : ''])),
+    history: history
+      .filter((h) => h.date && dayTs(h.date) && h.date !== date)
+      .map((h) => ({ ...h, exists: days.has(h.date), add: !days.has(h.date) })),
+  };
+}
+
+function saveMetric() {
+  const d = ui.mdraft;
+  const t = dayTs(d.date);
+  if (!t) { toast('בחר תאריך'); return; }
+  const entry = { id: d.id, t };
+  for (const f of MFIELDS) { const v = num(d.vals[f.k]); if (v != null) entry[f.k] = v; }
+  if (Object.keys(entry).length === 2) { toast('לא הוזנו נתונים'); return; }
+
+  // One measurement per day: a new entry on a day that already has one replaces it.
+  const sameDay = d.isNew && db.metrics.find((m) => isoDay(m.t) === d.date);
+  if (sameDay && !confirm(`כבר קיימת מדידה מ-${fmtDateFull(t)}. להחליף אותה?`)) return;
+  db.metrics = db.metrics.filter((m) => m.id !== d.id && m !== sameDay);
+  db.metrics.push(entry);
+
+  let added = 0;
+  for (const h of d.history) {
+    if (!h.add || h.exists) continue;
+    const m = { id: uid(), t: dayTs(h.date) };
+    for (const k of ['weight', 'smm', 'pbf']) if (h[k] != null) m[k] = h[k];
+    db.metrics.push(m);
+    added++;
+  }
+  ui.mdraft = null;
+  save(); render();
+  window.scrollTo(0, 0);
+  toast(added ? `המדידה נשמרה (+${added} מההיסטוריה)` : 'המדידה נשמרה');
+}
+
+// Downscale before upload: phone photos are large, and ~1600px is plenty to read the printout.
+async function imageToJpegBase64(file, maxDim = 1600) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+    const scale = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.naturalWidth * scale);
+    c.height = Math.round(img.naturalHeight * scale);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', 0.88).split(',')[1];
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+const SDK_URL = 'https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@0.134.0/+esm';
+const numOrNull = { anyOf: [{ type: 'number' }, { type: 'null' }] };
+const REPORT_SCHEMA = {
+  type: 'object',
+  properties: {
+    is_report: { type: 'boolean', description: 'false if the image is not a body composition report' },
+    date: { anyOf: [{ type: 'string', format: 'date' }, { type: 'null' }] },
+    ...Object.fromEntries(MFIELDS.map((f) => [f.k, numOrNull])),
+    history: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: { date: { type: 'string', format: 'date' }, weight: numOrNull, smm: numOrNull, pbf: numOrNull },
+        required: ['date', 'weight', 'smm', 'pbf'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['is_report', 'date', ...MFIELDS.map((f) => f.k), 'history'],
+  additionalProperties: false,
+};
+const REPORT_PROMPT = `This is a photo of a body composition report (for example an InBody printout). Extract the values of the current test.
+
+Fields:
+- date: the test date as YYYY-MM-DD. Printouts from Israel/Europe write dates as DD.MM.YYYY.
+- weight (kg), pbf (percent body fat, %), smm (skeletal muscle mass, kg), fat (body fat mass, kg), bmi, visceral (visceral fat level), score (InBody score out of 100), bmr (basal metabolic rate, kcal), ffm (fat free mass, kg), tbw (total body water, L), protein (kg), mineral (kg).
+- history: every column of the "Body Composition History" table except the current test, with its date and the weight, smm and pbf values printed for it. Empty array if there is no such table.
+
+Read the measured value itself, not the normal range printed next to it in parentheses. Printouts often put a space after the decimal point ("86. 8" means 86.8). Use null for anything not on the report or not legible. Set is_report to false if the image is not a body composition report.`;
+
+async function readReport(file) {
+  const apiKey = getApiKey();
+  const data = await imageToJpegBase64(file);
+  const sdk = await import(SDK_URL);
+  const client = new sdk.default({ apiKey, dangerouslyAllowBrowser: true });
+  try {
+    const res = await client.beta.messages.create({
+      model: 'claude-opus-5-5',
+      max_tokens: 16000,
+      betas: ['server-side-fallback-2026-07-01'],
+      fallbacks: 'default',
+      output_config: { effort: 'medium', format: { type: 'json_schema', schema: REPORT_SCHEMA } },
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data } },
+          { type: 'text', text: REPORT_PROMPT },
+        ],
+      }],
+    });
+    if (res.stop_reason === 'refusal') throw new Error('לא ניתן היה לעבד את התמונה');
+    if (res.stop_reason === 'max_tokens') throw new Error('התשובה נקטעה, נסה שוב');
+    const text = res.content.find((b) => b.type === 'text')?.text;
+    return JSON.parse(text);
+  } catch (e) {
+    if (e instanceof sdk.AuthenticationError) throw new Error('מפתח ה-API לא תקין');
+    if (e instanceof sdk.RateLimitError) throw new Error('יותר מדי בקשות, נסה שוב בעוד דקה');
+    if (e instanceof sdk.APIConnectionError) throw new Error('אין חיבור לאינטרנט');
+    if (e instanceof sdk.APIError) throw new Error(`שגיאה מהשרת (${e.status ?? '?'})`);
+    throw e;
+  }
+}
+
+async function handleReportFile(file) {
+  ui.reading = true; render();
+  try {
+    const r = await readReport(file);
+    if (!r.is_report) { toast('זה לא נראה כמו דוח הרכב גוף', 3500); return; }
+    ui.mdraft = newMetricDraft(r, r.date && dayTs(r.date) ? r.date : isoDay(Date.now()), r.history || [], true);
+  } catch (e) {
+    toast(e.message && /[֐-׿]/.test(e.message) ? e.message : 'לא הצלחתי לקרוא את התמונה', 3500);
+  } finally {
+    ui.reading = false;
+    render();
+    window.scrollTo(0, 0);
+  }
+}
+
 function render() {
   document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === ui.tab));
   let title, html;
@@ -382,6 +635,10 @@ function render() {
       break;
     case 'history': title = 'היסטוריה'; html = viewHistory(); break;
     case 'progress': title = 'התקדמות'; html = viewProgress(); break;
+    case 'body':
+      title = ui.mdraft ? (ui.mdraft.isNew ? 'מדידה חדשה' : 'עריכת מדידה') : 'מדדי גוף';
+      html = viewMetrics();
+      break;
     default: title = db.active ? 'אימון פעיל' : 'אימון'; html = db.active ? viewActive() : viewStart();
   }
   $('#title').textContent = title;
@@ -673,6 +930,24 @@ document.addEventListener('click', (ev) => {
     }
 
     case 'metric': ui.progMetric = el.dataset.k; render(); break;
+
+    case 'body-metric': ui.bodyMetric = el.dataset.k; render(); break;
+    case 'm-upload':
+      if (!getApiKey()) { toast('כדי לקרוא תמונות צריך להזין מפתח Claude API (למטה)', 3500); $('[data-f="apikey"]')?.focus(); return; }
+      $('#m-file').click();
+      break;
+    case 'm-manual': ui.mdraft = newMetricDraft(); render(); window.scrollTo(0, 0); break;
+    case 'm-edit': {
+      const m = db.metrics.find((x) => x.id === el.dataset.id);
+      ui.mdraft = { ...newMetricDraft(m, isoDay(m.t)), id: m.id, isNew: false };
+      render(); window.scrollTo(0, 0);
+      break;
+    }
+    case 'm-save': saveMetric(); break;
+    case 'm-cancel': ui.mdraft = null; render(); break;
+    case 'm-del':
+      if (confirm('למחוק את המדידה?')) { db.metrics = db.metrics.filter((m) => m.id !== ui.mdraft.id); ui.mdraft = null; save(); render(); }
+      break;
     case 'export': exportData(); break;
     case 'import': $('#import-file').click(); break;
   }
@@ -698,6 +973,9 @@ document.addEventListener('input', (ev) => {
     case 'tex-sets': ui.draft.exercises[i].sets = el.value; break;
     case 'tex-reps': ui.draft.exercises[i].reps = el.value; break;
     case 'tex-rest': ui.draft.exercises[i].rest = el.value; break;
+    case 'm-date': ui.mdraft.date = el.value; break;
+    case 'm-val': ui.mdraft.vals[el.dataset.k] = el.value; break;
+    case 'apikey': setApiKey(el.value.trim()); break;
   }
 });
 
@@ -705,6 +983,9 @@ document.addEventListener('change', (ev) => {
   const el = ev.target;
   if (el.dataset.f === 'prog-ex') { ui.progEx = el.value; render(); }
   if (el.id === 'import-file' && el.files[0]) { importData(el.files[0]); el.value = ''; }
+  if (el.id === 'm-file' && el.files[0]) { handleReportFile(el.files[0]); el.value = ''; }
+  if (el.dataset.f === 'm-hist') ui.mdraft.history[+el.dataset.i].add = el.checked;
+  if (el.dataset.f === 'apikey') render(); // refresh the "saved" mark
 });
 
 document.addEventListener('keydown', (ev) => {
