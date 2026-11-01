@@ -33,7 +33,7 @@ button, input, select {
   color: inherit;
 }
 
-button { cursor: pointer; }
+button { cursor: pointer; touch-action: manipulation; }
 
 .topbar {
   position: sticky;
@@ -130,6 +130,8 @@ input[type=number] { text-align: center; -moz-appearance: textfield; }
 input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
 label.field { display: block; font-size: 13px; color: var(--muted); }
+.check-row { display: flex; gap: 10px; align-items: flex-start; margin: 4px 0 6px; line-height: 1.4; }
+.check-row input { width: 22px; height: 22px; margin: 0; flex: none; accent-color: var(--accent); }
 label.field input, label.field select { margin-top: 4px; }
 
 /* Template list on start screen */
@@ -144,6 +146,17 @@ label.field input, label.field select { margin-top: 4px; }
   margin-bottom: 10px;
 }
 .tpl .name { font-weight: 700; font-size: 17px; }
+.tpl.next { border-color: var(--accent); background: linear-gradient(0deg, var(--card), #2a2119); padding: 18px 14px; }
+.badge {
+  display: inline-block;
+  margin-bottom: 6px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 11px;
+  font-weight: 800;
+  border-radius: 99px;
+  padding: 2px 9px;
+}
 .tpl .sub { color: var(--muted); font-size: 13px; margin-top: 4px; line-height: 1.4; }
 
 /* Active workout */
@@ -161,11 +174,27 @@ label.field input, label.field select { margin-top: 4px; }
 
 .sets { width: 100%; border-collapse: collapse; margin-top: 10px; }
 .sets th { font-size: 12px; color: var(--muted); font-weight: 500; padding: 0 4px 6px; }
-.sets td { padding: 3px 4px; text-align: center; }
-.sets td.n { width: 28px; color: var(--muted); font-weight: 600; }
-.sets td.chk { width: 50px; }
-.sets td.del { width: 30px; }
-.sets input { padding: 9px 4px; }
+.sets td { padding: 3px 2px; text-align: center; }
+.sets td.n { width: 24px; color: var(--muted); font-weight: 600; }
+.sets td.chk { width: 46px; }
+.sets td.del { width: 24px; }
+.sets td.del .icon-btn { padding: 6px 2px; font-size: 13px; opacity: .6; }
+.sets input { padding: 9px 2px; }
+.stepper { display: flex; align-items: stretch; gap: 2px; }
+.stepper input { flex: 1; min-width: 0; }
+.stepper button {
+  flex: none;
+  width: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: var(--card2);
+  color: var(--muted);
+  font-size: 17px;
+  font-weight: 700;
+}
+.stepper button:active { background: var(--accent); color: var(--accent-ink); }
+.up { font-size: 12px; color: var(--good); margin-top: 3px; font-weight: 600; }
 .sets tr.done input { background: rgba(47, 191, 113, .12); border-color: rgba(47, 191, 113, .5); }
 .check {
   width: 44px; height: 40px;
@@ -179,12 +208,30 @@ tr.done .check { background: var(--good); border-color: var(--good); color: #041
 tr.wu td.n { color: #ffb36b; font-size: 13px; }
 tr.wu input { border-style: dashed; }
 .chip.wu { color: var(--muted); border-style: dashed; }
+.chip.fail { border-color: var(--bad); }
+.chip.fail span { color: var(--bad); }
+.t-fail { color: var(--bad); }
+.set-n {
+  width: 24px;
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  font-weight: 700;
+  line-height: 1.1;
+}
+.set-n.fail { background: rgba(255, 84, 104, .18); color: var(--bad); }
+.set-n small { display: block; font-size: 9px; font-weight: 700; }
 
 .rest-pill { font-size: 12px; color: var(--muted); background: var(--bg); border-radius: 99px; padding: 3px 8px; border: 1px solid var(--line); }
 
 /* Template editor */
 .tex { background: var(--card2); border-radius: 12px; padding: 10px; margin-bottom: 8px; }
-.tex .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+.tex .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px; }
+.tex .grid .field { font-size: 12px; white-space: nowrap; }
+.tex .grid input { padding: 9px 4px; }
 
 /* History */
 details.hist summary { list-style: none; cursor: pointer; }
