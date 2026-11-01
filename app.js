@@ -1749,6 +1749,83 @@ function renderSheet() {
   el.innerHTML = ui.demo ? viewDemo() : '';
 }
 
+// ---------- Logo easter egg: BATEMAN ARC with explosions ----------
+let boomRaf = 0;
+function openBateman() {
+  const el = $('#bateman');
+  el.classList.remove('hidden', 'go');
+  void el.offsetWidth; // restart the CSS animations on every tap
+  el.classList.add('go');
+  if (navigator.vibrate) navigator.vibrate([60, 40, 120]);
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) explode($('#boom'));
+}
+function closeBateman() {
+  $('#bateman').classList.add('hidden');
+  cancelAnimationFrame(boomRaf);
+}
+// Fireballs, sparks, smoke and shock rings drawn on a full-screen canvas, in staggered bursts.
+function explode(cv) {
+  cancelAnimationFrame(boomRaf);
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  const W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const ctx = cv.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const parts = [], rings = [];
+  const burst = (x, y, size) => {
+    rings.push({ x, y, r: 4, max: size * 2.4, life: 1 });
+    for (let k = 0; k < 70; k++) {
+      const a = Math.random() * Math.PI * 2, v = (0.3 + Math.random()) * size / 14;
+      const kind = k < 40 ? 'fire' : k < 58 ? 'spark' : 'smoke';
+      parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, kind, life: 1,
+        decay: kind === 'spark' ? 0.012 + Math.random() * 0.01 : kind === 'smoke' ? 0.008 : 0.02 + Math.random() * 0.02,
+        r: kind === 'smoke' ? size / 5 : kind === 'fire' ? size / 7 + Math.random() * size / 6 : 2 });
+    }
+  };
+  // [delay ms, x, y (fractions of the screen), size]
+  const plan = [[0, .5, .45, 1.3], [180, .2, .2, .8], [330, .82, .3, .9], [480, .25, .75, 1], [620, .78, .78, 1.1], [800, .5, .12, .7], [950, .5, .9, .8]];
+  const scale = Math.min(W, H) / 3;
+  const t0 = performance.now();
+  let next = 0;
+  const frame = (now) => {
+    const t = now - t0;
+    while (next < plan.length && t >= plan[next][0]) { const [, px, py, s] = plan[next++]; burst(px * W, py * H, scale * s); }
+    ctx.clearRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'lighter';
+    for (const g of rings) {
+      g.r += (g.max - g.r) * 0.12; g.life -= 0.035;
+      if (g.life <= 0) continue;
+      ctx.strokeStyle = `rgba(255,200,120,${g.life * 0.8})`; ctx.lineWidth = 6 * g.life;
+      ctx.beginPath(); ctx.arc(g.x, g.y, g.r, 0, Math.PI * 2); ctx.stroke();
+    }
+    for (const p of parts) {
+      if (p.life <= 0) continue;
+      p.x += p.vx; p.y += p.vy; p.vx *= 0.95; p.vy = p.vy * 0.95 + (p.kind === 'smoke' ? -0.05 : p.kind === 'spark' ? 0.12 : -0.02);
+      p.life -= p.decay;
+      const l = Math.max(p.life, 0);
+      if (p.kind === 'spark') {
+        ctx.strokeStyle = `rgba(255,230,150,${l})`; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * 3, p.y - p.vy * 3); ctx.stroke();
+        continue;
+      }
+      const r = p.r * (p.kind === 'smoke' ? 2 - l : 0.6 + l * 0.6);
+      const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+      if (p.kind === 'fire') {
+        grad.addColorStop(0, `rgba(255,255,220,${l})`); grad.addColorStop(0.35, `rgba(255,170,30,${l * 0.9})`);
+        grad.addColorStop(0.7, `rgba(220,40,0,${l * 0.5})`); grad.addColorStop(1, 'rgba(120,0,0,0)');
+      } else {
+        ctx.globalCompositeOperation = 'source-over';
+        grad.addColorStop(0, `rgba(60,50,45,${l * 0.35})`); grad.addColorStop(1, 'rgba(30,25,20,0)');
+      }
+      ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
+      ctx.globalCompositeOperation = 'lighter';
+    }
+    if (next < plan.length || parts.some((p) => p.life > 0)) boomRaf = requestAnimationFrame(frame);
+    else ctx.clearRect(0, 0, W, H);
+  };
+  boomRaf = requestAnimationFrame(frame);
+}
+
 // Sticky elements below the top bar need its real height (it grows with the iPhone notch).
 const topbarObs = new ResizeObserver(([e]) => document.documentElement.style.setProperty('--top-h', `${e.target.offsetHeight}px`));
 topbarObs.observe(document.querySelector('.topbar'));
@@ -2300,8 +2377,8 @@ document.addEventListener('click', (ev) => {
       break;
     case 'demo': openDemo(el.dataset.e != null ? ex.name : ui.draft.exercises[i].name); break;
     case 'demo-close': ui.demo = null; renderSheet(); break;
-    case 'bateman': $('#bateman').classList.remove('hidden'); break;
-    case 'bateman-close': $('#bateman').classList.add('hidden'); break;
+    case 'bateman': openBateman(); break;
+    case 'bateman-close': closeBateman(); break;
     case 'demo-search': runDemoSearch(); break;
     case 'demo-variant': runDemoSearch(+el.dataset.k); break;
     case 'demo-change': ui.demo.picking = true; renderSheet(); if (!ui.demo.results) runDemoSearch(); break;
@@ -2383,7 +2460,7 @@ document.addEventListener('keydown', (ev) => {
   if (ev.key === 'Enter' && ev.target.id === 'swap-name') $('[data-act="swap-custom"]').click();
   if (ev.key === 'Enter' && ev.target.id === 'demo-q') { ev.target.blur(); runDemoSearch(); }
   if (ev.key === 'Escape' && ui.demo) { ui.demo = null; renderSheet(); }
-  if (ev.key === 'Escape') $('#bateman').classList.add('hidden');
+  if (ev.key === 'Escape') closeBateman();
 });
 
 // ---------- Swipe to delete a set ----------
