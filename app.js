@@ -73,50 +73,103 @@ const ALT_POOL = {
   'יד אחורית': ['פשיטת מרפקים בכבל', 'פרנץ', 'סקאל קראשר', 'מקבילים', 'פשיטת מרפקים מעל הראש בכבל'],
   'בטן': ['פלאנק', 'כפיפות בטן', 'הרמות רגליים בתלייה', 'כפיפות בטן בכבל'],
 };
-// Post-workout stretches per area. hold is in seconds; sides: done once on each side, so it takes twice as long.
+// Stretches per area: dynamic ones to warm up before the workout, static holds to cool down after it.
+// img is the free-exercise-db id (its two photos play like a GIF); hold is in seconds; sides: done on each
+// side, so it takes twice as long.
+const st = (img, name, hold, how, sides = false) => ({ id: img, img, name, hold, how, sides });
 const STRETCHES = {
-  'חזה': [
-    { id: 'chest-door', name: 'מתיחת חזה במשקוף', hold: 30, sides: true, how: 'אמה על המשקוף בגובה הכתף, צעד קדימה עד מתיחה בחזה.' },
-    { id: 'chest-clasp', name: 'ידיים שלובות מאחור', hold: 30, how: 'שלב אצבעות מאחורי הגב, ישר מרפקים והרם ידיים לאט.' },
-  ],
-  'גב': [
-    { id: 'back-child', name: 'תנוחת הילד', hold: 40, how: 'ברכיים על הרצפה, ישבן לעקבים, ידיים מושטות קדימה.' },
-    { id: 'back-lat', name: 'מתיחת לטס בעמוד', hold: 30, sides: true, how: 'אחוז בעמוד בגובה המותן, דחוף ישבן לאחור ותן לצד הגב להימתח.' },
-    { id: 'back-catcow', name: 'חתול-פרה', hold: 30, how: 'על שש, עגל גב למעלה ואז קשת למטה, לאט עם הנשימה.' },
-  ],
-  'כתפיים': [
-    { id: 'sh-cross', name: 'יד על החזה', hold: 30, sides: true, how: 'משוך יד ישרה לרוחב החזה עם היד השנייה, כתף למטה.' },
-    { id: 'sh-sleeper', name: 'סיבוב פנימי עם מגבת', hold: 30, sides: true, how: 'מגבת מאחורי הגב, יד עליונה מושכת למעלה את היד התחתונה.' },
-  ],
-  'רגליים': [
-    { id: 'leg-quad', name: 'ארבע ראשי בעמידה', hold: 30, sides: true, how: 'אחוז בקרסול מאחור, ברכיים צמודות, אגן קדימה.' },
-    { id: 'leg-ham', name: 'המסטרינג בישיבה', hold: 30, sides: true, how: 'רגל אחת ישרה, גב ישר, התכופף מהירך לכיוון כף הרגל.' },
-    { id: 'leg-hip', name: 'כופף ירך בכריעה', hold: 30, sides: true, how: 'ברך אחורית על הרצפה, כווץ ישבן ודחוף אגן קדימה.' },
-    { id: 'leg-glute', name: 'ישבן בשכיבה (ארבע)', hold: 30, sides: true, how: 'קרסול על הברך השנייה, משוך את הירך לחזה.' },
-    { id: 'leg-calf', name: 'תאומים על הקיר', hold: 30, sides: true, how: 'ידיים על הקיר, רגל אחורית ישרה ועקב צמוד לרצפה.' },
-  ],
-  'יד קדמית': [
-    { id: 'bi-wall', name: 'יד קדמית על הקיר', hold: 30, sides: true, how: 'כף יד על הקיר מאחוריך, יד ישרה, סובב את הגוף הצידה.' },
-    { id: 'bi-forearm', name: 'אמה', hold: 20, sides: true, how: 'יד ישרה קדימה, משוך את האצבעות לאחור עם היד השנייה.' },
-  ],
-  'יד אחורית': [
-    { id: 'tri-overhead', name: 'יד אחורית מעל הראש', hold: 30, sides: true, how: 'כף יד בין השכמות, דחוף את המרפק למטה עם היד השנייה.' },
-  ],
-  'בטן': [
-    { id: 'abs-cobra', name: 'קוברה', hold: 30, how: 'שכיבה על הבטן, דחוף עם הידיים והרם חזה, אגן נשאר על הרצפה.' },
-    { id: 'abs-side', name: 'כפיפה צידית בעמידה', hold: 20, sides: true, how: 'יד מעל הראש, התכופף לצד הנגדי בלי להסתובב.' },
-  ],
+  pre: {
+    'חזה': [
+      st('Dynamic_Chest_Stretch', 'פתיחת ידיים דינמית', 30, 'ידיים ישרות קדימה, פתח אותן לאחור כמה שאפשר וחזור – כמו מחיאת כפיים מוגזמת.'),
+      st('Arm_Circles', 'סיבובי ידיים', 30, 'ידיים ישרות לצדדים, עיגולים קטנים שהולכים וגדלים. החלף כיוון באמצע.'),
+    ],
+    'גב': [
+      st('Dynamic_Back_Stretch', 'הנפות ידיים למעלה', 30, 'ידיים ישרות, הנף אותן מלפנים עד מעל הראש, כל פעם קצת יותר גבוה.'),
+      st('Cat_Stretch', 'חתול-פרה', 30, 'על שש, עגל גב למעלה ואז קשת למטה, לאט עם הנשימה.'),
+    ],
+    'כתפיים': [
+      st('Shoulder_Circles', 'סיבובי כתפיים', 30, 'ידיים רפויות, גלגל כתפיים קדימה, למעלה, אחורה ולמטה. ואז הפוך.'),
+      st('Arm_Circles', 'סיבובי ידיים', 30, 'ידיים ישרות לצדדים, עיגולים קטנים שהולכים וגדלים. החלף כיוון באמצע.'),
+      st('Round_The_World_Shoulder_Stretch', 'העברת מקל מעל הראש', 30, 'אחיזה רחבה במקל, העבר אותו לאט מלפנים אל מאחורי הגב וחזרה.'),
+    ],
+    'רגליים': [
+      st('Front_Leg_Raises', 'הנפות רגל', 20, 'החזק במשהו, הנף רגל ישרה קדימה ואחורה, כל פעם קצת יותר רחוק.', true),
+      st('Standing_Hip_Circles', 'סיבובי ירך', 20, 'עמוד על רגל אחת, הרם ברך ל־90° וצייר איתה עיגול גדול החוצה.', true),
+      st('Worlds_Greatest_Stretch', 'המתיחה הכי טובה בעולם', 30, 'לאנג׳ עמוק, מרפק לכיוון הקרסול הקדמי, ואז סובב ופתח את היד לתקרה.', true),
+    ],
+    'יד קדמית': [
+      st('Elbow_Circles', 'סיבובי מרפקים', 30, 'ידיים על הכתפיים, מרפקים לצדדים, צייר עיגולים גדולים עם המרפקים.'),
+      st('Wrist_Circles', 'סיבובי שורש כף יד', 20, 'ידיים לצדדים, סובב את כפות הידיים בעיגולים לשני הכיוונים.'),
+    ],
+    'יד אחורית': [
+      st('Elbow_Circles', 'סיבובי מרפקים', 30, 'ידיים על הכתפיים, מרפקים לצדדים, צייר עיגולים גדולים עם המרפקים.'),
+      st('Arm_Circles', 'סיבובי ידיים', 30, 'ידיים ישרות לצדדים, עיגולים קטנים שהולכים וגדלים. החלף כיוון באמצע.'),
+    ],
+    'בטן': [
+      st('Torso_Rotation', 'סיבובי גו', 30, 'ידיים ישרות קדימה (אפשר עם כדור), סובב את הגו מצד לצד, אגן נשאר במקום.'),
+      st('Windmills', 'טחנות רוח בשכיבה', 30, 'על הגב, ידיים לצדדים. העבר רגל מעל הגוף לכיוון היד הנגדית, וחזור.'),
+    ],
+  },
+  post: {
+    'חזה': [
+      st('Elbows_Back', 'מרפקים לאחור', 30, 'ידיים על הגב התחתון, משוך מרפקים לאחור כאילו הם נוגעים זה בזה.'),
+      st('Chest_And_Front_Of_Shoulder_Stretch', 'מקל מאחורי הראש', 30, 'אחיזה רחבה במקל, הרם אותו לאט למעלה ומאחורי הראש עד מתיחה בחזה.'),
+    ],
+    'גב': [
+      st('Childs_Pose', 'תנוחת הילד', 40, 'ברכיים על הרצפה, ישבן לעקבים, ידיים מושטות קדימה.'),
+      st('One_Arm_Against_Wall', 'לטס על הקיר', 30, 'מרפק כפוף על הקיר או המשקוף, השען את הגוף לכיוונו עד מתיחה בצד הגב.', true),
+      st('Upper_Back_Stretch', 'עיגול גב עליון', 30, 'שלב אצבעות, עגל כתפיים ודחוף את הידיים קדימה.'),
+    ],
+    'כתפיים': [
+      st('Shoulder_Stretch', 'יד על החזה', 30, 'משוך יד ישרה לרוחב החזה עם היד השנייה, כתף למטה.', true),
+      st('Overhead_Stretch', 'מתיחה למעלה', 30, 'שלב אצבעות, כפות לתקרה, ידיים ישרות למעלה וכתפיים למטה.'),
+    ],
+    'רגליים': [
+      st('Standing_Elevated_Quad_Stretch', 'ארבע ראשי על ספסל', 30, 'גב לספסל, כף רגל אחורית עליו, כופף קלות את הרגל הקדמית ודחוף אגן קדימה.', true),
+      st('Seated_Floor_Hamstring_Stretch', 'המסטרינג בישיבה', 30, 'רגל אחת ישרה, השנייה כפופה, גב ישר והתכופף מהירך לכיוון הקרסול.', true),
+      st('Kneeling_Hip_Flexor', 'כופף ירך בכריעה', 30, 'ברך אחורית על הרצפה, כווץ ישבן והעבר משקל קדימה.', true),
+      st('Ankle_On_The_Knee', 'ישבן בשכיבה (ארבע)', 30, 'קרסול על הברך השנייה, משוך את הירך התחתונה לחזה.', true),
+      st('Calf_Stretch_Hands_Against_Wall', 'תאומים על הקיר', 30, 'ידיים על הקיר, רגל אחורית ישרה ועקב צמוד לרצפה.', true),
+    ],
+    'יד קדמית': [
+      st('Standing_Biceps_Stretch', 'ידיים שלובות מאחור', 30, 'שלב ידיים מאחורי הגב, ישר מרפקים, סובב כפות למטה והרם לאט.'),
+      st('Kneeling_Forearm_Stretch', 'אמה בכריעה', 20, 'כפות על הרצפה ואצבעות לכיוון הברכיים, השען לאחור לאט.'),
+    ],
+    'יד אחורית': [
+      st('Triceps_Stretch', 'יד אחורית מאחורי הראש', 30, 'יד מאחורי הראש, משוך את המרפק בעדינות עם היד השנייה.', true),
+    ],
+    'בטן': [
+      st('Overhead_Stretch', 'מתיחת גו למעלה', 30, 'שלב אצבעות, כפות לתקרה, ידיים ישרות למעלה וכתפיים למטה.'),
+      st('Standing_Lateral_Stretch', 'כפיפה צידית', 20, 'יד אחת על המותן, השנייה מאחורי הראש, התכופף לצד בלי להסתובב.', true),
+    ],
+  },
 };
-const ALL_STRETCHES = Object.values(STRETCHES).flat();
-const stretchSecs = (x) => x.hold * (x.sides ? 2 : 1);
+const STRETCH_DEFAULT = { pre: ['Arm_Circles', 'Front_Leg_Raises', 'Cat_Stretch'], post: ['Childs_Pose', 'Seated_Floor_Hamstring_Stretch', 'Elbows_Back'] };
+const findStretch = (phase, id) => Object.values(STRETCHES[phase]).flat().find((x) => x.id === id);
+const stretchSecs = (x) => (x ? x.hold * (x.sides ? 2 : 1) : 0);
+const stretchImages = (x) => [`${x.img}/0.jpg`, `${x.img}/1.jpg`];
 
 // Stretches for the areas worked in this workout, in exercise order: two per area, three for legs.
-function stretchesFor(w) {
-  const groups = [...new Set(w.exercises.map((e) => groupOf(e.swapOf || e.name)))].filter((g) => STRETCHES[g]);
+function stretchesFor(w, phase) {
+  const groups = [...new Set(w.exercises.map((e) => groupOf(e.swapOf || e.name)))].filter((g) => STRETCHES[phase][g]);
   const list = groups.length
-    ? groups.flatMap((g) => STRETCHES[g].slice(0, g === 'רגליים' ? 3 : 2))
-    : [STRETCHES['גב'][0], STRETCHES['רגליים'][1], STRETCHES['חזה'][0]];
-  return list.slice(0, 9);
+    ? groups.flatMap((g) => STRETCHES[phase][g].slice(0, g === 'רגליים' ? 3 : 2))
+    : STRETCH_DEFAULT[phase].map((id) => findStretch(phase, id));
+  return [...new Map(list.map((x) => [x.id, x])).values()].slice(0, 9);
+}
+
+// Per-phase state on the active workout: which stretches are done, and whether the section is folded away.
+function stretchState(w) {
+  if (!w.stretch || Array.isArray(w.stretch)) w.stretch = { pre: [], post: [] };
+  if (!w.fold) w.fold = { pre: false, post: false };
+  return w.stretch;
+}
+
+// Check a stretch off (or back on). Finishing the last one folds the section away.
+function markStretch(w, phase, id, on) {
+  const s = stretchState(w);
+  s[phase] = on ? [...new Set([...s[phase], id])] : s[phase].filter((x) => x !== id);
+  if (on && stretchesFor(w, phase).every((x) => s[phase].includes(x.id))) w.fold[phase] = true;
 }
 const guessGroup = (name) => (GROUP_HINTS.find(([, re]) => re.test(name || '')) || ['אחר'])[0];
 const groupOf = (name) => db.muscles[name] || guessGroup(name);
@@ -369,6 +422,7 @@ function viewActive() {
       <input type="date" class="pill-in" data-f="wdate" value="${esc(w.date || isoDay(w.start))}" max="${isoDay(Date.now())}" aria-label="תאריך האימון">
       ${backdated(w) ? `<span class="pill-in mins"><input type="number" inputmode="numeric" data-f="wmins" value="${esc(w.mins ?? 60)}" aria-label="משך בדקות">דק׳</span><span class="muted small">טיימר כבוי</span>` : ''}
     </div>
+    ${viewStretch(w, 'pre')}
     ${exs}
     <div class="card">
       <div class="row">
@@ -377,36 +431,52 @@ function viewActive() {
       </div>
       ${datalist()}
     </div>
-    ${viewStretch(w)}
+    ${viewStretch(w, 'post')}
     ${viewMusic()}
     <button class="btn primary block" data-act="finish">סיים ושמור אימון</button>
     <button class="btn danger block" data-act="discard">בטל אימון</button>`;
 }
 
-// Stretching at the end of the workout. The workout clock keeps running through it, so it's part of the total time.
-function viewStretch(w) {
-  const list = stretchesFor(w);
-  const done = new Set(w.stretch || []);
+// Stretching before the workout (warm-up, at the top) and after it (cool-down, at the bottom). Shown by default;
+// skipping or finishing a section folds it to one line. The workout clock runs through both, so they're part of the total time.
+const STRETCH_TITLE = { pre: 'מתיחות פתיחה', post: 'מתיחות סיום' };
+function viewStretch(w, phase) {
+  const list = stretchesFor(w, phase);
+  const done = new Set(stretchState(w)[phase]);
+  const left = list.filter((x) => !done.has(x.id));
+  if (w.fold[phase]) {
+    return `
+      <div class="card stretch-fold row between">
+        <span><b>${STRETCH_TITLE[phase]}</b> <span class="muted small">· ${left.length ? (done.size ? `${list.length - left.length}/${list.length} בוצעו` : 'דילגת') : 'הושלם ✓'}</span></span>
+        <button class="link-btn" data-act="stretch-fold" data-ph="${phase}">הצג</button>
+      </div>`;
+  }
   const total = list.reduce((a, x) => a + stretchSecs(x), 0);
-  const left = list.filter((x) => !done.has(x.id)).reduce((a, x) => a + stretchSecs(x), 0);
+  const leftSecs = left.reduce((a, x) => a + stretchSecs(x), 0);
   const rows = list.map((x) => `
     <div class="stretch ${done.has(x.id) ? 'done' : ''}">
-      <div class="grow">
+      ${demoAnim(stretchImages(x))}
+      <div class="stretch-body">
         <div class="stretch-name">${esc(x.name)}</div>
         <div class="muted small">${esc(x.how)}</div>
+        <div class="row" style="margin-top:6px">
+          <button class="rest-pill" data-act="stretch-go" data-ph="${phase}" data-id="${x.id}" aria-label="הפעל טיימר מתיחה">▶ ${x.hold} ש׳${x.sides ? ' לכל צד' : ''}</button>
+          <button class="check" data-act="stretch-done" data-ph="${phase}" data-id="${x.id}" aria-label="סמן מתיחה כבוצעה" aria-pressed="${done.has(x.id)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg></button>
+        </div>
       </div>
-      <button class="rest-pill" data-act="stretch-go" data-id="${x.id}" aria-label="הפעל טיימר מתיחה">▶ ${x.hold} ש׳${x.sides ? ' × 2' : ''}</button>
-      <button class="check" data-act="stretch-done" data-id="${x.id}" aria-label="סמן מתיחה כבוצעה" aria-pressed="${done.has(x.id)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg></button>
     </div>`).join('');
   return `
-    <h2>מתיחות</h2>
+    <div class="row between" style="margin:${phase === 'pre' ? '0' : '26px'} 0 10px">
+      <h2 style="margin:0">${STRETCH_TITLE[phase]}</h2>
+      <button class="btn sm" data-act="stretch-fold" data-ph="${phase}">${left.length ? 'דלג' : 'סגור'}</button>
+    </div>
     <div class="card">
       <div class="row between">
-        <span class="muted small">לפי האזורים שעבדת עליהם היום</span>
-        <span class="muted small">${left ? `נשארו ≈ ${Math.ceil(left / 60)} דק׳ מתוך ${Math.ceil(total / 60)}` : 'הושלם ✓'}</span>
+        <span class="muted small">${phase === 'pre' ? 'חימום דינמי' : 'מתיחות סטטיות'} לאזורים של האימון</span>
+        <span class="muted small">${leftSecs ? `נשארו ≈ ${Math.ceil(leftSecs / 60)} מתוך ${Math.ceil(total / 60)} דק׳` : 'הושלם ✓'}</span>
       </div>
       ${rows}
-      <p class="muted small" style="margin:8px 0 0">הזמן של המתיחות נכלל בזמן הכולל של האימון. ▶ מפעיל טיימר (ומחליף צד באמצע).</p>
+      <p class="muted small" style="margin:8px 0 0">נכלל בזמן הכולל של האימון. ▶ מפעיל טיימר שמחליף צד באמצע ומסמן ✓ בסוף.</p>
     </div>`;
 }
 
@@ -1412,7 +1482,8 @@ function finishWorkout() {
     end = start + Math.max(1, num(w.mins) ?? 60) * 60000;
   }
   // Seconds of stretching done. A live workout's clock already ran through it; a backdated one adds it on top.
-  const stretch = (w.stretch || []).reduce((a, id) => a + stretchSecs(ALL_STRETCHES.find((x) => x.id === id) || { hold: 0 }), 0);
+  const stretched = stretchState(w);
+  const stretch = ['pre', 'post'].reduce((a, ph) => a + stretched[ph].reduce((b, id) => b + stretchSecs(findStretch(ph, id)), 0), 0);
   if (backdated(w)) end += stretch * 1000;
   db.workouts.push({ id: w.id, templateId: w.templateId, name: w.name || 'אימון', start, end, exercises, ...(stretch ? { stretch } : {}) });
   db.active = null;
@@ -1488,11 +1559,7 @@ function tick() {
     saveTimer();
     if (Date.now() - timer.end < 5000) beep(); // don't beep for a timer that ran out while the app was closed
     if (timer.next) { startTimer(timer.total, timer.next); return; }
-    const w = db.active;
-    if (timer.stretch && w) {
-      w.stretch = [...new Set([...(w.stretch || []), timer.stretch])];
-      save(); render();
-    }
+    if (timer.stretch && db.active) { markStretch(db.active, timer.phase, timer.stretch, true); save(); render(); }
   }
   if (leftMs < -30000) stopTimer();
 }
@@ -1629,16 +1696,23 @@ document.addEventListener('click', (ev) => {
     }
 
     case 'stretch-go': {
-      const x = ALL_STRETCHES.find((y) => y.id === el.dataset.id);
-      const label = `מתיחה: ${x.name}`;
+      const phase = el.dataset.ph, x = findStretch(phase, el.dataset.id);
+      const label = `מתיחה: ${x.name}`, end = { stretch: x.id, phase };
       startTimer(x.hold, x.sides
-        ? { label: `${label} · צד 1`, next: { label: `${label} · צד 2`, stretch: x.id } }
-        : { label, stretch: x.id });
+        ? { label: `${label} · צד 1`, next: { label: `${label} · צד 2`, ...end } }
+        : { label, ...end });
       break;
     }
     case 'stretch-done': {
-      const id = el.dataset.id, list = db.active.stretch || [];
-      db.active.stretch = list.includes(id) ? list.filter((y) => y !== id) : [...list, id];
+      const phase = el.dataset.ph, id = el.dataset.id;
+      markStretch(db.active, phase, id, !stretchState(db.active)[phase].includes(id));
+      save(); render();
+      break;
+    }
+    case 'stretch-fold': {
+      const phase = el.dataset.ph;
+      stretchState(db.active);
+      db.active.fold[phase] = !db.active.fold[phase];
       save(); render();
       break;
     }
