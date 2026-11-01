@@ -300,7 +300,7 @@ function save() {
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 
 // ---------- Helpers ----------
-const ui = { tab: 'workout', draft: null, progEx: null, progMetric: 'e1rm', mdraft: null, bodyMetric: 'pbf', reading: false, pasteOpen: false, pasteText: '' };
+const ui = { tab: 'workout', draft: null, progEx: null, progMetric: 'e1rm', mdraft: null, bodyMetric: 'pbf', reading: false, pasteOpen: false, pasteText: '', recsOpen: false, recLoading: false };
 
 const num = (v) => {
   if (v === '' || v == null) return null;
@@ -886,6 +886,7 @@ function viewExerciseDash(sessions, maxE) {
 // better: 1 = higher is better, -1 = lower is better, 0 = neutral (colors the change vs. last measurement).
 const MFIELDS = [
   { k: 'weight', l: 'משקל', u: 'ק״ג', better: 0 },
+  { k: 'height', l: 'גובה', u: 'ס״מ', better: 0 },
   { k: 'pbf', l: 'אחוז שומן', u: '%', better: -1 },
   { k: 'smm', l: 'מסת שריר', u: 'ק״ג', better: 1 },
   { k: 'fat', l: 'מסת שומן', u: 'ק״ג', better: -1 },
@@ -906,6 +907,7 @@ const getApiKey = () => { try { return localStorage.getItem(API_KEY_KEY) || ''; 
 const setApiKey = (v) => { try { v ? localStorage.setItem(API_KEY_KEY, v) : localStorage.removeItem(API_KEY_KEY); } catch { /* ignore */ } };
 
 const sortedMetrics = () => [...db.metrics].sort((a, b) => b.t - a.t);
+const latestOf = (k) => sortedMetrics().find((m) => m[k] != null);
 const isoDay = (ts) => { const d = new Date(ts); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const dayTs = (iso) => { const [y, m, d] = String(iso).split('-').map(Number); return y && m && d ? new Date(y, m - 1, d, 12).getTime() : null; };
 const fmtDateFull = (ts) => new Date(ts).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric', year: '2-digit' });
@@ -1002,9 +1004,13 @@ function viewMetrics() {
       </details>`).join('');
   }
 
+  const recs = !list.length ? ''
+    : ui.recsOpen ? viewRecs()
+      : '<button class="btn primary block" data-act="recs-open">המלצות לשיפור האימון</button>';
+
   return `
     ${upload}
-    ${list.length ? latest + chartCard + '<h2>כל המדידות</h2>' + rows : '<div class="empty">עוד אין מדידות.<br>צלם את דוח ה-InBody (או כל דוח הרכב גוף), תן ל-Claude לקרוא אותו והדבק את התשובה כאן.</div>'}
+    ${list.length ? latest + recs + chartCard + '<h2>כל המדידות</h2>' + rows : '<div class="empty">עוד אין מדידות.<br>צלם את דוח ה-InBody (או כל דוח הרכב גוף), תן ל-Claude לקרוא אותו והדבק את התשובה כאן.</div>'}
     <details class="card adv">
       <summary class="muted small">מתקדם: קריאה אוטומטית עם מפתח API (בתשלום לפי שימוש)</summary>
       <label class="field" style="margin-top:10px">מפתח Claude API ${hasKey ? '<span class="ok">✓ שמור</span>' : ''}
@@ -1016,6 +1022,7 @@ function viewMetrics() {
 
 function newMetricDraft(vals = {}, date = isoDay(Date.now()), history = [], fromImage = false) {
   const days = new Set(db.metrics.map((m) => isoDay(m.t)));
+  if (vals.height == null && latestOf('height')) vals = { ...vals, height: latestOf('height').height }; // height rarely changes
   return {
     id: uid(), isNew: true, fromImage, date,
     vals: Object.fromEntries(MFIELDS.map((f) => [f.k, vals[f.k] != null ? String(vals[f.k]) : ''])),
@@ -1094,7 +1101,7 @@ const REPORT_PROMPT = `This is a photo of a body composition report (for example
 
 Fields:
 - date: the test date as YYYY-MM-DD. Printouts from Israel/Europe write dates as DD.MM.YYYY.
-- weight (kg), pbf (percent body fat, %), smm (skeletal muscle mass, kg), fat (body fat mass, kg), bmi, visceral (visceral fat level), score (InBody score out of 100), bmr (basal metabolic rate, kcal), ffm (fat free mass, kg), tbw (total body water, L), protein (kg), mineral (kg).
+- weight (kg), height (cm), pbf (percent body fat, %), smm (skeletal muscle mass, kg), fat (body fat mass, kg), bmi, visceral (visceral fat level), score (InBody score out of 100), bmr (basal metabolic rate, kcal), ffm (fat free mass, kg), tbw (total body water, L), protein (kg), mineral (kg).
 - history: every column of the "Body Composition History" table except the current test, with its date and the weight, smm and pbf values printed for it. Empty array if there is no such table.
 
 Read the measured value itself, not the normal range printed next to it in parentheses. Printouts often put a space after the decimal point ("86. 8" means 86.8). Use null for anything not on the report or not legible. Set is_report to false if the image is not a body composition report.`;
@@ -1178,12 +1185,17 @@ async function readReport(file) {
     const text = res.content.find((b) => b.type === 'text')?.text;
     return JSON.parse(text);
   } catch (e) {
-    if (e instanceof sdk.AuthenticationError) throw new Error('מפתח ה-API לא תקין');
-    if (e instanceof sdk.RateLimitError) throw new Error('יותר מדי בקשות, נסה שוב בעוד דקה');
-    if (e instanceof sdk.APIConnectionError) throw new Error('אין חיבור לאינטרנט');
-    if (e instanceof sdk.APIError) throw new Error(`שגיאה מהשרת (${e.status ?? '?'})`);
-    throw e;
+    throw apiError(sdk, e);
   }
+}
+
+// Hebrew messages for the SDK's error types.
+function apiError(sdk, e) {
+  if (e instanceof sdk.AuthenticationError) return new Error('מפתח ה-API לא תקין');
+  if (e instanceof sdk.RateLimitError) return new Error('יותר מדי בקשות, נסה שוב בעוד דקה');
+  if (e instanceof sdk.APIConnectionError) return new Error('אין חיבור לאינטרנט');
+  if (e instanceof sdk.APIError) return new Error(`שגיאה מהשרת (${e.status ?? '?'})`);
+  return e;
 }
 
 async function handleReportFile(file) {
@@ -1198,6 +1210,236 @@ async function handleReportFile(file) {
     ui.reading = false;
     render();
     window.scrollTo(0, 0);
+  }
+}
+
+// ---------- Training recommendations ----------
+// Rule-of-thumb guidance from the latest body metrics (height, weight, body fat) and the last four weeks of training.
+const DAY_MS = 86400000, WEEK_MS = 7 * DAY_MS;
+// Weekly working sets per area that most lifters grow well on.
+const AREA_TARGET = { 'חזה': [10, 20], 'גב': [10, 20], 'רגליים': [10, 20], 'כתפיים': [8, 16], 'יד קדמית': [6, 12], 'יד אחורית': [6, 12], 'בטן': [4, 10] };
+// Body fat %: below the first number there's room to build, above the second it's worth cutting first.
+const FAT_BANDS = { m: [12, 20], f: [21, 30] };
+const GOALS = {
+  cut: { l: 'חיטוב', d: 'להוריד שומן ולשמור על השריר', en: 'lose fat while keeping muscle' },
+  recomp: { l: 'שיפור הרכב גוף', d: 'לבנות שריר בלי לעלות בשומן', en: 'build muscle without gaining fat' },
+  bulk: { l: 'מסה נקייה', d: 'לבנות שריר בעודף קלורי קטן', en: 'build muscle in a small calorie surplus' },
+};
+
+function bodyProfile() {
+  const wM = latestOf('weight');
+  if (!wM) return null;
+  const weight = wM.weight, height = latestOf('height')?.height ?? null;
+  // Composition values only from the same measurement as the weight, so they describe the same body.
+  const pbf = wM.pbf ?? (wM.fat != null ? (wM.fat / weight) * 100 : null);
+  const ffm = wM.ffm ?? (pbf != null ? weight * (1 - pbf / 100) : null);
+  const hm = height ? height / 100 : null;
+  const bmi = hm ? weight / hm ** 2 : wM.bmi ?? null;
+  const ffmi = hm && ffm ? ffm / hm ** 2 + 6.1 * (1.8 - hm) : null; // normalized to 1.80 m
+
+  // Trend against a measurement at least three weeks back (or the oldest one, if it's two weeks or more).
+  const ws = sortedMetrics().filter((m) => m.weight != null);
+  const old = ws.find((m) => wM.t - m.t >= 21 * DAY_MS) || ws.at(-1);
+  let trend = null;
+  if (old && wM.t - old.t >= 14 * DAY_MS) {
+    const weeks = (wM.t - old.t) / WEEK_MS;
+    trend = {
+      weeks,
+      perWeek: (weight - old.weight) / weeks,
+      pct: ((weight - old.weight) / weeks / old.weight) * 100,
+      smm: wM.smm != null && old.smm != null ? wM.smm - old.smm : null,
+    };
+  }
+  return { m: wM, weight, height, pbf, ffm, bmi, ffmi, hm, trend, bmr: wM.bmr ?? null, visceral: wM.visceral ?? null };
+}
+
+function trainingSummary() {
+  const now = Date.now();
+  const recent = db.workouts.filter((w) => w.start >= now - 4 * WEEK_MS);
+  if (!recent.length) return null;
+  const weeks = Math.min(4, Math.max(1, (now - Math.min(...recent.map((w) => w.start))) / WEEK_MS));
+  const sets = new Map(GROUPS.map((g) => [g, 0]));
+  for (const w of recent) for (const e of w.exercises) sets.set(groupOf(e.name), sets.get(groupOf(e.name)) + work(e.sets).length);
+  return { perWeek: recent.length / weeks, sets: new Map([...sets].map(([g, c]) => [g, c / weeks])) };
+}
+
+function pickGoal(p, sex) {
+  const [lo, hi] = FAT_BANDS[sex];
+  if (p.pbf != null) return p.pbf > hi ? 'cut' : p.pbf < lo ? 'bulk' : 'recomp';
+  if (p.bmi != null) return p.bmi >= 27 ? 'cut' : p.bmi < 20 ? 'bulk' : 'recomp';
+  return null;
+}
+
+const bmiLabel = (b) => (b < 18.5 ? 'תת-משקל' : b < 25 ? 'תקין' : b < 30 ? 'עודף משקל' : 'השמנה');
+const round50 = (n) => Math.round(n / 50) * 50;
+const r1 = (n) => fmtW(Math.round(n * 10) / 10);
+
+function buildRecs() {
+  const p = bodyProfile();
+  if (!p) return null;
+  const sex = db.settings.sex === 'f' ? 'f' : 'm';
+  const tr = trainingSummary();
+  const goal = pickGoal(p, sex);
+  const recs = [];
+
+  if (goal) {
+    let d = `${GOALS[goal].d}. `;
+    if (p.pbf != null) d += `אחוז השומן שלך (${r1(p.pbf)}%) ${goal === 'cut' ? 'מעל' : goal === 'bulk' ? 'מתחת ל' : 'בתוך'} הטווח ${FAT_BANDS[sex].join('–')}%.`;
+    else d += `לפי BMI ${r1(p.bmi)} (${bmiLabel(p.bmi)}). עם אחוז שומן מהדוח ההמלצה תהיה מדויקת יותר.`;
+    if (p.ffmi != null) {
+      d += p.ffmi < 19 ? ' מדד השריר (FFMI) נמוך יחסית – יש הרבה מקום לבנות שריר, ובשלב הזה מתקדמים מהר.'
+        : p.ffmi >= 23 ? ' מדד השריר (FFMI) גבוה – קרוב לתקרה הטבעית, ההתקדמות תהיה איטית ותלויה בעקביות.'
+          : ' מדד השריר (FFMI) טוב – יש עוד מקום לגדול בקצב סביר.';
+    }
+    recs.push({ t: `מטרה מומלצת: ${GOALS[goal].l}`, d });
+  }
+
+  // Calories: measured BMR when the report has it, otherwise Katch-McArdle from lean mass, otherwise a per-kg estimate.
+  const bmr = p.bmr ?? (p.ffm ? 370 + 21.6 * p.ffm : p.weight * (sex === 'f' ? 20 : 22));
+  const pw = tr ? tr.perWeek : 0;
+  const tdee = bmr * (pw < 1.5 ? 1.35 : pw < 3.5 ? 1.5 : pw < 5.5 ? 1.6 : 1.75);
+  const target = goal === 'cut' ? Math.max(bmr, tdee - 450) : goal === 'bulk' ? tdee + 250 : tdee;
+  // Protein per kg; with a BMI over 30 count it on a BMI-25 weight, not on the extra fat.
+  const refW = p.bmi >= 30 && p.hm ? 25 * p.hm ** 2 : p.weight;
+  const [gLo, gHi] = goal === 'cut' ? [2, 2.4] : goal === 'bulk' ? [1.6, 2] : [1.8, 2.2];
+  recs.push({
+    t: 'תזונה',
+    d: `כ-<b>${round50(target)} קק״ל</b> ביום (תחזוקה משוערת ${round50(tdee)}${goal === 'cut' ? ', גירעון של כ-450' : goal === 'bulk' ? ', עודף של כ-250' : ''}). חלבון: <b>${Math.round(refW * gLo)}–${Math.round(refW * gHi)} גרם</b> ביום, מחולק ל-3–5 ארוחות.`,
+  });
+
+  if (p.trend) {
+    const { pct, perWeek, smm, weeks } = p.trend;
+    let d = `ב-${Math.round(weeks)} השבועות האחרונים: <span dir="ltr">${perWeek > 0 ? '+' : ''}${fmtW(Math.round(perWeek * 100) / 100)}</span> ק״ג בשבוע. `;
+    if (goal === 'cut') d += pct > -0.25 ? 'המשקל כמעט לא יורד – הורד עוד כ-200 קק״ל ביום או הוסף 2,000–3,000 צעדים.'
+      : pct < -1 ? 'הירידה מהירה מדי ומסכנת שריר – הוסף כ-200 קק״ל ביום.' : 'קצב ירידה מצוין (0.25%–1% מהמשקל בשבוע), המשך כך.';
+    else if (goal === 'bulk') d += pct < 0.1 ? 'המשקל לא עולה – הוסף כ-150–200 קק״ל ביום.'
+      : pct > 0.6 ? 'העלייה מהירה מדי וחלק ממנה שומן – הורד כ-150 קק״ל ביום.' : 'קצב עלייה טוב לבניית שריר נקי.';
+    else d += Math.abs(pct) > 0.5 ? 'המשקל זז מהר מדי לשיפור הרכב גוף – כוון לשמור עליו יציב.' : 'המשקל יציב, כמו שצריך.';
+    if (smm != null) d += smm < -0.5 ? ` מסת השריר ירדה ב-${r1(-smm)} ק״ג – הקפד על חלבון ועל משקלים כבדים.`
+      : smm > 0.3 ? ` מסת השריר עלתה ב-${r1(smm)} ק״ג – האימונים עובדים.` : '';
+    recs.push({ t: 'מגמה', d });
+  }
+
+  if (tr) {
+    const low = [], high = [];
+    for (const [g, [lo, hi]] of Object.entries(AREA_TARGET)) {
+      const v = tr.sets.get(g);
+      if (v < lo) low.push(`${g} (${r1(v)})`);
+      else if (v > hi) high.push(`${g} (${r1(v)})`);
+    }
+    let d = `ממוצע ${r1(tr.perWeek)} אימונים בשבוע. `;
+    d += low.length ? `<b>מתחת לטווח המומלץ</b> (סטים בשבוע): ${low.join(', ')} – הוסף 2–4 סטים בשבוע לכל אחד. ` : 'כל האזורים בטווח המומלץ של סטים שבועיים. ';
+    if (high.length) d += `מעל הטווח: ${high.join(', ')} – אם ההתאוששות קשה, אפשר להוריד. `;
+    if (goal === 'cut') d += 'בחיטוב שמור על הנפח – אל תוריד סטים בגלל הגירעון.';
+    recs.push({ t: 'נפח אימון', d });
+    if (tr.perWeek < 2.5) recs.push({ t: 'תדירות', d: 'כדאי להגיע ל-3–4 אימונים בשבוע, כך שכל שריר יעבוד פעמיים בשבוע. זה בונה יותר מאימון ארוך אחד.' });
+  } else {
+    recs.push({ t: 'נפח אימון', d: 'אין אימונים מ-4 השבועות האחרונים. התחל ב-3 אימונים בשבוע, 10–12 סטים שבועיים לכל אזור גדול.' });
+  }
+
+  recs.push({
+    t: 'עצימות',
+    d: goal === 'cut'
+      ? 'שמור על משקלים כבדים ב-6–10 חזרות, 1–2 חזרות לפני כשל. המשקל הכבד הוא מה שאומר לגוף לשמור על השריר בגירעון.'
+      : 'רוב הסטים ב-6–12 חזרות, 1–2 חזרות לפני כשל. כשמגיעים לראש טווח החזרות בכל הסטים – מעלים 2.5 ק״ג.',
+  });
+
+  const highVisceral = p.visceral != null && p.visceral >= 10;
+  recs.push({
+    t: 'אירובי',
+    d: goal === 'cut' || highVisceral
+      ? `2–3 פעמים בשבוע 20–30 דקות בדופק בינוני (הליכה בשיפוע, אופניים) ו-8,000–10,000 צעדים ביום${highVisceral ? `. השומן הוויסצרלי (רמה ${fmtW(p.visceral)}) מעל 10 – אירובי קבוע הוא הדרך היעילה להוריד אותו` : ''}.`
+      : '1–2 פעמים בשבוע 20 דקות אירובי קל לבריאות הלב, בלי לפגוע בהתאוששות.',
+  });
+
+  return { p, sex, goal, recs, tdee, tr };
+}
+
+function viewRecs() {
+  const r = buildRecs();
+  if (!r) return '';
+  const { p, sex, goal } = r;
+  const stats = [
+    p.bmi != null && [r1(p.bmi), `BMI · ${bmiLabel(p.bmi)}`],
+    p.ffmi != null && [r1(p.ffmi), 'FFMI · מדד שריר'],
+    p.pbf != null && [`${r1(p.pbf)}<span class="u">%</span>`, 'אחוז שומן'],
+    p.ffm != null && [r1(p.ffm), 'מסה רזה (ק״ג)'],
+  ].filter(Boolean);
+  const ai = db.aiRec, hasKey = !!getApiKey();
+
+  return `
+    <div class="card recs">
+      <div class="row between"><h3>המלצות לשיפור האימון</h3><button class="icon-btn" data-act="recs-close" aria-label="סגור">✕</button></div>
+      <div class="seg" style="margin-top:10px">${[['m', 'גבר'], ['f', 'אישה']].map(([k, l]) => `<button class="${sex === k ? 'on' : ''}" data-act="rec-sex" data-k="${k}">${l}</button>`).join('')}</div>
+      ${p.height ? '' : `<div class="card note">חסר גובה – בלעדיו אי אפשר לחשב BMI ומדד שריר. <button class="btn sm" data-act="m-edit" data-id="${p.m.id}">הוסף גובה למדידה</button></div>`}
+      ${stats.length ? `<div class="stats">${stats.map(([n, l]) => `<div class="stat"><div class="v" dir="ltr">${n}</div><div class="l">${l}</div></div>`).join('')}</div>` : ''}
+      ${r.recs.map((x) => `<div class="rec"><h4>${x.t}</h4><p>${x.d}</p></div>`).join('')}
+      <p class="muted small" style="margin-bottom:0">לפי ${p.height ? `גובה ${fmtW(p.height)} ס״מ, ` : ''}משקל ${fmtW(p.weight)} ק״ג${p.pbf != null ? ' והרכב הגוף' : ''} מ-${fmtDateFull(p.m.t)} ומהאימונים של 4 השבועות האחרונים. אלה המלצות כלליות, לא תחליף למאמן או לדיאטנית.</p>
+    </div>
+    <div class="card">
+      <h3>המלצות מותאמות מ-Claude</h3>
+      <p class="muted small" style="margin:6px 0 10px">Claude יקבל את המדדים, האימונים והתבניות שלך${goal ? ` (מטרה: ${GOALS[goal].l})` : ''} ויציע שינויים קונקרטיים בתוכנית.</p>
+      ${ui.recLoading
+        ? '<div class="center reading"><div class="spinner"></div><div style="margin-top:10px">Claude מנתח את הנתונים…</div></div>'
+        : `<button class="btn primary block" data-act="rec-ai">${hasKey ? (ai ? 'בקש המלצות מחדש' : 'קבל המלצות מ-Claude') : 'העתק בקשה ל-Claude'}</button>`}
+      ${hasKey ? '' : '<p class="muted small" style="margin-bottom:0">הבקשה תועתק עם הנתונים שלך – הדבק אותה בצ׳אט עם Claude. עם מפתח API (בהגדרות המתקדמות למטה) התשובה תופיע כאן.</p>'}
+      ${ai ? `<div class="ai-text">${aiHtml(ai.text)}</div><p class="muted small" style="margin-bottom:0">התקבל ב-${fmtDateFull(ai.t)}</p>` : ''}
+    </div>`;
+}
+
+// Light formatting of Claude's reply: headings and **bold** in bold, list markers as bullets, the rest as plain text.
+const aiHtml = (text) => esc(text)
+  .replace(/^#{1,6}\s*(.+)$/gm, '<b>$1</b>')
+  .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+  .replace(/^\s*[-*]\s+/gm, '• ');
+
+function recPrompt() {
+  const { p, sex, goal, tdee, tr } = buildRecs();
+  const v = (n) => (n == null ? '?' : r1(n));
+  const hist = sortedMetrics().slice(0, 8).map((m) => `- ${isoDay(m.t)}: ${MFIELDS.filter((f) => m[f.k] != null).map((f) => `${f.k}=${fmtW(m[f.k])}`).join(', ')}`).join('\n');
+  const sets = tr ? [...tr.sets].filter(([, c]) => c).map(([g, c]) => `${g}: ${v(c)}`).join(', ') : 'no workouts logged';
+  const tpls = db.templates.map((t) => `- ${t.name}: ${t.exercises.map((e) => `${e.name} ${e.sets}x${e.reps}${e.w ? ` @${e.w}kg` : ''}`).join('; ')}`).join('\n');
+  return `I'm a ${sex === 'f' ? 'woman' : 'man'} who lifts weights. Based on my body metrics and training below, give me concrete recommendations to improve and optimize my training.
+
+Body (latest): height ${v(p.height)} cm, weight ${v(p.weight)} kg, body fat ${v(p.pbf)}%, lean mass ${v(p.ffm)} kg, BMI ${v(p.bmi)}, normalized FFMI ${v(p.ffmi)}, visceral fat level ${v(p.visceral)}, BMR ${v(p.bmr)} kcal.
+Suggested goal: ${goal ? GOALS[goal].en : 'unknown'}. Estimated maintenance ~${round50(tdee)} kcal.
+
+Measurement history (newest first; pbf = body fat %, smm = skeletal muscle mass kg):
+${hist}
+
+Last 4 weeks: ${tr ? `${v(tr.perWeek)} workouts per week. Working sets per week by body area: ${sets}` : sets}.
+
+My workout templates:
+${tpls || '- none'}
+
+Please cover: whether the goal fits me, weekly volume per muscle group, specific changes to my templates (exercises to add, drop or change, sets and reps), progression, training frequency, cardio, and daily calories and protein. Be specific to my numbers. Answer in Hebrew, short and practical, as a bulleted list under a few short headings. No tables.`;
+}
+
+async function fetchAiRecs() {
+  ui.recLoading = true; render();
+  let sdk = null;
+  try {
+    sdk = await import(SDK_URL).catch(() => { throw new Error('אין חיבור לאינטרנט'); });
+    const client = new sdk.default({ apiKey: getApiKey(), dangerouslyAllowBrowser: true });
+    const res = await client.beta.messages.create({
+      model: 'claude-opus-5-5',
+      max_tokens: 16000,
+      betas: ['server-side-fallback-2026-07-01'],
+      fallbacks: 'default',
+      output_config: { effort: 'medium' },
+      messages: [{ role: 'user', content: recPrompt() }],
+    });
+    if (res.stop_reason === 'refusal') throw new Error('Claude לא החזיר המלצות');
+    const text = res.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
+    if (!text) throw new Error('התקבלה תשובה ריקה, נסה שוב');
+    db.aiRec = { t: Date.now(), text };
+    save();
+  } catch (e) {
+    const err = sdk ? apiError(sdk, e) : e;
+    toast(err.message && /[֐-׿]/.test(err.message) ? err.message : 'לא הצלחתי לקבל המלצות', 3500);
+  } finally {
+    ui.recLoading = false;
+    render();
   }
 }
 
@@ -1925,6 +2167,13 @@ document.addEventListener('click', (ev) => {
     case 'area-period': ui.areaPeriod = el.dataset.k; render(); break;
 
     case 'body-metric': ui.bodyMetric = el.dataset.k; render(); break;
+    case 'recs-open': ui.recsOpen = true; render(); break;
+    case 'recs-close': ui.recsOpen = false; render(); break;
+    case 'rec-sex': db.settings.sex = el.dataset.k; save(); render(); break;
+    case 'rec-ai':
+      if (getApiKey()) fetchAiRecs();
+      else copyText(recPrompt()).then((ok) => toast(ok ? 'הבקשה הועתקה עם הנתונים שלך. הדבק אותה בצ׳אט עם Claude' : 'ההעתקה נכשלה', 3500));
+      break;
     case 'm-upload':
       if (!getApiKey()) { toast('כדי לקרוא תמונות צריך להזין מפתח Claude API (למטה)', 3500); $('[data-f="apikey"]')?.focus(); return; }
       $('#m-file').click();

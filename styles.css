@@ -535,3 +535,12 @@ body.sheet-open { overflow: hidden; }
 .stretch.done .check { border-color: var(--ink-soft); }
 .stretch.done .check svg { stroke-dashoffset: 0; }
 .swap { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--rule); }
+
+/* Training recommendations */
+.recs .stats { margin-top: 12px; }
+.recs .stat .v { font-size: 34px; }
+.recs .note { margin: 10px 0; }
+.rec { border-top: 1px solid var(--rule); padding: 10px 0 2px; }
+.rec h4 { margin: 0 0 4px; font-size: 15px; }
+.rec p { margin: 0 0 8px; line-height: 1.6; font-size: 14px; }
+.ai-text { white-space: pre-wrap; line-height: 1.65; font-size: 14px; margin-top: 14px; border-top: 1px solid var(--rule); padding-top: 12px; }
