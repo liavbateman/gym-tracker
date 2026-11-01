@@ -2297,7 +2297,9 @@ document.addEventListener('click', (ev) => {
       save(); render();
       break;
     }
-    case 'set-del': ex.sets.splice(s, 1); save(); render(); break;
+    case 'set-del':
+      if (confirm(`למחוק את סט ${s + 1} של "${ex.name}"?`)) { ex.sets.splice(s, 1); save(); render(); }
+      break;
     case 'wu-add': {
       const first = ex.sets.find((x) => !x.wu);
       ex.sets.unshift(makeWarmup(ex.name, first && (num(first.w) ?? num(first.pw))));
@@ -2387,7 +2389,11 @@ document.addEventListener('click', (ev) => {
       break;
     }
     case 'tex-add': ui.draft.exercises.push({ id: uid(), name: '', sets: 2, reps: 8, rest: db.settings.defaultRest }); render(); break;
-    case 'tex-del': ui.draft.exercises.splice(i, 1); render(); break;
+    case 'tex-del': {
+      const n = ui.draft.exercises[i].name.trim();
+      if (confirm(n ? `להסיר את "${n}" מהתבנית?` : 'להסיר את התרגיל מהתבנית?')) { ui.draft.exercises.splice(i, 1); render(); }
+      break;
+    }
     case 'tex-up':
     case 'tex-down': {
       const j = act === 'tex-up' ? i - 1 : i + 1;
@@ -2479,6 +2485,7 @@ document.addEventListener('click', (ev) => {
       break;
     }
     case 'demo-clear':
+      if (!confirm(`להסיר את ההדגמה של "${ui.demo.name}"?`)) return;
       delete db.demos[ui.demo.name];
       ui.demo = null;
       save(); render(); renderSheet();
