@@ -295,12 +295,9 @@ function viewActive() {
       <input type="text" data-f="wname" value="${esc(w.name)}" aria-label="שם האימון">
       <span class="elapsed" id="elapsed"></span>
     </div>
-    <div class="card wk-date">
-      <div class="row">
-        <label class="field grow">תאריך האימון<input type="date" data-f="wdate" value="${esc(w.date || isoDay(w.start))}" max="${isoDay(Date.now())}"></label>
-        ${backdated(w) ? `<label class="field" style="width:110px">משך (דקות)<input type="number" inputmode="numeric" data-f="wmins" value="${esc(w.mins ?? 60)}"></label>` : ''}
-      </div>
-      ${backdated(w) ? '<p class="muted small" style="margin:8px 0 0">מזין אימון שכבר עשית – הטיימר והמנוחה כבויים. סמן ✓ את הסטים שביצעת ושמור.</p>' : ''}
+    <div class="wk-date">
+      <input type="date" class="pill-in" data-f="wdate" value="${esc(w.date || isoDay(w.start))}" max="${isoDay(Date.now())}" aria-label="תאריך האימון">
+      ${backdated(w) ? `<span class="pill-in mins"><input type="number" inputmode="numeric" data-f="wmins" value="${esc(w.mins ?? 60)}" aria-label="משך בדקות">דק׳</span><span class="muted small">טיימר כבוי</span>` : ''}
     </div>
     ${exs}
     <div class="card">
@@ -395,8 +392,8 @@ function viewHistory() {
           <b>${esc(e.name)}</b>
           <div class="chips">${e.sets.map((s) => chip(s)).join('')}</div>
         </div>`).join('')}
-      <label class="field" style="margin-top:12px">תאריך<input type="date" data-f="hist-date" data-id="${w.id}" value="${isoDay(w.start)}" max="${isoDay(Date.now())}"></label>
       <div class="row" style="margin-top:12px">
+        <input type="date" class="pill-in" data-f="hist-date" data-id="${w.id}" value="${isoDay(w.start)}" max="${isoDay(Date.now())}" aria-label="תאריך האימון">
         <button class="btn sm" data-act="hist-tpl" data-id="${w.id}">שמור כתבנית</button>
         <button class="btn sm danger" data-act="hist-del" data-id="${w.id}">מחק</button>
       </div>
