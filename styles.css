@@ -94,6 +94,19 @@ button { cursor: pointer; touch-action: manipulation; }
 .topbar .gear svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .topbar .gear.on { color: var(--ink); }
 .topbar .gear.on svg { stroke-width: 2.2; }
+/* Workout clock in the top bar, shown once the one in the page has scrolled out of view. */
+.top-elapsed {
+  margin-inline-start: auto;
+  font-family: var(--display);
+  font-size: 30px;
+  line-height: 1;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  direction: ltr;
+}
+.top-elapsed.hidden { display: none; }
+.top-elapsed:not(.hidden) + .gear { margin-inline-start: 0; }
 .topbar h1 {
   margin: 0;
   font-family: var(--display);

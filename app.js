@@ -2170,6 +2170,12 @@ function beep() {
 function tick() {
   const el = $('#elapsed');
   if (el && db.active) el.textContent = backdated(db.active) ? '' : fmtDur(Date.now() - db.active.start);
+  // Mirror it in the top bar while the page's own clock is scrolled out of view (or on another tab).
+  const top = $('#top-elapsed');
+  const live = db.active && !backdated(db.active);
+  const seen = el && el.getBoundingClientRect().bottom > $('.topbar').offsetHeight;
+  top.classList.toggle('hidden', !live || !!seen);
+  if (live && !seen) top.textContent = fmtDur(Date.now() - db.active.start);
 
   const box = $('#timer');
   if (!timer) { box.classList.add('hidden'); return; }
