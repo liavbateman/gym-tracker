@@ -1,5 +1,5 @@
 // Offline support: serve the app from cache, refresh the cache in the background.
-const CACHE = 'gym-tracker-v9';
+const CACHE = 'gym-tracker-v10';
 const FILES = ['./', 'index.html', 'styles.css', 'app.js', 'manifest.json', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png',
   'fonts/fonts.css', 'fonts/ibm-400-hebrew.woff2', 'fonts/ibm-400-latin.woff2', 'fonts/ibm-500-hebrew.woff2', 'fonts/ibm-500-latin.woff2',
   'fonts/ibm-700-hebrew.woff2', 'fonts/ibm-700-latin.woff2', 'fonts/karantina-400-hebrew.woff2', 'fonts/karantina-400-latin.woff2',

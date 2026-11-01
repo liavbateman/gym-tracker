@@ -3,14 +3,15 @@
 // ---------- Storage ----------
 const KEY = 'gym-tracker-v1';
 const TIMER_KEY = 'gym-tracker-timer';
-const DEFAULT_SETTINGS = { defaultRest: 90, increment: 2.5, lastSetFail: true };
+const DEFAULT_SETTINGS = { defaultRest: 90, lastSetFail: true };
+const WEIGHT_STEP = 2.5;
 
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const $ = (s) => document.querySelector(s);
 
 function seed() {
-  const ex = (name, sets, reps, rest, inc = 2.5) => ({ id: uid(), name, sets, reps, rest, inc });
+  const ex = (name, sets, reps, rest) => ({ id: uid(), name, sets, reps, rest });
   return {
     version: 1,
     settings: { ...DEFAULT_SETTINGS },
@@ -23,7 +24,7 @@ function seed() {
       },
       {
         id: uid(), name: 'אימון B – פלג גוף תחתון', exercises: [
-          ex('סקוואט', 4, 6, 150, 5), ex('דדליפט רומני', 3, 8, 120, 5), ex('לחיצת רגליים', 3, 10, 90, 5),
+          ex('סקוואט', 4, 6, 150), ex('דדליפט רומני', 3, 8, 120), ex('לחיצת רגליים', 3, 10, 90),
           ex('מכרעים', 3, 10, 90), ex('הרמת עקבים', 4, 12, 60),
         ],
       },
@@ -239,7 +240,6 @@ function viewActive() {
             <div class="area">${groupOf(e.name)}</div>
             <div class="ex-name">${esc(e.name)}</div>
             <div class="prev">${prev ? 'פעם קודמת: ' + prev.map(prevLabel).join(' · ') : 'תרגיל חדש'}</div>
-            ${e.up ? `<div class="up">עמדת ביעד בפעם הקודמת, אז היום +${fmtW(e.up)} ק״ג</div>` : ''}
           </div>
           <button class="rest-pill" data-act="ex-rest" data-e="${i}" aria-label="שנה זמן מנוחה">מנוחה ${e.rest} ש׳</button>
         </div>
@@ -294,10 +294,6 @@ function viewTemplates() {
       <label class="field">זמן מנוחה ברירת מחדל (שניות)
         <input type="number" inputmode="numeric" data-f="defrest" value="${db.settings.defaultRest}">
       </label>
-      <label class="field" style="margin-top:10px">קפיצת משקל ברירת מחדל (ק״ג)
-        <input type="number" inputmode="decimal" step="any" data-f="set-inc" value="${db.settings.increment}">
-      </label>
-      <p class="muted small">כשעומדים ביעד החזרות בכל הסטים, המשקל בפעם הבאה עולה בקפיצה הזו. אפשר לקבוע קפיצה שונה לכל תרגיל בעריכת התבנית.</p>
       <label class="check-row">
         <input type="checkbox" data-f="set-lastfail" ${db.settings.lastSetFail ? 'checked' : ''}>
         <span>הסט האחרון בכל תרגיל הוא עד כשל<br><span class="muted small">מסומן אוטומטית בתחילת אימון. אפשר לבטל לסט מסוים בלחיצה על המספר שלו.</span></span>
@@ -323,7 +319,7 @@ function viewEditor() {
         <label class="field">סטים<input type="number" inputmode="numeric" data-f="tex-sets" data-i="${i}" value="${esc(e.sets)}"></label>
         <label class="field">חזרות<input type="number" inputmode="numeric" data-f="tex-reps" data-i="${i}" value="${esc(e.reps)}"></label>
         <label class="field">מנוחה (ש׳)<input type="number" inputmode="numeric" data-f="tex-rest" data-i="${i}" value="${esc(e.rest)}"></label>
-        <label class="field">קפיצה (ק״ג)<input type="number" inputmode="decimal" step="any" data-f="tex-inc" data-i="${i}" value="${esc(e.inc ?? db.settings.increment)}"></label>
+        <label class="field">משקל (ק״ג)<input type="number" inputmode="decimal" step="any" data-f="tex-w" data-i="${i}" value="${esc(e.w ?? '')}" placeholder="—"></label>
         <label class="field span2">אזור גוף
           <select data-f="tex-group" data-i="${i}">${GROUPS.map((g) => `<option ${g === (e.group || guessGroup(e.name)) ? 'selected' : ''}>${g}</option>`).join('')}</select>
         </label>
@@ -812,31 +808,22 @@ function render() {
 }
 
 // ---------- Workout actions ----------
-// If every working set last time hit the target reps at the same weight, suggest going up by `inc`.
-function suggestIncrease(prev, target, inc) {
-  if (!prev || !target || !inc) return null;
-  const top = prev[0].w;
-  if (!top || !prev.every((s) => s.w === top && s.r >= target)) return null;
-  return top + inc;
-}
-
-// src: { name, sets?, reps?, rest?, inc? } — usually a template exercise.
+// src: { name, sets?, reps?, rest?, w? } — usually a template exercise. Its weight (`w`) is the current working weight.
 function makeExercise(src, warmup) {
   const { name } = src;
   const prev = lastSetsFor(name);
   const target = num(src.reps);
-  const inc = num(src.inc) || db.settings.increment;
-  const up = suggestIncrease(prev, target, inc);
+  const cur = num(src.w);
   const n = num(src.sets) || (prev ? prev.length : 3);
   const sets = Array.from({ length: n }, (_, j) => {
     const p = prev && (prev[j] || prev[prev.length - 1]);
-    const pw = up ? fmtW(up) : p ? fmtW(p.w) : '';
-    const pr = up && target ? String(target) : p ? String(p.r) : (target ? String(target) : '');
+    const pw = cur ? fmtW(cur) : p ? fmtW(p.w) : '';
+    const pr = target ? String(target) : p ? String(p.r) : '';
     return { w: '', r: '', pw, pr, done: false };
   });
   if (db.settings.lastSetFail && sets.length) sets[sets.length - 1].fail = true;
-  if (warmup) sets.unshift(makeWarmup(name, up || (prev && prev[0].w)));
-  return { id: uid(), name, rest: num(src.rest) || db.settings.defaultRest, target: target || '', inc, up: up ? inc : 0, sets };
+  if (warmup) sets.unshift(makeWarmup(name, cur || (prev && prev[0].w)));
+  return { id: uid(), name, rest: num(src.rest) || db.settings.defaultRest, target: target || '', sets };
 }
 
 // Suggest last time's warmup, or ~50% of the working weight (rounded to 2.5) for 10 reps.
@@ -895,12 +882,18 @@ function finishWorkout() {
         sets: work(e.sets).length,
         reps: old ? old.reps : (num(e.target) || num(work(e.sets)[0].r) || num(work(e.sets)[0].pr) || 10),
         rest: e.rest,
-        inc: old ? old.inc : e.inc,
+        ...(old && old.w ? { w: old.w } : {}),
       };
     });
     const sig = (list) => list.map((x) => `${x.name}|${x.sets}|${x.rest}`).join(';');
     if (sig(updated) !== sig(tpl.exercises) && confirm(`שינית את המבנה של "${tpl.name}" באימון הזה (תרגילים, סטים או מנוחה). לעדכן את התבנית?`)) {
       tpl.exercises = updated;
+    }
+    // Keep each template exercise's weight at the heaviest working weight just done.
+    for (const x of tpl.exercises) {
+      const done = exercises.find((e) => e.name === x.name);
+      const top = done && Math.max(0, ...work(done.sets).map((s) => s.w));
+      if (top) x.w = top;
     }
   }
 
@@ -1067,9 +1060,9 @@ document.addEventListener('click', (ev) => {
       break;
     }
     case 'step': {
-      // Weight moves by the exercise's increment, reps by 1; an empty field starts from its placeholder.
+      // Weight moves by 2.5 kg, reps by 1; an empty field starts from its placeholder.
       const set = ex.sets[s], f = el.dataset.f;
-      const step = f === 'w' ? (ex.inc || db.settings.increment) : 1;
+      const step = f === 'w' ? WEIGHT_STEP : 1;
       const cur = num(set[f]) ?? num(f === 'w' ? set.pw : set.pr) ?? 0;
       set[f] = fmtW(Math.max(0, cur + step * +el.dataset.d));
       el.parentElement.querySelector('input').value = set[f];
@@ -1129,7 +1122,7 @@ document.addEventListener('click', (ev) => {
         name: d.name.trim(),
         exercises: d.exercises.filter((x) => x.name.trim()).map((x) => ({
           id: x.id, name: x.name.trim(), sets: num(x.sets) || 3, reps: num(x.reps) || 10, rest: num(x.rest) || db.settings.defaultRest,
-          inc: num(x.inc) ?? db.settings.increment,
+          ...(num(x.w) ? { w: num(x.w) } : {}),
         })),
       };
       for (const x of d.exercises) {
@@ -1229,9 +1222,8 @@ document.addEventListener('input', (ev) => {
     case 'tex-sets': ui.draft.exercises[i].sets = el.value; break;
     case 'tex-reps': ui.draft.exercises[i].reps = el.value; break;
     case 'tex-rest': ui.draft.exercises[i].rest = el.value; break;
-    case 'tex-inc': ui.draft.exercises[i].inc = el.value; break;
+    case 'tex-w': ui.draft.exercises[i].w = el.value; break;
     case 'tex-group': ui.draft.exercises[i].group = el.value; break;
-    case 'set-inc': { const v = num(el.value); if (v && v > 0) { db.settings.increment = v; save(); } break; }
     case 'm-date': ui.mdraft.date = el.value; break;
     case 'm-val': ui.mdraft.vals[el.dataset.k] = el.value; break;
     case 'apikey': setApiKey(el.value.trim()); break;
