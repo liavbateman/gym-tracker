@@ -50,6 +50,7 @@ let db = load();
 if (!Array.isArray(db.metrics)) db.metrics = [];
 if (!db.muscles || typeof db.muscles !== 'object') db.muscles = {}; // exercise name -> body area, when set by hand
 if (!db.demos || typeof db.demos !== 'object') db.demos = {}; // exercise name -> chosen technique demo
+if (!db.alts || typeof db.alts !== 'object') db.alts = {}; // exercise name -> alternatives used when it's taken
 
 // ---------- Body areas ----------
 const GROUPS = ['חזה', 'גב', 'כתפיים', 'רגליים', 'יד קדמית', 'יד אחורית', 'בטן', 'אחר'];
@@ -62,8 +63,27 @@ const GROUP_HINTS = [
   ['יד אחורית', /פשיטת מרפק|פשיטות מרפק|טרייספס|יד אחורית|פרנץ|סקאל/],
   ['בטן', /בטן|פלאנק|כפיפות גו|קראנץ|הרמות רגליים בתלייה/],
 ];
+// Common exercises per area, offered as alternatives when the station for an exercise is taken.
+const ALT_POOL = {
+  'חזה': ['לחיצת חזה במוט', 'לחיצת חזה במשקולות', 'לחיצת חזה בשיפוע במשקולות', 'לחיצת חזה במכונה', 'פרפר בכבל', 'פק דק', 'מקבילים', 'שכיבות סמיכה'],
+  'גב': ['חתירה במוט', 'חתירה במשקולת', 'פולי עליון', 'פולי תחתון', 'מתח', 'חתירה במכונה', 'פול אובר בכבל'],
+  'כתפיים': ['לחיצת כתפיים במשקולות', 'לחיצת כתפיים במכונה', 'לחיצה צבאית', 'הרחקה לצדדים', 'הרחקה לצדדים בכבל', 'פייס פול', 'פרפר הפוך'],
+  'רגליים': ['סקוואט', 'לחיצת רגליים', 'סקוואט בסמית', 'סקוואט גובלט', 'מכרעים', 'סקוואט בולגרי', 'דדליפט רומני', 'כפיפת ברכיים', 'פשיטת ברכיים', 'היפ טראסט', 'הרמת עקבים'],
+  'יד קדמית': ['כפיפת מרפקים', 'כפיפת מרפקים במשקולות', 'כפיפת מרפקים בכבל', 'פטיש'],
+  'יד אחורית': ['פשיטת מרפקים בכבל', 'פרנץ', 'סקאל קראשר', 'מקבילים', 'פשיטת מרפקים מעל הראש בכבל'],
+  'בטן': ['פלאנק', 'כפיפות בטן', 'הרמות רגליים בתלייה', 'כפיפות בטן בכבל'],
+};
 const guessGroup = (name) => (GROUP_HINTS.find(([, re]) => re.test(name || '')) || ['אחר'])[0];
 const groupOf = (name) => db.muscles[name] || guessGroup(name);
+
+// Saved alternatives first, then exercises from the same body area (ones done before ahead of the stock list).
+function altsFor(name) {
+  const g = groupOf(name);
+  const inWorkout = new Set((db.active?.exercises || []).map((e) => e.name));
+  const known = allExerciseNames().filter((n) => groupOf(n) === g);
+  const list = [...(db.alts[name] || []), ...known, ...(ALT_POOL[g] || [])];
+  return [...new Set(list)].filter((n) => n && n !== name && !inWorkout.has(n)).slice(0, 10);
+}
 
 function save() {
   try { localStorage.setItem(KEY, JSON.stringify(db)); } catch { toast('שגיאה בשמירת הנתונים'); }
@@ -272,6 +292,7 @@ function viewActive() {
           <div class="grow">
             <div class="area">${groupOf(e.name)}</div>
             <div class="ex-name">${esc(e.name)}</div>
+            ${e.swapOf ? `<div class="muted small">במקום ${esc(e.swapOf)}</div>` : ''}
             <button class="link-btn demo-link" data-act="demo" data-e="${i}">▶ ${db.demos[e.name] ? 'הדגמה' : 'חפש הדגמה'}</button>
             <div class="prev">${prev ? 'פעם קודמת: ' + prev.map(prevLabel).join(' · ') : 'תרגיל חדש'}</div>
           </div>
@@ -284,8 +305,12 @@ function viewActive() {
             <button class="btn sm" data-act="set-add" data-e="${i}">+ סט</button>
             ${e.sets.some((s) => s.wu) ? '' : `<button class="btn sm" data-act="wu-add" data-e="${i}">+ חימום</button>`}
           </div>
-          <button class="link-btn" data-act="ex-del" data-e="${i}">הסר תרגיל</button>
+          <div class="row">
+            <button class="link-btn" data-act="swap-open" data-e="${i}">${ui.swap === i ? 'סגור' : 'תפוס? החלף'}</button>
+            <button class="link-btn" data-act="ex-del" data-e="${i}">הסר תרגיל</button>
+          </div>
         </div>
+        ${ui.swap === i ? viewSwap(e, i) : ''}
       </div>`;
   }).join('');
 
@@ -310,6 +335,22 @@ function viewActive() {
     ${viewMusic()}
     <button class="btn primary block" data-act="finish">סיים ושמור אימון</button>
     <button class="btn danger block" data-act="discard">בטל אימון</button>`;
+}
+
+function viewSwap(e, i) {
+  const alts = altsFor(e.swapOf || e.name).filter((n) => n !== e.name);
+  const saved = new Set(db.alts[e.swapOf || e.name] || []);
+  const done = e.sets.filter((s) => s.done).length;
+  return `
+    <div class="swap">
+      <div class="muted small">${done ? 'הסטים שכבר בוצעו יישארו כאן, והסטים שנשארו יעברו לתרגיל החלופי.' : 'בחר תרגיל חלופי. מספר הסטים והמנוחה נשמרים, והתבנית לא משתנה.'}</div>
+      <div class="demo-variants">${alts.map((n) => `<button class="chip ${saved.has(n) ? 'on' : ''}" data-act="swap-pick" data-e="${i}" data-n="${esc(n)}">${esc(n)}</button>`).join('') || '<span class="muted small">אין הצעות – הקלד תרגיל למטה</span>'}</div>
+      <div class="row" style="margin-top:10px">
+        <input type="text" id="swap-name" list="exnames" placeholder="תרגיל חלופי אחר…" class="grow">
+        <button class="btn sm" data-act="swap-custom" data-e="${i}">החלף</button>
+      </div>
+      <button class="link-btn" data-act="alt-save" data-e="${i}" style="padding-inline:0">+ שמור כחלופה קבועה בלי להחליף עכשיו</button>
+    </div>`;
 }
 
 function viewTemplates() {
@@ -1088,6 +1129,45 @@ function makeWarmup(name, workWeight) {
   return { wu: true, w: '', r: '', pw: last ? fmtW(last.w) : (half ? fmtW(half) : ''), pr: last ? String(last.r) : '10', done: false };
 }
 
+// Remember `name` as an alternative to the exercise's original, most recent first.
+function rememberAlt(ex, name) {
+  const origin = ex.swapOf || ex.name;
+  db.alts[origin] = [name, ...(db.alts[origin] || []).filter((n) => n !== name)].slice(0, 8);
+  return origin;
+}
+
+// Replace exercise e with `name` because its station is taken. Sets already done stay on the original;
+// the rest move to the alternative.
+function swapExercise(e, name) {
+  name = String(name || '').trim();
+  const ex = db.active.exercises[e];
+  if (!name || name === ex.name) { toast('בחר או הקלד תרגיל חלופי'); return; }
+  const origin = rememberAlt(ex, name);
+  const left = Math.max(1, work(ex.sets).filter((s) => !s.done).length);
+  const warmup = ex.sets.some((s) => s.wu && !s.done);
+  const alt = makeExercise({ name, sets: left, reps: ex.target, rest: ex.rest }, warmup);
+  alt.swapOf = origin;
+  if (ex.sets.some((s) => s.done)) {
+    ex.planned = ex.planned ?? work(ex.sets).length;
+    ex.sets = ex.sets.filter((s) => s.done);
+    db.active.exercises.splice(e + 1, 0, alt);
+  } else {
+    db.active.exercises[e] = alt;
+  }
+  ui.swap = null;
+  save(); render();
+  toast(`הוחלף ל${name}`);
+}
+
+function saveAlt(e, name) {
+  name = String(name || '').trim();
+  const ex = db.active.exercises[e];
+  if (!name || name === ex.name) { toast('הקלד שם של תרגיל חלופי'); return; }
+  const origin = rememberAlt(ex, name);
+  save(); render();
+  toast(`נשמר כחלופה ל${origin}`);
+}
+
 function startWorkout(tpl) {
   db.active = {
     id: uid(),
@@ -1132,12 +1212,15 @@ function finishWorkout() {
   // If exercises, set counts or rest times changed during the workout, offer to carry that into the template.
   const tpl = db.templates.find((t) => t.id === w.templateId);
   if (tpl) {
-    const updated = w.exercises.filter((e) => work(e.sets).length).map((e) => {
-      const old = tpl.exercises.find((x) => x.name === e.name);
+    // A swap for a taken station counts as the original exercise, so the template keeps its plan.
+    const names = new Set(w.exercises.filter((e) => work(e.sets).length).map((e) => e.name));
+    const updated = w.exercises.filter((e) => work(e.sets).length && !(e.swapOf && names.has(e.swapOf))).map((e) => {
+      const name = e.swapOf || e.name;
+      const old = tpl.exercises.find((x) => x.name === name);
       return {
         id: old ? old.id : uid(),
-        name: e.name,
-        sets: work(e.sets).length,
+        name,
+        sets: e.planned ?? work(e.sets).length,
         reps: old ? old.reps : (num(e.target) || num(work(e.sets)[0].r) || num(work(e.sets)[0].pr) || 10),
         rest: e.rest,
         ...(old && old.w ? { w: old.w } : {}),
@@ -1348,8 +1431,12 @@ document.addEventListener('click', (ev) => {
       break;
     }
     case 'ex-del':
-      if (confirm(`להסיר את "${ex.name}" מהאימון?`)) { db.active.exercises.splice(e, 1); save(); render(); }
+      if (confirm(`להסיר את "${ex.name}" מהאימון?`)) { db.active.exercises.splice(e, 1); ui.swap = null; save(); render(); }
       break;
+    case 'swap-open': ui.swap = ui.swap === e ? null : e; render(); break;
+    case 'swap-pick': swapExercise(e, el.dataset.n); break;
+    case 'swap-custom': swapExercise(e, $('#swap-name').value); break;
+    case 'alt-save': saveAlt(e, $('#swap-name').value); break;
     case 'ex-rest': {
       const v = num(prompt('זמן מנוחה בשניות לתרגיל הזה:', ex.rest));
       if (v && v > 0) { ex.rest = Math.round(v); save(); render(); }
@@ -1542,6 +1629,7 @@ document.addEventListener('change', (ev) => {
 
 document.addEventListener('keydown', (ev) => {
   if (ev.key === 'Enter' && ev.target.id === 'new-ex') $('[data-act="ex-add"]').click();
+  if (ev.key === 'Enter' && ev.target.id === 'swap-name') $('[data-act="swap-custom"]').click();
   if (ev.key === 'Enter' && ev.target.id === 'demo-q') { ev.target.blur(); runDemoSearch(); }
   if (ev.key === 'Escape' && ui.demo) { ui.demo = null; renderSheet(); }
 });
