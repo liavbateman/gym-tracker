@@ -73,6 +73,51 @@ const ALT_POOL = {
   'יד אחורית': ['פשיטת מרפקים בכבל', 'פרנץ', 'סקאל קראשר', 'מקבילים', 'פשיטת מרפקים מעל הראש בכבל'],
   'בטן': ['פלאנק', 'כפיפות בטן', 'הרמות רגליים בתלייה', 'כפיפות בטן בכבל'],
 };
+// Post-workout stretches per area. hold is in seconds; sides: done once on each side, so it takes twice as long.
+const STRETCHES = {
+  'חזה': [
+    { id: 'chest-door', name: 'מתיחת חזה במשקוף', hold: 30, sides: true, how: 'אמה על המשקוף בגובה הכתף, צעד קדימה עד מתיחה בחזה.' },
+    { id: 'chest-clasp', name: 'ידיים שלובות מאחור', hold: 30, how: 'שלב אצבעות מאחורי הגב, ישר מרפקים והרם ידיים לאט.' },
+  ],
+  'גב': [
+    { id: 'back-child', name: 'תנוחת הילד', hold: 40, how: 'ברכיים על הרצפה, ישבן לעקבים, ידיים מושטות קדימה.' },
+    { id: 'back-lat', name: 'מתיחת לטס בעמוד', hold: 30, sides: true, how: 'אחוז בעמוד בגובה המותן, דחוף ישבן לאחור ותן לצד הגב להימתח.' },
+    { id: 'back-catcow', name: 'חתול-פרה', hold: 30, how: 'על שש, עגל גב למעלה ואז קשת למטה, לאט עם הנשימה.' },
+  ],
+  'כתפיים': [
+    { id: 'sh-cross', name: 'יד על החזה', hold: 30, sides: true, how: 'משוך יד ישרה לרוחב החזה עם היד השנייה, כתף למטה.' },
+    { id: 'sh-sleeper', name: 'סיבוב פנימי עם מגבת', hold: 30, sides: true, how: 'מגבת מאחורי הגב, יד עליונה מושכת למעלה את היד התחתונה.' },
+  ],
+  'רגליים': [
+    { id: 'leg-quad', name: 'ארבע ראשי בעמידה', hold: 30, sides: true, how: 'אחוז בקרסול מאחור, ברכיים צמודות, אגן קדימה.' },
+    { id: 'leg-ham', name: 'המסטרינג בישיבה', hold: 30, sides: true, how: 'רגל אחת ישרה, גב ישר, התכופף מהירך לכיוון כף הרגל.' },
+    { id: 'leg-hip', name: 'כופף ירך בכריעה', hold: 30, sides: true, how: 'ברך אחורית על הרצפה, כווץ ישבן ודחוף אגן קדימה.' },
+    { id: 'leg-glute', name: 'ישבן בשכיבה (ארבע)', hold: 30, sides: true, how: 'קרסול על הברך השנייה, משוך את הירך לחזה.' },
+    { id: 'leg-calf', name: 'תאומים על הקיר', hold: 30, sides: true, how: 'ידיים על הקיר, רגל אחורית ישרה ועקב צמוד לרצפה.' },
+  ],
+  'יד קדמית': [
+    { id: 'bi-wall', name: 'יד קדמית על הקיר', hold: 30, sides: true, how: 'כף יד על הקיר מאחוריך, יד ישרה, סובב את הגוף הצידה.' },
+    { id: 'bi-forearm', name: 'אמה', hold: 20, sides: true, how: 'יד ישרה קדימה, משוך את האצבעות לאחור עם היד השנייה.' },
+  ],
+  'יד אחורית': [
+    { id: 'tri-overhead', name: 'יד אחורית מעל הראש', hold: 30, sides: true, how: 'כף יד בין השכמות, דחוף את המרפק למטה עם היד השנייה.' },
+  ],
+  'בטן': [
+    { id: 'abs-cobra', name: 'קוברה', hold: 30, how: 'שכיבה על הבטן, דחוף עם הידיים והרם חזה, אגן נשאר על הרצפה.' },
+    { id: 'abs-side', name: 'כפיפה צידית בעמידה', hold: 20, sides: true, how: 'יד מעל הראש, התכופף לצד הנגדי בלי להסתובב.' },
+  ],
+};
+const ALL_STRETCHES = Object.values(STRETCHES).flat();
+const stretchSecs = (x) => x.hold * (x.sides ? 2 : 1);
+
+// Stretches for the areas worked in this workout, in exercise order: two per area, three for legs.
+function stretchesFor(w) {
+  const groups = [...new Set(w.exercises.map((e) => groupOf(e.swapOf || e.name)))].filter((g) => STRETCHES[g]);
+  const list = groups.length
+    ? groups.flatMap((g) => STRETCHES[g].slice(0, g === 'רגליים' ? 3 : 2))
+    : [STRETCHES['גב'][0], STRETCHES['רגליים'][1], STRETCHES['חזה'][0]];
+  return list.slice(0, 9);
+}
 const guessGroup = (name) => (GROUP_HINTS.find(([, re]) => re.test(name || '')) || ['אחר'])[0];
 const groupOf = (name) => db.muscles[name] || guessGroup(name);
 
@@ -332,9 +377,37 @@ function viewActive() {
       </div>
       ${datalist()}
     </div>
+    ${viewStretch(w)}
     ${viewMusic()}
     <button class="btn primary block" data-act="finish">סיים ושמור אימון</button>
     <button class="btn danger block" data-act="discard">בטל אימון</button>`;
+}
+
+// Stretching at the end of the workout. The workout clock keeps running through it, so it's part of the total time.
+function viewStretch(w) {
+  const list = stretchesFor(w);
+  const done = new Set(w.stretch || []);
+  const total = list.reduce((a, x) => a + stretchSecs(x), 0);
+  const left = list.filter((x) => !done.has(x.id)).reduce((a, x) => a + stretchSecs(x), 0);
+  const rows = list.map((x) => `
+    <div class="stretch ${done.has(x.id) ? 'done' : ''}">
+      <div class="grow">
+        <div class="stretch-name">${esc(x.name)}</div>
+        <div class="muted small">${esc(x.how)}</div>
+      </div>
+      <button class="rest-pill" data-act="stretch-go" data-id="${x.id}" aria-label="הפעל טיימר מתיחה">▶ ${x.hold} ש׳${x.sides ? ' × 2' : ''}</button>
+      <button class="check" data-act="stretch-done" data-id="${x.id}" aria-label="סמן מתיחה כבוצעה" aria-pressed="${done.has(x.id)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg></button>
+    </div>`).join('');
+  return `
+    <h2>מתיחות</h2>
+    <div class="card">
+      <div class="row between">
+        <span class="muted small">לפי האזורים שעבדת עליהם היום</span>
+        <span class="muted small">${left ? `נשארו ≈ ${Math.ceil(left / 60)} דק׳ מתוך ${Math.ceil(total / 60)}` : 'הושלם ✓'}</span>
+      </div>
+      ${rows}
+      <p class="muted small" style="margin:8px 0 0">הזמן של המתיחות נכלל בזמן הכולל של האימון. ▶ מפעיל טיימר (ומחליף צד באמצע).</p>
+    </div>`;
 }
 
 function viewSwap(e, i) {
@@ -425,7 +498,7 @@ function viewHistory() {
     <details class="card hist">
       <summary>
         <div class="row between"><b>${esc(w.name)}</b><span class="muted small">${fmtDate(w.start)} · ${fmtTime(w.start)}</span></div>
-        <div class="muted small" style="margin-top:4px">${w.exercises.length} תרגילים · ${fmtDur(w.end - w.start)} · נפח ${Math.round(volume(w)).toLocaleString('he-IL')} ק״ג</div>
+        <div class="muted small" style="margin-top:4px">${w.exercises.length} תרגילים · ${fmtDur(w.end - w.start)}${w.stretch ? ` (כולל ${Math.ceil(w.stretch / 60)} דק׳ מתיחות)` : ''} · נפח ${Math.round(volume(w)).toLocaleString('he-IL')} ק״ג</div>
       </summary>
       ${w.exercises.map((e) => `
         <div class="hist-ex">
@@ -1338,7 +1411,10 @@ function finishWorkout() {
     start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), t.getHours(), t.getMinutes()).getTime();
     end = start + Math.max(1, num(w.mins) ?? 60) * 60000;
   }
-  db.workouts.push({ id: w.id, templateId: w.templateId, name: w.name || 'אימון', start, end, exercises });
+  // Seconds of stretching done. A live workout's clock already ran through it; a backdated one adds it on top.
+  const stretch = (w.stretch || []).reduce((a, id) => a + stretchSecs(ALL_STRETCHES.find((x) => x.id === id) || { hold: 0 }), 0);
+  if (backdated(w)) end += stretch * 1000;
+  db.workouts.push({ id: w.id, templateId: w.templateId, name: w.name || 'אימון', start, end, exercises, ...(stretch ? { stretch } : {}) });
   db.active = null;
   stopTimer();
   save();
@@ -1362,8 +1438,9 @@ let timer = null;
 try { timer = JSON.parse(localStorage.getItem(TIMER_KEY)); } catch { timer = null; }
 const saveTimer = () => { try { timer ? localStorage.setItem(TIMER_KEY, JSON.stringify(timer)) : localStorage.removeItem(TIMER_KEY); } catch { /* ignore */ } };
 
-function startTimer(sec) {
-  timer = { end: Date.now() + sec * 1000, total: sec, beeped: false };
+// opts: { label, stretch (id marked done when it runs out), next (a second side to run right after) }
+function startTimer(sec, opts = {}) {
+  timer = { end: Date.now() + sec * 1000, total: sec, beeped: false, ...opts };
   saveTimer();
   tick();
 }
@@ -1403,12 +1480,19 @@ function tick() {
   const left = Math.ceil(leftMs / 1000);
   const over = left <= 0;
   box.classList.toggle('over', over);
-  $('#timer-time').textContent = over ? 'יאללה!' : fmtDur(left * 1000);
+  $('#timer-label').textContent = timer.label || 'מנוחה';
+  $('#timer-time').textContent = over ? (timer.stretch ? 'כל הכבוד!' : 'יאללה!') : fmtDur(left * 1000);
   $('#timer-fill').style.width = `${over ? 100 : Math.max(0, Math.min(100, (leftMs / (timer.total * 1000)) * 100))}%`;
   if (over && !timer.beeped) {
     timer.beeped = true;
     saveTimer();
     if (Date.now() - timer.end < 5000) beep(); // don't beep for a timer that ran out while the app was closed
+    if (timer.next) { startTimer(timer.total, timer.next); return; }
+    const w = db.active;
+    if (timer.stretch && w) {
+      w.stretch = [...new Set([...(w.stretch || []), timer.stretch])];
+      save(); render();
+    }
   }
   if (leftMs < -30000) stopTimer();
 }
@@ -1540,6 +1624,21 @@ document.addEventListener('click', (ev) => {
       const name = $('#new-ex').value.trim();
       if (!name) return;
       db.active.exercises.push(makeExercise({ name }, db.active.exercises.length === 0));
+      save(); render();
+      break;
+    }
+
+    case 'stretch-go': {
+      const x = ALL_STRETCHES.find((y) => y.id === el.dataset.id);
+      const label = `מתיחה: ${x.name}`;
+      startTimer(x.hold, x.sides
+        ? { label: `${label} · צד 1`, next: { label: `${label} · צד 2`, stretch: x.id } }
+        : { label, stretch: x.id });
+      break;
+    }
+    case 'stretch-done': {
+      const id = el.dataset.id, list = db.active.stretch || [];
+      db.active.stretch = list.includes(id) ? list.filter((y) => y !== id) : [...list, id];
       save(); render();
       break;
     }

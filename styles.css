@@ -493,4 +493,11 @@ body.sheet-open { overflow: hidden; }
 .genres { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .genre { display: block; text-align: center; padding: 12px 8px; border: 1px solid var(--rule); border-radius: 8px; background: var(--field); color: var(--ink); font-weight: 600; text-decoration: none; }
 .genre:active { background: var(--hl); border-color: var(--hl); color: var(--hl-ink); }
+/* Stretching */
+.stretch { display: flex; align-items: center; gap: 8px; padding: 10px 0; border-top: 1px dashed var(--rule); margin-top: 10px; }
+.stretch + .stretch { margin-top: 0; }
+.stretch-name { font-weight: 700; }
+.stretch.done .stretch-name { background: var(--hl); color: var(--hl-ink); padding: 0 4px; border-radius: 2px; display: inline; }
+.stretch.done .check { border-color: var(--ink-soft); }
+.stretch.done .check svg { stroke-dashoffset: 0; }
 .swap { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--rule); }
