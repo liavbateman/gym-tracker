@@ -59,7 +59,7 @@ main {
   inset: auto 0 0 0;
   z-index: 10;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   height: calc(var(--nav-h) + var(--safe-b));
   padding-bottom: var(--safe-b);
   background: #0c0f12;
@@ -275,6 +275,50 @@ details.hist summary::-webkit-details-marker { display: none; }
 .week div { flex: 1; text-align: center; font-size: 11px; color: var(--muted); }
 .week span { display: block; height: 30px; border-radius: 8px; background: var(--bg); border: 1px solid var(--line); margin-bottom: 4px; }
 .week span.on { background: var(--accent); border-color: var(--accent); }
+
+/* Body metrics */
+input[type=date], input[type=password] {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 16px;
+  color-scheme: dark;
+}
+textarea {
+  width: 100%;
+  margin-top: 8px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  font: inherit;
+  font-size: 14px;
+  color: inherit;
+  resize: vertical;
+}
+textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.steps ol { margin: 10px 0 0; padding-inline-start: 20px; line-height: 1.5; }
+.steps li { margin-bottom: 12px; }
+.steps li .btn { display: block; margin-top: 6px; }
+details.adv summary { cursor: pointer; }
+.mgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 12px; }
+.mgrid .unit { font-size: 11px; }
+.stat .u { font-size: 15px; font-weight: 700; color: var(--muted); }
+.delta { font-size: 12px; font-weight: 700; color: var(--muted); vertical-align: middle; }
+.delta.up { color: var(--good); }
+.delta.down { color: var(--bad); }
+.mlist { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 14px; margin-top: 10px; font-size: 14px; }
+.mlist div { display: flex; justify-content: space-between; gap: 6px; border-bottom: 1px dashed var(--line); padding-bottom: 4px; }
+.hist-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
+.hist-row:first-of-type { border-top: 0; }
+.hist-row input { width: 20px; height: 20px; accent-color: var(--accent); }
+.note { border-color: rgba(255, 122, 26, .5); font-size: 14px; }
+.ok { color: var(--good); font-weight: 600; }
+.reading { padding: 24px 14px; }
+.spinner { width: 34px; height: 34px; margin: 0 auto; border: 3px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 .empty { text-align: center; color: var(--muted); padding: 30px 10px; }
 
