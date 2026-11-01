@@ -458,3 +458,8 @@ body.sheet-open { overflow: hidden; }
 .demo-variants { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .demo-variants .chip { color: var(--ink); font: inherit; font-size: 13px; padding: 5px 10px; }
 .demo-variants .chip.on { background: var(--hl); border-color: var(--hl); color: var(--hl-ink); font-weight: 600; }
+
+/* Workout music */
+.genres { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.genre { display: block; text-align: center; padding: 12px 8px; border: 1px solid var(--rule); border-radius: 8px; background: var(--field); color: var(--ink); font-weight: 600; text-decoration: none; }
+.genre:active { background: var(--hl); border-color: var(--hl); color: var(--hl-ink); }

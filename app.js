@@ -3,7 +3,7 @@
 // ---------- Storage ----------
 const KEY = 'gym-tracker-v1';
 const TIMER_KEY = 'gym-tracker-timer';
-const DEFAULT_SETTINGS = { defaultRest: 90, lastSetFail: true };
+const DEFAULT_SETTINGS = { defaultRest: 90, lastSetFail: true, musicApp: 'spotify' };
 const WEIGHT_STEP = 2.5;
 
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -171,6 +171,37 @@ function viewWeek() {
   return `<div class="card"><div class="row between"><h3>השבוע</h3><span class="muted small">${count === 1 ? 'אימון אחד' : `${count} אימונים`}</span></div><div class="week">${cells}</div></div>`;
 }
 
+// ---------- Workout music ----------
+// Each genre opens a playlist search in the chosen app, so the top results are that service's own workout playlists.
+const MUSIC_APPS = [['spotify', 'Spotify'], ['apple', 'Apple Music'], ['youtube', 'YouTube']];
+const GENRES = [
+  ['היפ הופ וראפ', 'hip hop rap workout'],
+  ['טכנו', 'techno workout'],
+  ['הארדסטייל', 'hardstyle workout'],
+  ['מוטיבציה', 'workout motivation'],
+  ['EDM', 'edm workout'],
+  ['רוק ומטאל', 'rock metal workout'],
+  ['פופ', 'pop workout'],
+  ['פונק', 'phonk gym'],
+];
+const isApple = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent);
+function musicUrl(app, q) {
+  const e = encodeURIComponent(q);
+  if (app === 'apple') return (isApple ? 'music://music.apple.com' : 'https://music.apple.com') + `/search?term=${e}`;
+  if (app === 'youtube') return `https://www.youtube.com/results?search_query=${e}&sp=EgIQAw%3D%3D`;
+  return `https://open.spotify.com/search/${e}/playlists`;
+}
+
+function viewMusic() {
+  const app = db.settings.musicApp;
+  return `
+    <h2>מוזיקה לאימון</h2>
+    <div class="card">
+      <div class="seg">${MUSIC_APPS.map(([k, l]) => `<button class="${app === k ? 'on' : ''}" data-act="music-app" data-k="${k}">${l}</button>`).join('')}</div>
+      <div class="genres">${GENRES.map(([l, q]) => `<a class="genre" href="${esc(musicUrl(app, q))}" target="_blank" rel="noopener">${l}</a>`).join('')}</div>
+    </div>`;
+}
+
 // The template after the one used last (cycling A → B → A …).
 function nextTemplateId() {
   if (!db.templates.length) return null;
@@ -203,6 +234,7 @@ function viewStart() {
     <h2>התחל אימון</h2>
     ${tpls || '<p class="muted">אין עדיין תבניות. אפשר ליצור בלשונית "תבניות".</p>'}
     <button class="btn ghost block" data-act="start-empty">+ אימון ריק</button>
+    ${viewMusic()}
     ${lastCard}`;
 }
 
@@ -271,6 +303,7 @@ function viewActive() {
       </div>
       ${datalist()}
     </div>
+    ${viewMusic()}
     <button class="btn primary block" data-act="finish">סיים ושמור אימון</button>
     <button class="btn danger block" data-act="discard">בטל אימון</button>`;
 }
@@ -1383,6 +1416,7 @@ document.addEventListener('click', (ev) => {
     }
 
     case 'metric': ui.progMetric = el.dataset.k; render(); break;
+    case 'music-app': db.settings.musicApp = el.dataset.k; save(); render(); break;
     case 'area-period': ui.areaPeriod = el.dataset.k; render(); break;
 
     case 'body-metric': ui.bodyMetric = el.dataset.k; render(); break;
