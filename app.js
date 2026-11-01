@@ -292,7 +292,7 @@ function viewActive() {
           <div class="grow">
             <div class="area">${groupOf(e.name)}</div>
             <div class="ex-name">${esc(e.name)}</div>
-            ${e.swapOf ? `<div class="muted small">במקום ${esc(e.swapOf)}</div>` : ''}
+            ${e.swapOf ? `<div class="muted small">במקום ${esc(e.swapOf)} · <button class="link-btn" data-act="unswap" data-e="${i}" style="padding:0">התפנה? חזור</button></div>` : ''}
             <button class="link-btn demo-link" data-act="demo" data-e="${i}">▶ ${db.demos[e.name] ? 'הדגמה' : 'חפש הדגמה'}</button>
             <div class="prev">${prev ? 'פעם קודמת: ' + prev.map(prevLabel).join(' · ') : 'תרגיל חדש'}</div>
           </div>
@@ -1211,6 +1211,7 @@ function swapExercise(e, name) {
   const warmup = ex.sets.some((s) => s.wu && !s.done);
   const alt = makeExercise({ name, sets: left, reps: ex.target, rest: ex.rest }, warmup);
   alt.swapOf = origin;
+  alt.planned = ex.planned ?? work(ex.sets).length;
   if (ex.sets.some((s) => s.done)) {
     ex.planned = ex.planned ?? work(ex.sets).length;
     ex.sets = ex.sets.filter((s) => s.done);
@@ -1221,6 +1222,29 @@ function swapExercise(e, name) {
   ui.swap = null;
   save(); render();
   toast(`הוחלף ל${name}`);
+}
+
+// The original station freed up: the sets not done yet on the alternative go back to the original exercise.
+// If the original is still in the workout (it was swapped mid-way), they're added back to it.
+function unswapExercise(e) {
+  const alt = db.active.exercises[e];
+  const origin = alt.swapOf;
+  const left = work(alt.sets).filter((s) => !s.done).length;
+  const orig = db.active.exercises.find((x) => x.name === origin);
+  if (orig) {
+    const sets = makeExercise({ name: origin, sets: Math.max(1, left), reps: orig.target, rest: orig.rest }).sets;
+    if (left || !alt.sets.some((s) => s.done)) orig.sets.push(...sets);
+  } else {
+    const back = makeExercise({ name: origin, sets: Math.max(1, left), reps: alt.target, rest: alt.rest }, alt.sets.some((s) => s.wu && !s.done));
+    back.planned = alt.planned;
+    if (alt.sets.some((s) => s.done)) db.active.exercises.splice(e + 1, 0, back);
+    else db.active.exercises[e] = back;
+  }
+  if (alt.sets.some((s) => s.done)) alt.sets = alt.sets.filter((s) => s.done);
+  else db.active.exercises.splice(db.active.exercises.indexOf(alt), 1);
+  ui.swap = null;
+  save(); render();
+  toast(`חזרת ל${origin}`);
 }
 
 function saveAlt(e, name) {
@@ -1498,7 +1522,8 @@ document.addEventListener('click', (ev) => {
       if (confirm(`להסיר את "${ex.name}" מהאימון?`)) { db.active.exercises.splice(e, 1); ui.swap = null; save(); render(); }
       break;
     case 'swap-open': ui.swap = ui.swap === e ? null : e; render(); break;
-    case 'swap-pick': swapExercise(e, el.dataset.n); break;
+    case 'unswap': unswapExercise(e); break;
+    case 'swap-pick':swapExercise(e, el.dataset.n); break;
     case 'swap-custom': swapExercise(e, $('#swap-name').value); break;
     case 'alt-save': saveAlt(e, $('#swap-name').value); break;
     case 'ex-rest': {
