@@ -3,16 +3,17 @@
 // ---------- Storage ----------
 const KEY = 'gym-tracker-v1';
 const TIMER_KEY = 'gym-tracker-timer';
+const DEFAULT_SETTINGS = { defaultRest: 90, increment: 2.5 };
 
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const $ = (s) => document.querySelector(s);
 
 function seed() {
-  const ex = (name, sets, reps, rest) => ({ id: uid(), name, sets, reps, rest });
+  const ex = (name, sets, reps, rest, inc = 2.5) => ({ id: uid(), name, sets, reps, rest, inc });
   return {
     version: 1,
-    settings: { defaultRest: 90 },
+    settings: { ...DEFAULT_SETTINGS },
     templates: [
       {
         id: uid(), name: 'אימון A – פלג גוף עליון', exercises: [
@@ -22,7 +23,7 @@ function seed() {
       },
       {
         id: uid(), name: 'אימון B – פלג גוף תחתון', exercises: [
-          ex('סקוואט', 4, 6, 150), ex('דדליפט רומני', 3, 8, 120), ex('לחיצת רגליים', 3, 10, 90),
+          ex('סקוואט', 4, 6, 150, 5), ex('דדליפט רומני', 3, 8, 120, 5), ex('לחיצת רגליים', 3, 10, 90, 5),
           ex('מכרעים', 3, 10, 90), ex('הרמת עקבים', 4, 12, 60),
         ],
       },
@@ -35,7 +36,10 @@ function seed() {
 function load() {
   try {
     const d = JSON.parse(localStorage.getItem(KEY));
-    if (d && Array.isArray(d.templates) && Array.isArray(d.workouts)) return d;
+    if (d && Array.isArray(d.templates) && Array.isArray(d.workouts)) {
+      d.settings = { ...DEFAULT_SETTINGS, ...d.settings };
+      return d;
+    }
   } catch { /* fall through to seed */ }
   return seed();
 }
@@ -145,9 +149,21 @@ function viewWeek() {
   return `<div class="card"><div class="row between"><h3>השבוע</h3><span class="muted small">${count} אימונים</span></div><div class="week">${cells}</div></div>`;
 }
 
+// The template after the one used last (cycling A → B → A …).
+function nextTemplateId() {
+  if (!db.templates.length) return null;
+  const last = sortedWorkouts().find((w) => db.templates.some((t) => t.id === w.templateId));
+  if (!last) return db.templates[0].id;
+  const i = db.templates.findIndex((t) => t.id === last.templateId);
+  return db.templates[(i + 1) % db.templates.length].id;
+}
+
 function viewStart() {
-  const tpls = db.templates.map((t) => `
-    <button class="tpl" data-act="start" data-id="${t.id}">
+  const nextId = nextTemplateId();
+  const ordered = [...db.templates].sort((a, b) => (b.id === nextId) - (a.id === nextId));
+  const tpls = ordered.map((t) => `
+    <button class="tpl ${t.id === nextId ? 'next' : ''}" data-act="start" data-id="${t.id}">
+      ${t.id === nextId ? '<span class="badge">הבא בתור</span>' : ''}
       <div class="name">${esc(t.name)}</div>
       <div class="sub">${t.exercises.map((e) => esc(e.name)).join(' · ') || 'אין תרגילים'}</div>
     </button>`).join('');
@@ -168,6 +184,13 @@ function viewStart() {
     ${lastCard}`;
 }
 
+const stepper = (e, s, f, value, placeholder, mode) => `
+  <div class="stepper">
+    <button data-act="step" data-f="${f}" data-d="1" data-e="${e}" data-s="${s}" aria-label="הוסף">+</button>
+    <input type="number" inputmode="${mode}" step="any" data-f="${f}" data-e="${e}" data-s="${s}" value="${esc(value)}" placeholder="${esc(placeholder)}">
+    <button data-act="step" data-f="${f}" data-d="-1" data-e="${e}" data-s="${s}" aria-label="הפחת">−</button>
+  </div>`;
+
 function viewActive() {
   const w = db.active;
   const exs = w.exercises.map((e, i) => {
@@ -176,10 +199,10 @@ function viewActive() {
     const rows = e.sets.map((s, j) => `
       <tr class="${s.done ? 'done' : ''} ${s.wu ? 'wu' : ''}">
         <td class="n">${s.wu ? '<span title="סט חימום">ח׳</span>' : ++n}</td>
-        <td><input type="number" inputmode="decimal" step="any" data-f="w" data-e="${i}" data-s="${j}" value="${esc(s.w)}" placeholder="${esc(s.pw)}"></td>
-        <td><input type="number" inputmode="numeric" data-f="r" data-e="${i}" data-s="${j}" value="${esc(s.r)}" placeholder="${esc(s.pr)}"></td>
+        <td>${stepper(i, j, 'w', s.w, s.pw, 'decimal')}</td>
+        <td>${stepper(i, j, 'r', s.r, s.pr, 'numeric')}</td>
         <td class="chk"><button class="check" data-act="set-done" data-e="${i}" data-s="${j}" aria-label="סמן סט כבוצע">✓</button></td>
-        <td class="del"><button class="icon-btn" data-act="set-del" data-e="${i}" data-s="${j}" aria-label="מחק סט">−</button></td>
+        <td class="del"><button class="icon-btn" data-act="set-del" data-e="${i}" data-s="${j}" aria-label="מחק סט">✕</button></td>
       </tr>`).join('');
     return `
       <div class="card">
@@ -187,6 +210,7 @@ function viewActive() {
           <div class="grow">
             <div class="ex-name">${esc(e.name)}</div>
             <div class="prev">${prev ? 'פעם קודמת: <span dir="ltr">' + prev.map(setLabel).join(' · ') + '</span>' : 'תרגיל חדש'}</div>
+            ${e.up ? `<div class="up">⬆ עמדת ביעד – המשקל הועלה ב-${fmtW(e.up)} ק״ג</div>` : ''}
           </div>
           <button class="rest-pill" data-act="ex-rest" data-e="${i}">⏱ ${e.rest} ש׳</button>
           <button class="icon-btn" data-act="ex-del" data-e="${i}" aria-label="הסר תרגיל">✕</button>
@@ -237,6 +261,10 @@ function viewTemplates() {
       <label class="field">זמן מנוחה ברירת מחדל (שניות)
         <input type="number" inputmode="numeric" data-f="defrest" value="${db.settings.defaultRest}">
       </label>
+      <label class="field" style="margin-top:10px">קפיצת משקל ברירת מחדל (ק״ג)
+        <input type="number" inputmode="decimal" step="any" data-f="set-inc" value="${db.settings.increment}">
+      </label>
+      <p class="muted small">כשעומדים ביעד החזרות בכל הסטים, המשקל בפעם הבאה עולה בקפיצה הזו. אפשר לקבוע קפיצה שונה לכל תרגיל בעריכת התבנית.</p>
       <button class="btn block" data-act="export">⬇️ ייצוא גיבוי (קובץ JSON)</button>
       <button class="btn block" data-act="import">⬆️ שחזור מגיבוי</button>
       <input type="file" id="import-file" accept="application/json,.json" hidden>
@@ -258,6 +286,7 @@ function viewEditor() {
         <label class="field">סטים<input type="number" inputmode="numeric" data-f="tex-sets" data-i="${i}" value="${esc(e.sets)}"></label>
         <label class="field">חזרות<input type="number" inputmode="numeric" data-f="tex-reps" data-i="${i}" value="${esc(e.reps)}"></label>
         <label class="field">מנוחה (ש׳)<input type="number" inputmode="numeric" data-f="tex-rest" data-i="${i}" value="${esc(e.rest)}"></label>
+        <label class="field">קפיצה (ק״ג)<input type="number" inputmode="decimal" step="any" data-f="tex-inc" data-i="${i}" value="${esc(e.inc ?? db.settings.increment)}"></label>
       </div>
     </div>`).join('');
 
@@ -390,20 +419,36 @@ function render() {
 }
 
 // ---------- Workout actions ----------
-function makeExercise(name, setCount, reps, rest, warmup) {
+// If every working set last time hit the target reps at the same weight, suggest going up by `inc`.
+function suggestIncrease(prev, target, inc) {
+  if (!prev || !target || !inc) return null;
+  const top = prev[0].w;
+  if (!top || !prev.every((s) => s.w === top && s.r >= target)) return null;
+  return top + inc;
+}
+
+// src: { name, sets?, reps?, rest?, inc? } — usually a template exercise.
+function makeExercise(src, warmup) {
+  const { name } = src;
   const prev = lastSetsFor(name);
-  const n = setCount || (prev ? prev.length : 3);
+  const target = num(src.reps);
+  const inc = num(src.inc) || db.settings.increment;
+  const up = suggestIncrease(prev, target, inc);
+  const n = num(src.sets) || (prev ? prev.length : 3);
   const sets = Array.from({ length: n }, (_, j) => {
     const p = prev && (prev[j] || prev[prev.length - 1]);
-    return { w: '', r: '', pw: p ? fmtW(p.w) : '', pr: p ? String(p.r) : (reps ? String(reps) : ''), done: false };
+    const pw = up ? fmtW(up) : p ? fmtW(p.w) : '';
+    const pr = up && target ? String(target) : p ? String(p.r) : (target ? String(target) : '');
+    return { w: '', r: '', pw, pr, done: false };
   });
   if (warmup) {
-    // Suggest last time's warmup, or ~50% of last working weight (rounded to 2.5) for 10 reps.
+    // Suggest last time's warmup, or ~50% of the working weight (rounded to 2.5) for 10 reps.
     const last = lastWarmupFor(name);
-    const half = prev && prev[0].w ? Math.round((prev[0].w * 0.5) / 2.5) * 2.5 : '';
+    const base = up || (prev && prev[0].w);
+    const half = base ? Math.round((base * 0.5) / 2.5) * 2.5 : '';
     sets.unshift({ wu: true, w: '', r: '', pw: last ? fmtW(last.w) : (half ? fmtW(half) : ''), pr: last ? String(last.r) : '10', done: false });
   }
-  return { id: uid(), name, rest: rest || db.settings.defaultRest, sets };
+  return { id: uid(), name, rest: num(src.rest) || db.settings.defaultRest, target: target || '', inc, up: up ? inc : 0, sets };
 }
 
 function startWorkout(tpl) {
@@ -412,7 +457,7 @@ function startWorkout(tpl) {
     templateId: tpl ? tpl.id : null,
     name: tpl ? tpl.name : 'אימון חופשי',
     start: Date.now(),
-    exercises: tpl ? tpl.exercises.map((e, i) => makeExercise(e.name, e.sets, e.reps, e.rest, i === 0)) : [],
+    exercises: tpl ? tpl.exercises.map((e, i) => makeExercise(e, i === 0)) : [],
   };
   save();
   requestWakeLock();
@@ -441,6 +486,26 @@ function finishWorkout() {
     const sets = work(e.sets);
     return maxE > 0 && sets.length && Math.max(...sets.map((s) => e1rm(s.w, s.r))) > maxE;
   }).map((e) => e.name);
+
+  // If exercises, set counts or rest times changed during the workout, offer to carry that into the template.
+  const tpl = db.templates.find((t) => t.id === w.templateId);
+  if (tpl) {
+    const updated = w.exercises.filter((e) => work(e.sets).length).map((e) => {
+      const old = tpl.exercises.find((x) => x.name === e.name);
+      return {
+        id: old ? old.id : uid(),
+        name: e.name,
+        sets: work(e.sets).length,
+        reps: old ? old.reps : (num(e.target) || num(work(e.sets)[0].r) || num(work(e.sets)[0].pr) || 10),
+        rest: e.rest,
+        inc: old ? old.inc : e.inc,
+      };
+    });
+    const sig = (list) => list.map((x) => `${x.name}|${x.sets}|${x.rest}`).join(';');
+    if (sig(updated) !== sig(tpl.exercises) && confirm(`שינית את המבנה של "${tpl.name}" באימון הזה (תרגילים, סטים או מנוחה). לעדכן את התבנית?`)) {
+      tpl.exercises = updated;
+    }
+  }
 
   db.workouts.push({ id: w.id, templateId: w.templateId, name: w.name || 'אימון', start: w.start, end: Date.now(), exercises });
   db.active = null;
@@ -594,6 +659,16 @@ document.addEventListener('click', (ev) => {
       save(); render();
       break;
     }
+    case 'step': {
+      // Weight moves by the exercise's increment, reps by 1; an empty field starts from its placeholder.
+      const set = ex.sets[s], f = el.dataset.f;
+      const step = f === 'w' ? (ex.inc || db.settings.increment) : 1;
+      const cur = num(set[f]) ?? num(f === 'w' ? set.pw : set.pr) ?? 0;
+      set[f] = fmtW(Math.max(0, cur + step * +el.dataset.d));
+      el.parentElement.querySelector('input').value = set[f];
+      save();
+      break;
+    }
     case 'set-add': {
       const last = ex.sets[ex.sets.length - 1];
       ex.sets.push({ w: '', r: '', pw: last ? (last.w || last.pw) : '', pr: last ? (last.r || last.pr) : '', done: false });
@@ -612,7 +687,7 @@ document.addEventListener('click', (ev) => {
     case 'ex-add': {
       const name = $('#new-ex').value.trim();
       if (!name) return;
-      db.active.exercises.push(makeExercise(name, 0, 0, 0, db.active.exercises.length === 0));
+      db.active.exercises.push(makeExercise({ name }, db.active.exercises.length === 0));
       save(); render();
       break;
     }
@@ -635,6 +710,7 @@ document.addEventListener('click', (ev) => {
         name: d.name.trim(),
         exercises: d.exercises.filter((x) => x.name.trim()).map((x) => ({
           id: x.id, name: x.name.trim(), sets: num(x.sets) || 3, reps: num(x.reps) || 10, rest: num(x.rest) || db.settings.defaultRest,
+          inc: num(x.inc) ?? db.settings.increment,
         })),
       };
       const idx = db.templates.findIndex((t) => t.id === d.id);
@@ -698,6 +774,8 @@ document.addEventListener('input', (ev) => {
     case 'tex-sets': ui.draft.exercises[i].sets = el.value; break;
     case 'tex-reps': ui.draft.exercises[i].reps = el.value; break;
     case 'tex-rest': ui.draft.exercises[i].rest = el.value; break;
+    case 'tex-inc': ui.draft.exercises[i].inc = el.value; break;
+    case 'set-inc': { const v = num(el.value); if (v && v > 0) { db.settings.increment = v; save(); } break; }
   }
 });
 
