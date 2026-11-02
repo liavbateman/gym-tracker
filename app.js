@@ -2812,102 +2812,54 @@ document.addEventListener('pointerdown', (ev) => {
   kpClose();
 }, true);
 
-// ---------- Note keyboard ----------
-// Notes are typed on an in-app keyboard in the logbook style rather than the phone's: the text is written onto a
-// strip of paper above the keys. Tapping outside saves, like "שמור".
+// ---------- Note editor ----------
+// Notes are typed with the phone's own keyboard into a strip of ruled logbook paper that drops down from the top,
+// so the keyboard never covers it. Tapping outside saves, like "שמור"; Enter saves too.
 const NOTE_MAX = 120;
-const TK_LAYOUTS = {
-  he: [['ק', 'ר', 'א', 'ט', 'ו', 'ן', 'ם', 'פ'], ['ש', 'ד', 'ג', 'כ', 'ע', 'י', 'ח', 'ל', 'ך', 'ף'], ['ז', 'ס', 'ב', 'ה', 'נ', 'מ', 'צ', 'ת', 'ץ', 'back']],
-  en: [['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'], ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'], ['z', 'x', 'c', 'v', 'b', 'n', 'm', 'back']],
-  num: [['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'], ['-', '/', ':', '(', ')', '״', "'", '"', '×', '°'], ['+', '=', '%', '!', '?', ',', '@', '#', 'back']],
-};
-const tk = { name: null, text: '', lang: 'he', num: false, repeat: null };
+const tk = { name: null };
 const tkBox = $('#tkb');
+const tkText = $('#tk-text');
 
-function tkKeys() {
-  const rows = TK_LAYOUTS[tk.num ? 'num' : tk.lang];
-  const key = (k) => k === 'back'
-    ? '<button class="tk-fn tk-back" data-tk="back" aria-label="מחק">⌫</button>'
-    : `<button data-tk="${esc(k)}">${esc(k)}</button>`;
-  return rows.map((r) => `<div class="tk-row">${r.map(key).join('')}</div>`).join('') + `
-    <div class="tk-row">
-      <button class="tk-fn" data-tk="num">${tk.num ? (tk.lang === 'he' ? 'אבג' : 'abc') : '123'}</button>
-      <button class="tk-fn" data-tk="lang" aria-label="החלף שפה">${tk.lang === 'he' ? 'EN' : 'עב'}</button>
-      <button class="tk-space" data-tk=" " aria-label="רווח"></button>
-      <button data-tk=".">.</button>
-      <button class="tk-save" data-tk="save">שמור</button>
-    </div>`;
-}
-
-function tkPaint() {
-  $('#tk-text').innerHTML = esc(tk.text) + '<i class="tk-caret"></i>';
-  $('#tk-text').classList.toggle('empty', !tk.text);
-  $('#tk-count').textContent = `${tk.text.length}/${NOTE_MAX}`;
-  $('#tk-clear').classList.toggle('hidden', !tk.text);
-}
+function tkCount() { $('#tk-count').textContent = `${tkText.value.length}/${NOTE_MAX}`; }
 
 function tkOpen(name) {
   kpClose();
   tk.name = name;
-  tk.text = db.notes[name] || '';
-  tk.num = false;
   $('#tk-ex').textContent = name;
-  $('#tk-keys').innerHTML = tkKeys();
-  tkPaint();
+  tkText.value = db.notes[name] || '';
+  tkCount();
   tkBox.classList.remove('hidden');
   document.documentElement.classList.add('tk-open');
+  // Focus inside the tap itself, or iOS won't bring up the keyboard.
+  tkText.focus();
+  tkText.setSelectionRange(tkText.value.length, tkText.value.length);
 }
 
 function tkClose(keep) {
   if (!tk.name) return;
   if (keep) {
-    const t = tk.text.trim().replace(/\s+/g, ' ');
+    const t = tkText.value.trim().replace(/\s+/g, ' ');
     if (t) db.notes[tk.name] = t; else delete db.notes[tk.name];
     save();
   }
   tk.name = null;
-  tkStopRepeat();
+  tkText.blur();
   tkBox.classList.add('hidden');
   document.documentElement.classList.remove('tk-open');
   render();
 }
 
-function tkKey(k) {
-  if (k === 'save') { tkClose(true); return; }
-  if (k === 'cancel') { tkClose(false); return; }
-  if (k === 'num') { tk.num = !tk.num; $('#tk-keys').innerHTML = tkKeys(); return; }
-  if (k === 'lang') { tk.lang = tk.lang === 'he' ? 'en' : 'he'; tk.num = false; $('#tk-keys').innerHTML = tkKeys(); return; }
-  if (k === 'clear') tk.text = '';
-  else if (k === 'back') tk.text = [...tk.text].slice(0, -1).join('');
-  else if (tk.text.length >= NOTE_MAX || (k === ' ' && (!tk.text || tk.text.endsWith(' ')))) return;
-  else tk.text += k;
-  navigator.vibrate?.(4);
-  tkPaint();
-}
-
-// Holding ⌫ keeps deleting, faster after the first beat.
-function tkStopRepeat() { clearTimeout(tk.repeat); clearInterval(tk.repeat); tk.repeat = null; }
-
-// Closing waits for the click, so the tap that closes the keyboard can't land on a button underneath it.
-const TK_CLOSERS = ['save', 'cancel'];
+tkText.addEventListener('input', tkCount);
+tkText.addEventListener('keydown', (ev) => {
+  if (ev.key === 'Enter') { ev.preventDefault(); tkClose(true); }
+  if (ev.key === 'Escape') { ev.preventDefault(); tkClose(false); }
+});
+// Closing waits for the click, so the tap that closes the editor can't land on a button underneath it.
 tkBox.addEventListener('click', (ev) => {
   const b = ev.target.closest('[data-tk]');
   if (ev.target === tkBox) tkClose(true);
-  else if (b && TK_CLOSERS.includes(b.dataset.tk)) tkKey(b.dataset.tk);
+  else if (b) tkClose(b.dataset.tk === 'save');
 });
-tkBox.addEventListener('pointerdown', (ev) => {
-  const b = ev.target.closest('[data-tk]');
-  ev.preventDefault();
-  if (!b || TK_CLOSERS.includes(b.dataset.tk)) return;
-  b.classList.add('down');
-  setTimeout(() => b.classList.remove('down'), 140);
-  tkKey(b.dataset.tk);
-  if (b.dataset.tk === 'back') {
-    tkStopRepeat();
-    tk.repeat = setTimeout(() => { tk.repeat = setInterval(() => tkKey('back'), 70); }, 420);
-  }
-});
-for (const t of ['pointerup', 'pointercancel', 'pointerleave']) tkBox.addEventListener(t, tkStopRepeat);
 
 // ---------- Events ----------
 document.addEventListener('click', (ev) => {
@@ -3225,7 +3177,7 @@ for (const t of ['gesturestart', 'gesturechange', 'gestureend']) {
   document.addEventListener(t, (ev) => ev.preventDefault(), { passive: false });
 }
 document.addEventListener('touchmove', (ev) => {
-  if (ev.touches.length > 1 || kp.el || tk.name) ev.preventDefault(); // the page also stays put while a keypad is up
+  if (ev.touches.length > 1 || kp.el) ev.preventDefault(); // the page also stays put while the set keypad is up
 }, { passive: false });
 document.addEventListener('wheel', (ev) => {
   if (ev.ctrlKey || kp.el) ev.preventDefault();
@@ -3318,11 +3270,7 @@ document.addEventListener('change', (ev) => {
 });
 
 document.addEventListener('keydown', (ev) => {
-  if (tk.name) {
-    const k = ev.key.length === 1 ? ev.key : { Backspace: 'back', Enter: 'save', Escape: 'cancel' }[ev.key];
-    if (k && !ev.ctrlKey && !ev.metaKey) { ev.preventDefault(); tkKey(k); }
-    return;
-  }
+  if (tk.name) return; // the note editor handles its own keys
   if (kp.el) {
     const k = /^[0-9.]$/.test(ev.key) ? ev.key : { Backspace: 'back', Enter: 'next', Tab: 'next', Escape: 'done' }[ev.key];
     if (k) { ev.preventDefault(); kpKey(k); return; }
