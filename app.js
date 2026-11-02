@@ -1,5 +1,43 @@
 'use strict';
 
+// ---------- Language ----------
+// Hebrew (right to left) or Swedish (left to right), picked in settings. Switching reloads the app.
+const LANG_KEY = 'gym-tracker-lang';
+const LANG = (() => { try { return localStorage.getItem(LANG_KEY) === 'sv' ? 'sv' : 'he'; } catch { return 'he'; } })();
+const SV = LANG === 'sv';
+const L = (he, sv) => (SV ? sv : he);
+const LOC = L('he-IL', 'sv-SE');
+const DIR = L('rtl', 'ltr');
+document.documentElement.lang = LANG;
+document.documentElement.dir = DIR;
+// Errors whose message is already written for the user (the rest get a generic one).
+const uiErr = (msg) => Object.assign(new Error(msg), { ui: true });
+
+// Body areas are stored by their Hebrew name; this is how they're shown.
+const GROUP_SV = { 'חזה': 'Bröst', 'גב': 'Rygg', 'כתפיים': 'Axlar', 'רגליים': 'Ben', 'יד קדמית': 'Biceps', 'יד אחורית': 'Triceps', 'בטן': 'Mage', 'אחר': 'Övrigt' };
+const gName = (g) => (SV && GROUP_SV[g]) || g;
+// The app's own exercise names in both languages. Names are stored as typed; known ones are shown in the current
+// language, and the matching rules (body area, muscles, demo search) run on the Hebrew name.
+const EX_PAIRS = [
+  ['לחיצת חזה במוט', 'Bänkpress med skivstång'], ['לחיצת חזה במשקולות', 'Bänkpress med hantlar'],
+  ['לחיצת חזה בשיפוע במשקולות', 'Lutande bänkpress med hantlar'], ['לחיצת חזה במכונה', 'Bröstpress i maskin'],
+  ['פרפר בכבל', 'Flyes i kabel'], ['פק דק', 'Pec deck'], ['מקבילים', 'Dips'], ['שכיבות סמיכה', 'Armhävningar'],
+  ['חתירה במוט', 'Skivstångsrodd'], ['חתירה במשקולת', 'Hantelrodd'], ['פולי עליון', 'Latsdrag'], ['פולי תחתון', 'Sittande kabelrodd'],
+  ['מתח', 'Chins'], ['חתירה במכונה', 'Rodd i maskin'], ['פול אובר בכבל', 'Pullover i kabel'],
+  ['לחיצת כתפיים במשקולות', 'Axelpress med hantlar'], ['לחיצת כתפיים במכונה', 'Axelpress i maskin'], ['לחיצה צבאית', 'Militärpress'],
+  ['הרחקה לצדדים', 'Sidolyft'], ['הרחקה לצדדים בכבל', 'Sidolyft i kabel'], ['פייס פול', 'Face pulls'], ['פרפר הפוך', 'Omvända flyes'],
+  ['סקוואט', 'Knäböj'], ['לחיצת רגליים', 'Benpress'], ['סקוואט בסמית', 'Knäböj i smithmaskin'], ['סקוואט גובלט', 'Gobletknäböj'],
+  ['מכרעים', 'Utfall'], ['סקוואט בולגרי', 'Bulgarisk splitknäböj'], ['דדליפט רומני', 'Rumänska marklyft'], ['כפיפת ברכיים', 'Lårcurl'],
+  ['פשיטת ברכיים', 'Benspark'], ['היפ טראסט', 'Höftlyft'], ['הרמת עקבים', 'Tåhävningar'],
+  ['כפיפת מרפקים', 'Bicepscurl'], ['כפיפת מרפקים במשקולות', 'Bicepscurl med hantlar'], ['כפיפת מרפקים בכבל', 'Bicepscurl i kabel'], ['פטיש', 'Hammarcurl'],
+  ['פשיטת מרפקים בכבל', 'Triceps pushdown'], ['פרנץ', 'Fransk press'], ['סקאל קראשר', 'Skullcrushers'], ['פשיטת מרפקים מעל הראש בכבל', 'Triceps overhead i kabel'],
+  ['פלאנק', 'Plankan'], ['כפיפות בטן', 'Crunches'], ['הרמות רגליים בתלייה', 'Hängande benlyft'], ['כפיפות בטן בכבל', 'Crunches i kabel'],
+];
+const HE2SV = new Map(EX_PAIRS), SV2HE = new Map(EX_PAIRS.map(([he, sv]) => [sv, he]));
+const stockName = (he) => (SV && HE2SV.get(he)) || he; // one of the app's own names, in the current language
+const exName = (n) => (SV ? HE2SV.get(n) : SV2HE.get(n)) || n; // a stored name as shown
+const canon = (n) => SV2HE.get(n) || n;
+
 // ---------- Storage ----------
 const KEY = 'gym-tracker-v1';
 const TIMER_KEY = 'gym-tracker-timer';
@@ -11,19 +49,19 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const $ = (s) => document.querySelector(s);
 
 function seed() {
-  const ex = (name, sets, reps, rest) => ({ id: uid(), name, sets, reps, rest });
+  const ex = (name, sets, reps, rest) => ({ id: uid(), name: stockName(name), sets, reps, rest });
   return {
     version: 1,
     settings: { ...DEFAULT_SETTINGS },
     templates: [
       {
-        id: uid(), name: 'אימון A – פלג גוף עליון', exercises: [
+        id: uid(), name: L('אימון A – פלג גוף עליון', 'Pass A – överkropp'), exercises: [
           ex('לחיצת חזה במוט', 4, 8, 120), ex('חתירה במוט', 4, 8, 120), ex('לחיצת כתפיים במשקולות', 3, 10, 90),
           ex('מתח', 3, 8, 90), ex('כפיפת מרפקים', 3, 12, 60), ex('פשיטת מרפקים בכבל', 3, 12, 60),
         ],
       },
       {
-        id: uid(), name: 'אימון B – פלג גוף תחתון', exercises: [
+        id: uid(), name: L('אימון B – פלג גוף תחתון', 'Pass B – underkropp'), exercises: [
           ex('סקוואט', 4, 6, 150), ex('דדליפט רומני', 3, 8, 120), ex('לחיצת רגליים', 3, 10, 90),
           ex('מכרעים', 3, 10, 90), ex('הרמת עקבים', 4, 12, 60),
         ],
@@ -66,6 +104,14 @@ const GROUP_HINTS = [
   ['יד קדמית', /כפיפת מרפק|כפיפות מרפק|בייספס|יד קדמית|פטיש/],
   ['יד אחורית', /פשיטת מרפק|פשיטות מרפק|טרייספס|יד אחורית|פרנץ|סקאל/],
   ['בטן', /בטן|פלאנק|כפיפות גו|קראנץ|הרמות רגליים בתלייה/],
+  // Swedish and English names typed by hand
+  ['רגליים', /knäböj|benpress|benspark|utfall|tåhäv|vad|lår|höft|marklyft|squat|lunge|leg press|calf|glute|deadlift/i],
+  ['חזה', /bröst|bänk|flyes|armhävning|pec|bench|chest|push.?up/i],
+  ['גב', /rodd|chins|latsdrag|rygg|pullover|shrug|row|pull.?up|pulldown/i],
+  ['כתפיים', /axel|sidolyft|militärpress|face ?pull|arnold|shoulder|lateral/i],
+  ['יד קדמית', /biceps|hammarcurl|hammer|curl/i],
+  ['יד אחורית', /triceps|fransk press|skull|pushdown|dips/i],
+  ['בטן', /mage|plank|crunch|situp|benlyft/i],
 ];
 // Common exercises per area, offered as alternatives when the station for an exercise is taken.
 const ALT_POOL = {
@@ -80,7 +126,41 @@ const ALT_POOL = {
 // Stretches per area: dynamic ones to warm up before the workout, static holds to cool down after it.
 // img is the free-exercise-db id (its two photos play like a GIF); hold is in seconds; sides: done on each
 // side, so it takes twice as long.
-const st = (img, name, hold, how, sides = false) => ({ id: img, img, name, hold, how, sides });
+const STRETCH_SV = {
+  Dynamic_Chest_Stretch: ['Dynamisk armöppning', 'Raka armar framåt, för dem bakåt så långt det går och tillbaka – som en överdriven klapp.'],
+  Arm_Circles: ['Armcirklar', 'Raka armar ut åt sidorna, små cirklar som blir större. Byt håll halvvägs.'],
+  Dynamic_Back_Stretch: ['Armsving uppåt', 'Raka armar, sving dem framifrån upp över huvudet, lite högre varje gång.'],
+  Cat_Stretch: ['Katt-ko', 'På alla fyra, runda ryggen uppåt och svanka sedan nedåt, långsamt i takt med andningen.'],
+  Shoulder_Circles: ['Axelrullningar', 'Avslappnade armar, rulla axlarna framåt, uppåt, bakåt och nedåt. Sedan åt andra hållet.'],
+  Round_The_World_Shoulder_Stretch: ['Stav över huvudet', 'Brett grepp om en stav, för den långsamt framifrån till bakom ryggen och tillbaka.'],
+  Front_Leg_Raises: ['Bensving', 'Håll i något, sving ett rakt ben fram och bak, lite längre varje gång.'],
+  Standing_Hip_Circles: ['Höftcirklar', 'Stå på ett ben, lyft knät till 90° och rita en stor cirkel utåt med det.'],
+  Worlds_Greatest_Stretch: ['Världens bästa stretch', 'Djupt utfall, armbågen mot den främre fotleden, vrid sedan och öppna armen mot taket.'],
+  Elbow_Circles: ['Armbågscirklar', 'Händerna på axlarna, armbågarna ut åt sidorna, rita stora cirklar med armbågarna.'],
+  Wrist_Circles: ['Handledscirklar', 'Armarna ut åt sidorna, rotera händerna i cirklar åt båda hållen.'],
+  Torso_Rotation: ['Bålrotation', 'Raka armar framåt (gärna med en boll), vrid överkroppen från sida till sida, höften stilla.'],
+  Windmills: ['Liggande väderkvarn', 'På rygg, armarna ut åt sidorna. För ett ben över kroppen mot motsatt hand, och tillbaka.'],
+  Elbows_Back: ['Armbågar bakåt', 'Händerna på ländryggen, dra armbågarna bakåt som om de ska nudda varandra.'],
+  Chest_And_Front_Of_Shoulder_Stretch: ['Stav bakom huvudet', 'Brett grepp om en stav, lyft den långsamt upp och bakom huvudet tills det sträcker i bröstet.'],
+  Childs_Pose: ['Barnets position', 'Knäna i golvet, rumpan mot hälarna, armarna sträckta framåt.'],
+  One_Arm_Against_Wall: ['Lats mot väggen', 'Böjd armbåge mot väggen eller dörrkarmen, luta kroppen mot den tills det sträcker i sidan av ryggen.'],
+  Upper_Back_Stretch: ['Rund övre rygg', 'Fläta fingrarna, runda axlarna och tryck armarna framåt.'],
+  Shoulder_Stretch: ['Arm över bröstet', 'Dra en rak arm tvärs över bröstet med andra handen, axeln nere.'],
+  Overhead_Stretch: ['Sträck uppåt', 'Fläta fingrarna, handflatorna mot taket, raka armar uppåt och axlarna nere.'],
+  Standing_Elevated_Quad_Stretch: ['Framsida lår mot bänk', 'Ryggen mot bänken, bakre foten på den, böj det främre benet lätt och skjut höften framåt.'],
+  Seated_Floor_Hamstring_Stretch: ['Sittande baksida lår', 'Ett ben rakt, det andra böjt, rak rygg och fäll framåt från höften mot fotleden.'],
+  Kneeling_Hip_Flexor: ['Höftböjare på knä', 'Bakre knät i golvet, spänn rumpan och för vikten framåt.'],
+  Ankle_On_The_Knee: ['Liggande säte (fyran)', 'Fotleden på andra knät, dra det undre låret mot bröstet.'],
+  Calf_Stretch_Hands_Against_Wall: ['Vader mot väggen', 'Händerna mot väggen, bakre benet rakt och hälen i golvet.'],
+  Standing_Biceps_Stretch: ['Händer bakom ryggen', 'Fläta händerna bakom ryggen, sträck armbågarna, vrid handflatorna nedåt och lyft långsamt.'],
+  Kneeling_Forearm_Stretch: ['Underarmar på knä', 'Handflatorna i golvet med fingrarna mot knäna, luta dig långsamt bakåt.'],
+  Triceps_Stretch: ['Triceps bakom huvudet', 'Handen bakom huvudet, dra armbågen försiktigt med andra handen.'],
+  Standing_Lateral_Stretch: ['Sidoböj', 'En hand på höften, den andra bakom huvudet, böj åt sidan utan att vrida dig.'],
+};
+const st = (img, name, hold, how, sides = false) => {
+  const [svName, svHow] = (SV && STRETCH_SV[img]) || [name, how];
+  return { id: img, img, name: svName, hold, how: svHow, sides };
+};
 const STRETCHES = {
   pre: {
     'חזה': [
@@ -175,7 +255,7 @@ function markStretch(w, phase, id, on) {
   s[phase] = on ? [...new Set([...s[phase], id])] : s[phase].filter((x) => x !== id);
   if (on && stretchesFor(w, phase).every((x) => s[phase].includes(x.id))) w.fold[phase] = true;
 }
-const guessGroup = (name) => (GROUP_HINTS.find(([, re]) => re.test(name || '')) || ['אחר'])[0];
+const guessGroup = (name) => (GROUP_HINTS.find(([, re]) => re.test(canon(name || ''))) || ['אחר'])[0];
 const groupOf = (name) => db.muscles[name] || guessGroup(name);
 // Template-editor exercises can carry an area picked in the editor before it's saved.
 const draftGroup = (e) => e.group || groupOf(e.name);
@@ -185,11 +265,15 @@ function areaRuns(list, areaOf) {
   list.forEach((x, i) => { const a = areaOf(x); if (!runs.has(a)) runs.set(a, []); runs.get(a).push(i); });
   return [...runs];
 }
-const areaDivider = (area, n) => `<div class="area-div"><b>${area}</b><span>${n === 1 ? 'תרגיל אחד' : `${n} תרגילים`}</span></div>`;
+const areaDivider = (area, n) => `<div class="area-div"><b>${gName(area)}</b><span>${n === 1 ? L('תרגיל אחד', '1 övning') : `${n} ${L('תרגילים', 'övningar')}`}</span></div>`;
 
 // ---------- Muscles worked ----------
 // Muscle keys are free-exercise-db's, so a picked demo's own muscle list can be used as is.
-const MUSCLE_NAMES = {
+const MUSCLE_NAMES = SV ? {
+  chest: 'Bröst', shoulders: 'Axlar', triceps: 'Triceps', biceps: 'Biceps', forearms: 'Underarmar', abdominals: 'Mage',
+  lats: 'Lats', 'middle back': 'Mellersta ryggen', 'lower back': 'Ländrygg', traps: 'Trapezius', neck: 'Nacke',
+  quadriceps: 'Framsida lår', hamstrings: 'Baksida lår', glutes: 'Säte', calves: 'Vader', adductors: 'Adduktorer', abductors: 'Abduktorer',
+} : {
   chest: 'חזה', shoulders: 'כתפיים', triceps: 'יד אחורית', biceps: 'יד קדמית', forearms: 'אמות', abdominals: 'בטן',
   lats: 'רחב גבי', 'middle back': 'גב אמצעי', 'lower back': 'גב תחתון', traps: 'טרפזים', neck: 'צוואר',
   quadriceps: 'ארבע ראשי', hamstrings: 'המסטרינג', glutes: 'ישבן', calves: 'תאומים', adductors: 'מקרבים', abductors: 'מרחיקים',
@@ -231,7 +315,7 @@ const AREA_MUSCLES = {
 function musclesFor(name, area = groupOf(name)) {
   const d = db.demos[name];
   if (d?.pm?.length) return { p: d.pm, s: (d.sm || []).filter((m) => !d.pm.includes(m)) };
-  const hit = MUSCLE_HINTS.find(([re]) => re.test(name || ''));
+  const hit = MUSCLE_HINTS.find(([re]) => re.test(canon(name || '')));
   const [p, s] = hit ? hit.slice(1) : AREA_MUSCLES[area] || [[], []];
   return { p, s };
 }
@@ -280,10 +364,10 @@ function muscleMap(name, area) {
   if (!m.p.length) return '';
   return `
     <div class="muscles">
-      <div class="muscle-figs" aria-hidden="true">${bodySvg(BODY_FRONT, m, 'front', 'קדימה')}${bodySvg(BODY_BACK, m, 'back', 'אחורה')}</div>
+      <div class="muscle-figs" aria-hidden="true">${bodySvg(BODY_FRONT, m, 'front', L('קדימה', 'Framsida'))}${bodySvg(BODY_BACK, m, 'back', L('אחורה', 'Baksida'))}</div>
       <div class="muscle-list">
-        <div><i class="dot mp"></i><b>ראשי:</b> ${esc(muscleNames(m.p))}</div>
-        ${m.s.length ? `<div><i class="dot ms"></i><b>משני:</b> ${esc(muscleNames(m.s))}</div>` : ''}
+        <div><i class="dot mp"></i><b>${L('ראשי:', 'Primära:')}</b> ${esc(muscleNames(m.p))}</div>
+        ${m.s.length ? `<div><i class="dot ms"></i><b>${L('משני:', 'Sekundära:')}</b> ${esc(muscleNames(m.s))}</div>` : ''}
       </div>
     </div>`;
 }
@@ -293,12 +377,12 @@ function altsFor(name) {
   const g = groupOf(name);
   const inWorkout = new Set((db.active?.exercises || []).map((e) => e.name));
   const known = allExerciseNames().filter((n) => groupOf(n) === g);
-  const list = [...(db.alts[name] || []), ...known, ...(ALT_POOL[g] || [])];
+  const list = [...(db.alts[name] || []), ...known, ...(ALT_POOL[g] || []).map(stockName)];
   return [...new Set(list)].filter((n) => n && n !== name && !inWorkout.has(n)).slice(0, 10);
 }
 
 function save() {
-  try { localStorage.setItem(KEY, JSON.stringify(db)); } catch { toast('שגיאה בשמירת הנתונים'); }
+  try { localStorage.setItem(KEY, JSON.stringify(db)); } catch { toast(L('שגיאה בשמירת הנתונים', 'Kunde inte spara datan')); }
 }
 
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
@@ -313,7 +397,7 @@ const num = (v) => {
 };
 const fmtW = (w) => (Math.round(w * 100) / 100).toString();
 const e1rm = (w, r) => (r <= 1 ? w : w * (1 + r / 30));
-const setLabel = (s) => (s.w ? `${fmtW(s.w)} × ${s.r}` : `${s.r} חזרות`);
+const setLabel = (s) => (s.w ? `${fmtW(s.w)} × ${s.r}` : `${s.r} ${L('חזרות', 'reps')}`);
 
 function fmtDur(ms) {
   const t = Math.max(0, Math.floor(ms / 1000));
@@ -321,9 +405,9 @@ function fmtDur(ms) {
   const pad = (n) => String(n).padStart(2, '0');
   return h ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
 }
-const fmtDate = (ts) => new Date(ts).toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric', month: 'numeric' });
-const fmtDateShort = (ts) => new Date(ts).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
-const fmtTime = (ts) => new Date(ts).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+const fmtDate = (ts) => new Date(ts).toLocaleDateString(LOC, { weekday: 'short', day: 'numeric', month: 'numeric' });
+const fmtDateShort = (ts) => new Date(ts).toLocaleDateString(LOC, { day: 'numeric', month: 'numeric' });
+const fmtTime = (ts) => new Date(ts).toLocaleTimeString(LOC, { hour: '2-digit', minute: '2-digit' });
 
 const sortedWorkouts = () => [...db.workouts].sort((a, b) => b.start - a.start);
 
@@ -384,10 +468,10 @@ function intensity(w) {
   return pct.length ? Math.round(100 * pct.reduce((a, x) => a + x, 0) / pct.length) : null;
 }
 const chip = (s, cls = '') => (s.wu
-  ? `<span class="chip wu"><span dir="rtl">חימום</span> ${setLabel(s)}</span>`
-  : `<span class="chip ${cls} ${s.fail ? 'fail' : ''}">${setLabel(s)}${s.fail ? ' <span dir="rtl">כשל</span>' : ''}</span>`);
+  ? `<span class="chip wu"><span dir="${DIR}">${L('חימום', 'Uppv.')}</span> ${setLabel(s)}</span>`
+  : `<span class="chip ${cls} ${s.fail ? 'fail' : ''}">${setLabel(s)}${s.fail ? ` <span dir="${DIR}">${L('כשל', 'Fail')}</span>` : ''}</span>`);
 // Inline (non-chip) version for the "last time" line.
-const prevLabel = (s) => `<span dir="ltr">${setLabel(s)}</span>${s.fail ? ' <span class="t-fail">כשל</span>' : ''}`;
+const prevLabel = (s) => `<span dir="ltr">${setLabel(s)}</span>${s.fail ? ` <span class="t-fail">${L('כשל', 'Fail')}</span>` : ''}`;
 
 let toastTimer;
 function toast(msg, ms = 2600) {
@@ -401,7 +485,7 @@ function toast(msg, ms = 2600) {
 // In-app dialog in place of the browser's confirm() / prompt(), which look like iOS system alerts.
 // Resolves true / false, or with `input` the typed text (null when cancelled).
 // extra: a third button's label; picking it resolves to 'extra'.
-function ask({ title, msg = '', ok = 'אישור', cancel = 'ביטול', danger = false, input = null, extra = null }) {
+function ask({ title, msg = '', ok = L('אישור', 'OK'), cancel = L('ביטול', 'Avbryt'), danger = false, input = null, extra = null }) {
   return new Promise((resolve) => {
     const prev = document.activeElement;
     const box = document.createElement('div');
@@ -458,7 +542,9 @@ function ask({ title, msg = '', ok = 'אישור', cancel = 'ביטול', danger
 // Days with any training (a workout or cardio), as toDateString keys.
 const activeDays = () => new Set([...db.workouts.map((w) => w.start), ...db.cardio.map((c) => c.t)].map((t) => new Date(t).toDateString()));
 const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
-const weekStart = (d = new Date()) => addDays(d, -d.getDay());
+// Weeks start on Sunday in Israel and on Monday in Sweden.
+const WEEK_FIRST = SV ? 1 : 0;
+const weekStart = (d = new Date()) => addDays(d, -((d.getDay() - WEEK_FIRST + 7) % 7));
 const weekCount = (sunday, days) => [0, 1, 2, 3, 4, 5, 6].filter((i) => days.has(addDays(sunday, i).toDateString())).length;
 // Weeks in a row that reached the weekly goal. This week counts once it's reached; until then it doesn't break the run.
 function weekStreak(goal, days) {
@@ -475,7 +561,7 @@ function weekStreak(goal, days) {
 function viewWeek() {
   const now = new Date();
   const sunday = weekStart(now);
-  const names = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
+  const names = L(['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'], ['M', 'T', 'O', 'T', 'F', 'L', 'S']);
   const trained = new Set(db.workouts.map((w) => new Date(w.start).toDateString()));
   const cardio = new Set(db.cardio.map((c) => new Date(c.t).toDateString()));
   const days = activeDays();
@@ -487,15 +573,15 @@ function viewWeek() {
     const k = day.toDateString(), iso = isoDay(day.getTime());
     const rest = db.rest.includes(iso) && !days.has(k);
     const today = k === now.toDateString();
-    return `<button class="${today ? 'today' : ''}" data-act="day-rest" data-d="${iso}" aria-label="${day.toLocaleDateString('he-IL', { weekday: 'long' })}${rest ? ', יום מנוחה' : ''}">
+    return `<button class="${today ? 'today' : ''}" data-act="day-rest" data-d="${iso}" aria-label="${day.toLocaleDateString(LOC, { weekday: 'long' })}${rest ? L(', יום מנוחה', ', vilodag') : ''}">
       <span class="${trained.has(k) ? 'on' : ''} ${rest ? 'rest' : ''}">${cardio.has(k) ? '<i></i>' : ''}</span>${d}</button>`;
   }).join('');
   const done = goal && count >= goal;
   return `<div class="card">
-    <div class="row between"><h3>השבוע</h3><span class="muted small">${goal ? `<b class="${done ? 'goal-done' : ''}">${count}/${goal}</b> ימי אימון` : count === 1 ? 'יום אימון אחד' : `${count} ימי אימון`}</span></div>
+    <div class="row between"><h3>${L('השבוע', 'Den här veckan')}</h3><span class="muted small">${goal ? `<b class="${done ? 'goal-done' : ''}">${count}/${goal}</b> ${L('ימי אימון', 'träningsdagar')}` : count === 1 ? L('יום אימון אחד', '1 träningsdag') : `${count} ${L('ימי אימון', 'träningsdagar')}`}</span></div>
     ${goal ? `<div class="goal-bar"><div style="width:${Math.min(100, (count / goal) * 100)}%"></div></div>` : ''}
     <div class="week">${cells}</div>
-    <div class="row between muted small week-foot"><span>לחיצה על יום מסמנת יום מנוחה</span>${streak > 1 ? `<span>רצף <b>${streak}</b> שבועות ביעד</span>` : done ? '<span>היעד השבועי הושג ✓</span>' : ''}</div>
+    <div class="row between muted small week-foot"><span>${L('לחיצה על יום מסמנת יום מנוחה', 'Tryck på en dag för att markera vilodag')}</span>${streak > 1 ? `<span>${L(`רצף <b>${streak}</b> שבועות ביעד`, `<b>${streak}</b> veckor i rad på målet`)}</span>` : done ? `<span>${L('היעד השבועי הושג ✓', 'Veckomålet nått ✓')}</span>` : ''}</div>
   </div>`;
 }
 
@@ -506,11 +592,11 @@ function viewToday() {
   const done = db.cardio.filter((c) => isoDay(c.t) === today);
   return `
     <div class="row">
-      <button class="btn grow" data-act="c-new">+ אירובי</button>
-      <button class="btn grow ${rest ? 'primary' : ''}" data-act="day-rest" data-d="${today}">${rest ? '✓ יום מנוחה' : 'היום יום מנוחה'}</button>
+      <button class="btn grow" data-act="c-new">${L('+ אירובי', '+ Kondition')}</button>
+      <button class="btn grow ${rest ? 'primary' : ''}" data-act="day-rest" data-d="${today}">${rest ? L('✓ יום מנוחה', '✓ Vilodag') : L('היום יום מנוחה', 'Vilodag idag')}</button>
     </div>
-    ${rest ? '<p class="muted small rest-note">השריר נבנה בזמן המנוחה: לישון טוב, לאכול מספיק חלבון ולשתות מים. הליכה קלה או מתיחות לא מקלקלות יום מנוחה.</p>' : ''}
-    ${done.length ? `<p class="muted small rest-note">היום: ${done.map((c) => `${CARDIO_BY[c.type].name} ${fmtMins(c.mins)} · ${c.kcal} קק״ל`).join(' | ')}</p>` : ''}`;
+    ${rest ? `<p class="muted small rest-note">${L('השריר נבנה בזמן המנוחה: לישון טוב, לאכול מספיק חלבון ולשתות מים. הליכה קלה או מתיחות לא מקלקלות יום מנוחה.', 'Musklerna byggs under vilan: sov gott, ät tillräckligt med protein och drick vatten. En lugn promenad eller stretching förstör inte en vilodag.')}</p>` : ''}
+    ${done.length ? `<p class="muted small rest-note">${L('היום', 'Idag')}: ${done.map((c) => `${CARDIO_BY[c.type].name} ${fmtMins(c.mins)} · ${c.kcal} ${L('קק״ל', 'kcal')}`).join(' | ')}</p>` : ''}`;
 }
 
 // ---------- Cardio ----------
@@ -518,20 +604,20 @@ function viewToday() {
 // the distance is known. Running with a distance uses ACSM's running equation instead (oxygen cost from speed).
 // dist: 'km' or 'm' (swimming is logged in meters); met: fixed MET, or a function of speed in km/h (null when unknown).
 const CARDIO = [
-  { k: 'run', name: 'ריצה', dist: 'km', met: () => 9.8 },
-  { k: 'walk', name: 'הליכה', dist: 'km', met: (v) => (v == null ? 3.5 : v < 3.2 ? 2.8 : v < 4.8 ? 3.5 : v < 5.6 ? 4.3 : v < 6.4 ? 5 : 7) },
-  { k: 'swim', name: 'שחייה', dist: 'm', met: (v) => (v == null ? 7 : v < 1.5 ? 6 : v < 2.4 ? 8.3 : v < 3.3 ? 9.8 : 10.5) },
-  { k: 'bike', name: 'אופניים', dist: 'km', met: (v) => (v == null ? 7 : v < 16 ? 4 : v < 19 ? 6.8 : v < 22 ? 8 : v < 25 ? 10 : 12) },
-  { k: 'elliptical', name: 'אליפטיקל', met: () => 5 },
-  { k: 'row', name: 'חתירה', met: () => 7 },
-  { k: 'stairs', name: 'מדרגות', met: () => 9 },
-  { k: 'rope', name: 'דילגית', met: () => 11 },
+  { k: 'run', name: L('ריצה', 'Löpning'), dist: 'km', met: () => 9.8 },
+  { k: 'walk', name: L('הליכה', 'Promenad'), dist: 'km', met: (v) => (v == null ? 3.5 : v < 3.2 ? 2.8 : v < 4.8 ? 3.5 : v < 5.6 ? 4.3 : v < 6.4 ? 5 : 7) },
+  { k: 'swim', name: L('שחייה', 'Simning'), dist: 'm', met: (v) => (v == null ? 7 : v < 1.5 ? 6 : v < 2.4 ? 8.3 : v < 3.3 ? 9.8 : 10.5) },
+  { k: 'bike', name: L('אופניים', 'Cykel'), dist: 'km', met: (v) => (v == null ? 7 : v < 16 ? 4 : v < 19 ? 6.8 : v < 22 ? 8 : v < 25 ? 10 : 12) },
+  { k: 'elliptical', name: L('אליפטיקל', 'Crosstrainer'), met: () => 5 },
+  { k: 'row', name: L('חתירה', 'Rodd'), met: () => 7 },
+  { k: 'stairs', name: L('מדרגות', 'Trappor'), met: () => 9 },
+  { k: 'rope', name: L('דילגית', 'Hopprep'), met: () => 11 },
   { k: 'hiit', name: 'HIIT', met: () => 8 },
-  { k: 'other', name: 'אחר', met: () => 6 },
+  { k: 'other', name: L('אחר', 'Övrigt'), met: () => 6 },
 ];
 const CARDIO_BY = Object.fromEntries(CARDIO.map((c) => [c.k, c]));
 const bodyWeight = () => latestOf('weight')?.weight || db.settings.bodyWeight || null;
-const fmtMins = (m) => (m >= 60 ? `${Math.floor(m / 60)}:${String(Math.round(m % 60)).padStart(2, '0')} ש׳` : `${Math.round(m)} דק׳`);
+const fmtMins = (m) => (m >= 60 ? `${Math.floor(m / 60)}:${String(Math.round(m % 60)).padStart(2, '0')} ${L('ש׳', 'h')}` : `${Math.round(m)} ${L('דק׳', 'min')}`);
 const fmtPace = (minsPer) => { const t = Math.round(minsPer * 60); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
 
 function cardioKcal(type, mins, km, kg) {
@@ -545,11 +631,11 @@ function cardioKcal(type, mins, km, kg) {
 // Pace for runs, walks and swims, speed for rides: { v, u }, or null without both time and distance.
 function cardioPace(type, mins, km) {
   if (!mins || !km) return null;
-  if (type === 'swim') return { v: fmtPace(mins / (km * 10)), u: 'ל-100 מ׳' };
-  if (type === 'bike') return { v: r1(km / (mins / 60)), u: 'קמ״ש' };
-  return { v: fmtPace(mins / km), u: 'לק״מ' };
+  if (type === 'swim') return { v: fmtPace(mins / (km * 10)), u: L('ל-100 מ׳', '/100 m') };
+  if (type === 'bike') return { v: r1(km / (mins / 60)), u: L('קמ״ש', 'km/h') };
+  return { v: fmtPace(mins / km), u: L('לק״מ', '/km') };
 }
-const fmtDist = (type, km) => (CARDIO_BY[type].dist === 'm' ? `${Math.round(km * 1000).toLocaleString('he-IL')} מ׳` : `${r1(km)} ק״מ`);
+const fmtDist = (type, km) => (CARDIO_BY[type].dist === 'm' ? `${Math.round(km * 1000).toLocaleString(LOC)} m` : `${r1(km)} ${L('ק״מ', 'km')}`);
 
 // The form's numbers, read from the draft: minutes, distance in km, and calories (typed, or worked out).
 function cardioCalc(d) {
@@ -564,7 +650,7 @@ function cardioCalc(d) {
 function cardioSummary(d) {
   const { mins, km, kcal } = cardioCalc(d);
   const pace = cardioPace(d.type, mins, km);
-  return `<div><b>${kcal || '–'}</b> קלוריות</div>${pace ? `<div><b dir="ltr">${pace.v}</b> ${pace.u}</div>` : ''}`;
+  return `<div><b>${kcal || '–'}</b> ${L('קלוריות', 'kalorier')}</div>${pace ? `<div><b dir="ltr">${pace.v}</b> ${pace.u}</div>` : ''}`;
 }
 
 function viewCardioForm() {
@@ -575,25 +661,27 @@ function viewCardioForm() {
     <div class="card cform">
       <div class="ctypes">${CARDIO.map((c) => `<button class="${c.k === d.type ? 'on' : ''}" data-act="c-type" data-k="${c.k}">${c.name}</button>`).join('')}</div>
       <div class="cgrid">
-        <label class="field">זמן (דקות)<input type="number" inputmode="decimal" step="any" data-f="c-mins" value="${esc(d.mins)}" placeholder="30"></label>
-        ${type.dist ? `<label class="field">${type.dist === 'm' ? 'מרחק (מטר)' : 'מרחק (ק״מ)'}<input type="number" inputmode="decimal" step="any" data-f="c-dist" value="${esc(d.dist)}" placeholder="${type.dist === 'm' ? '1000' : '5'}"></label>` : ''}
+        <label class="field">${L('זמן (דקות)', 'Tid (minuter)')}<input type="number" inputmode="decimal" step="any" data-f="c-mins" value="${esc(d.mins)}" placeholder="30"></label>
+        ${type.dist ? `<label class="field">${type.dist === 'm' ? L('מרחק (מטר)', 'Distans (meter)') : L('מרחק (ק״מ)', 'Distans (km)')}<input type="number" inputmode="decimal" step="any" data-f="c-dist" value="${esc(d.dist)}" placeholder="${type.dist === 'm' ? '1000' : '5'}"></label>` : ''}
       </div>
       <div class="c-sum" id="c-sum">${cardioSummary(d)}</div>
-      <label class="field">קלוריות מהשעון (לא חובה)<input type="number" inputmode="numeric" data-f="c-kcal" value="${esc(d.kcal)}" placeholder="חישוב אוטומטי"></label>
-      ${known ? '' : `<label class="field">משקל גוף (ק״ג)<input type="number" inputmode="decimal" step="any" data-f="c-bw" value="${esc(d.bw)}" placeholder="75"><span class="muted small">נשמר לפעם הבאה. מדידה בלשונית מדדי גוף מעדכנת אותו.</span></label>`}
-      <label class="field">תאריך<input type="date" data-f="c-date" value="${d.date}" max="${isoDay(Date.now())}"></label>
-      <p class="muted small" style="margin-bottom:0">החישוב לפי ${known ? `המשקל שלך (${r1(known)} ק״ג)` : 'משקל הגוף'}, הזמן${type.dist ? ' והקצב' : ''}. זו הערכה; שעון עם דופק מדייק יותר.</p>
+      <label class="field">${L('קלוריות מהשעון (לא חובה)', 'Kalorier från klockan (valfritt)')}<input type="number" inputmode="numeric" data-f="c-kcal" value="${esc(d.kcal)}" placeholder="${L('חישוב אוטומטי', 'Räknas ut automatiskt')}"></label>
+      ${known ? '' : `<label class="field">${L('משקל גוף (ק״ג)', 'Kroppsvikt (kg)')}<input type="number" inputmode="decimal" step="any" data-f="c-bw" value="${esc(d.bw)}" placeholder="75"><span class="muted small">${L('נשמר לפעם הבאה. מדידה בלשונית מדדי גוף מעדכנת אותו.', 'Sparas till nästa gång. En mätning under fliken Kropp uppdaterar den.')}</span></label>`}
+      <label class="field">${L('תאריך', 'Datum')}<input type="date" data-f="c-date" value="${d.date}" max="${isoDay(Date.now())}"></label>
+      <p class="muted small" style="margin-bottom:0">${L(
+        `החישוב לפי ${known ? `המשקל שלך (${r1(known)} ק״ג)` : 'משקל הגוף'}, הזמן${type.dist ? ' והקצב' : ''}. זו הערכה; שעון עם דופק מדייק יותר.`,
+        `Beräknat på ${known ? `din vikt (${r1(known)} kg)` : 'kroppsvikten'}, tiden${type.dist ? ' och tempot' : ''}. Det är en uppskattning; en klocka med pulsmätning är mer exakt.`)}</p>
     </div>
     <div class="row">
-      <button class="btn grow" data-act="c-cancel">ביטול</button>
-      <button class="btn primary grow" data-act="c-save">שמור</button>
+      <button class="btn grow" data-act="c-cancel">${L('ביטול', 'Avbryt')}</button>
+      <button class="btn primary grow" data-act="c-save">${L('שמור', 'Spara')}</button>
     </div>`;
 }
 
 function saveCardio() {
   const d = ui.cdraft;
   const { mins, km, kcal } = cardioCalc(d);
-  if (!mins || mins <= 0) { toast('כמה דקות?'); return; }
+  if (!mins || mins <= 0) { toast(L('כמה דקות?', 'Hur många minuter?')); return; }
   if (num(d.bw)) db.settings.bodyWeight = num(d.bw);
   const today = d.date === isoDay(Date.now());
   db.cardio.push({ id: uid(), t: today || !dayTs(d.date) ? Date.now() : dayTs(d.date), type: d.type, mins, ...(km ? { km } : {}), kcal });
@@ -601,29 +689,29 @@ function saveCardio() {
   db.rest = db.rest.filter((x) => x !== d.date);
   ui.cdraft = null;
   save(); render(); window.scrollTo(0, 0);
-  toast(`נשמר: ${CARDIO_BY[d.type].name}, ${kcal} קלוריות`);
+  toast(L(`נשמר: ${CARDIO_BY[d.type].name}, ${kcal} קלוריות`, `Sparat: ${CARDIO_BY[d.type].name}, ${kcal} kalorier`));
 }
 
 function toggleRest(iso) {
   const has = db.rest.includes(iso);
-  if (!has && activeDays().has(new Date(dayTs(iso)).toDateString())) { toast('ביום הזה כבר יש אימון'); return; }
+  if (!has && activeDays().has(new Date(dayTs(iso)).toDateString())) { toast(L('ביום הזה כבר יש אימון', 'Den dagen finns redan ett pass')); return; }
   db.rest = has ? db.rest.filter((x) => x !== iso) : [...db.rest, iso];
   save(); render();
-  toast(has ? 'בוטל יום המנוחה' : 'סומן יום מנוחה');
+  toast(has ? L('בוטל יום המנוחה', 'Vilodagen borttagen') : L('סומן יום מנוחה', 'Markerad som vilodag'));
 }
 
 // ---------- Workout music ----------
 // Each genre opens a playlist search in the chosen app, so the top results are that service's own workout playlists.
 const MUSIC_APPS = [['spotify', 'Spotify'], ['apple', 'Apple Music'], ['youtube', 'YouTube']];
 const GENRES = [
-  ['היפ הופ וראפ', 'hip hop rap workout'],
-  ['טכנו', 'techno workout'],
-  ['הארדסטייל', 'hardstyle workout'],
-  ['מוטיבציה', 'workout motivation'],
+  [L('היפ הופ וראפ', 'Hiphop och rap'), 'hip hop rap workout'],
+  [L('טכנו', 'Techno'), 'techno workout'],
+  [L('הארדסטייל', 'Hardstyle'), 'hardstyle workout'],
+  [L('מוטיבציה', 'Motivation'), 'workout motivation'],
   ['EDM', 'edm workout'],
-  ['רוק ומטאל', 'rock metal workout'],
-  ['פופ', 'pop workout'],
-  ['פונק', 'phonk gym'],
+  [L('רוק ומטאל', 'Rock och metal'), 'rock metal workout'],
+  [L('פופ', 'Pop'), 'pop workout'],
+  [L('פונק', 'Phonk'), 'phonk gym'],
 ];
 const isApple = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent);
 function musicUrl(app, q) {
@@ -637,7 +725,7 @@ function viewMusic() {
   if (db.settings.showMusic === false) return '';
   const app = db.settings.musicApp;
   return `
-    <div class="row between" style="margin:26px 0 10px"><h2 style="margin:0">מוזיקה לאימון</h2><button class="btn sm ghost" data-act="music-hide">הסתר</button></div>
+    <div class="row between" style="margin:26px 0 10px"><h2 style="margin:0">${L('מוזיקה לאימון', 'Träningsmusik')}</h2><button class="btn sm ghost" data-act="music-hide">${L('הסתר', 'Dölj')}</button></div>
     <div class="card">
       <div class="seg">${MUSIC_APPS.map(([k, l]) => `<button class="${app === k ? 'on' : ''}" data-act="music-app" data-k="${k}">${l}</button>`).join('')}</div>
       <div class="genres">${GENRES.map(([l, q]) => `<a class="genre" href="${esc(musicUrl(app, q))}" target="_blank" rel="noopener">${l}</a>`).join('')}</div>
@@ -660,29 +748,29 @@ function viewStart() {
   const tpls = ordered.map((t) => `
     <div class="tpl-wrap">
       <button class="tpl ${t.id === nextId ? 'next' : ''}" data-act="start" data-id="${t.id}">
-        ${t.id === nextId ? '<span class="badge">הבא בתור</span>' : ''}
+        ${t.id === nextId ? `<span class="badge">${L('הבא בתור', 'Nästa på tur')}</span>` : ''}
         <div class="name">${esc(t.name)}</div>
-        <div class="sub">${t.exercises.map((e) => esc(e.name)).join(' · ') || 'אין תרגילים'}</div>
+        <div class="sub">${t.exercises.map((e) => esc(exName(e.name))).join(' · ') || L('אין תרגילים', 'Inga övningar')}</div>
       </button>
-      <button class="btn sm tpl-edit" data-act="tpl-edit" data-id="${t.id}">עריכה</button>
+      <button class="btn sm tpl-edit" data-act="tpl-edit" data-id="${t.id}">${L('עריכה', 'Redigera')}</button>
     </div>`).join('');
 
   const last = sortedWorkouts()[0];
   const lastCard = last ? `
-    <h2>אימון אחרון</h2>
+    <h2>${L('אימון אחרון', 'Senaste passet')}</h2>
     <div class="card">
       <div class="row between"><b>${esc(last.name)}</b><span class="muted small">${fmtDate(last.start)}</span></div>
-      <div class="muted small" style="margin-top:4px">${last.exercises.length} תרגילים · ${fmtDur(last.end - last.start)} · נפח ${Math.round(volume(last)).toLocaleString('he-IL')} ק״ג</div>
+      <div class="muted small" style="margin-top:4px">${last.exercises.length} ${L('תרגילים', 'övningar')} · ${fmtDur(last.end - last.start)} · ${L('נפח', 'volym')} ${Math.round(volume(last)).toLocaleString(LOC)} ${L('ק״ג', 'kg')}</div>
     </div>` : '';
 
   return `
     ${viewWeek()}
     ${viewToday()}
-    <h2>התחל אימון</h2>
-    ${tpls || '<p class="muted">אין עדיין תבניות. צור תבנית כדי להתחיל אימון ממנה.</p>'}
+    <h2>${L('התחל אימון', 'Starta pass')}</h2>
+    ${tpls || `<p class="muted">${L('אין עדיין תבניות. צור תבנית כדי להתחיל אימון ממנה.', 'Inga mallar än. Skapa en mall för att starta ett pass från den.')}</p>`}
     <div class="row">
-      <button class="btn ghost grow" data-act="tpl-new">+ תבנית חדשה</button>
-      <button class="btn ghost grow" data-act="start-empty">+ אימון ריק</button>
+      <button class="btn ghost grow" data-act="tpl-new">${L('+ תבנית חדשה', '+ Ny mall')}</button>
+      <button class="btn ghost grow" data-act="start-empty">${L('+ אימון ריק', '+ Tomt pass')}</button>
     </div>
     ${viewMusic()}
     ${lastCard}`;
@@ -690,9 +778,9 @@ function viewStart() {
 
 const stepper = (e, s, f, value, placeholder, mode) => `
   <div class="stepper">
-    <button data-act="step" data-f="${f}" data-d="1" data-e="${e}" data-s="${s}" aria-label="הוסף">+</button>
+    <button data-act="step" data-f="${f}" data-d="1" data-e="${e}" data-s="${s}" aria-label="${L('הוסף', 'Öka')}">+</button>
     <input type="text" inputmode="none" readonly data-kp="${mode}" data-f="${f}" data-e="${e}" data-s="${s}" value="${esc(value)}" placeholder="${esc(placeholder)}">
-    <button data-act="step" data-f="${f}" data-d="-1" data-e="${e}" data-s="${s}" aria-label="הפחת">−</button>
+    <button data-act="step" data-f="${f}" data-d="-1" data-e="${e}" data-s="${s}" aria-label="${L('הפחת', 'Minska')}">−</button>
   </div>`;
 
 function viewActive() {
@@ -705,39 +793,39 @@ function viewActive() {
     const rows = e.sets.map((s, j) => `
       <div class="set-row ${s.done ? 'done' : ''} ${s.wu ? 'wu' : ''}">
         <div class="set-actions">
-          <button data-act="set-del" data-e="${i}" data-s="${j}">מחק</button>
-          <button data-act="set-del" data-e="${i}" data-s="${j}">מחק</button>
+          <button data-act="set-del" data-e="${i}" data-s="${j}">${L('מחק', 'Ta bort')}</button>
+          <button data-act="set-del" data-e="${i}" data-s="${j}">${L('מחק', 'Ta bort')}</button>
         </div>
         <div class="set-grid swipe">
           <div class="n">${s.wu
-            ? '<span title="סט חימום">חימום</span>'
-            : `<button class="set-n ${s.fail ? 'fail' : ''}" data-act="fail" data-e="${i}" data-s="${j}" aria-label="סמן סט עד כשל" aria-pressed="${!!s.fail}">${++n}${s.fail ? '<small>כשל</small>' : ''}</button>`}</div>
+            ? `<span title="${L('סט חימום', 'Uppvärmningsset')}">${L('חימום', 'Uppv.')}</span>`
+            : `<button class="set-n ${s.fail ? 'fail' : ''}" data-act="fail" data-e="${i}" data-s="${j}" aria-label="${L('סמן סט עד כשל', 'Markera set till failure')}" aria-pressed="${!!s.fail}">${++n}${s.fail ? `<small>${L('כשל', 'Fail')}</small>` : ''}</button>`}</div>
           ${stepper(i, j, 'w', s.w, s.pw, 'decimal')}
           ${stepper(i, j, 'r', s.r, s.pr, 'numeric')}
-          <button class="check" data-act="set-done" data-e="${i}" data-s="${j}" aria-label="סמן סט כבוצע" aria-pressed="${!!s.done}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg></button>
+          <button class="check" data-act="set-done" data-e="${i}" data-s="${j}" aria-label="${L('סמן סט כבוצע', 'Markera set som klart')}" aria-pressed="${!!s.done}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg></button>
         </div>
       </div>`).join('');
     return `
       <div class="card">
         <div class="row between">
           <div class="grow">
-            <div class="ex-name">${esc(e.name)}</div>
-            ${e.swapOf ? `<div class="muted small">במקום ${esc(e.swapOf)} · <button class="link-btn" data-act="unswap" data-e="${i}" style="padding:0">התפנה? חזור</button></div>` : ''}
-            <button class="link-btn demo-link" data-act="demo" data-e="${i}">▶ ${db.demos[e.name] ? 'הדגמה' : 'חפש הדגמה'}</button>
-            <div class="prev">${prev ? 'פעם קודמת: ' + prev.map(prevLabel).join(' · ') : 'תרגיל חדש'}</div>
+            <div class="ex-name">${esc(exName(e.name))}</div>
+            ${e.swapOf ? `<div class="muted small">${L('במקום', 'I stället för')} ${esc(exName(e.swapOf))} · <button class="link-btn" data-act="unswap" data-e="${i}" style="padding:0">${L('התפנה? חזור', 'Ledig nu? Byt tillbaka')}</button></div>` : ''}
+            <button class="link-btn demo-link" data-act="demo" data-e="${i}">▶ ${db.demos[e.name] ? L('הדגמה', 'Demo') : L('חפש הדגמה', 'Hitta demo')}</button>
+            <div class="prev">${prev ? L('פעם קודמת: ', 'Förra gången: ') + prev.map(prevLabel).join(' · ') : L('תרגיל חדש', 'Ny övning')}</div>
           </div>
-          <button class="rest-pill" data-act="ex-rest" data-e="${i}" aria-label="שנה זמן מנוחה">מנוחה ${e.rest} ש׳</button>
+          <button class="rest-pill" data-act="ex-rest" data-e="${i}" aria-label="${L('שנה זמן מנוחה', 'Ändra vilotid')}">${L('מנוחה', 'Vila')} ${e.rest} ${L('ש׳', 's')}</button>
         </div>
-        <div class="set-grid set-head"><span>סט</span><span>ק״ג</span><span>חזרות</span><span></span></div>
+        <div class="set-grid set-head"><span>${L('סט', 'Set')}</span><span>${L('ק״ג', 'kg')}</span><span>${L('חזרות', 'Reps')}</span><span></span></div>
         ${rows}
         <div class="row between" style="margin-top:8px">
           <div class="row">
-            <button class="btn sm" data-act="set-add" data-e="${i}">+ סט</button>
-            ${e.sets.some((s) => s.wu) ? '' : `<button class="btn sm" data-act="wu-add" data-e="${i}">+ חימום</button>`}
+            <button class="btn sm" data-act="set-add" data-e="${i}">${L('+ סט', '+ Set')}</button>
+            ${e.sets.some((s) => s.wu) ? '' : `<button class="btn sm" data-act="wu-add" data-e="${i}">${L('+ חימום', '+ Uppvärmning')}</button>`}
           </div>
           <div class="row">
-            <button class="link-btn" data-act="swap-open" data-e="${i}">${ui.swap === i ? 'סגור' : 'תפוס? החלף'}</button>
-            <button class="link-btn" data-act="ex-del" data-e="${i}">הסר תרגיל</button>
+            <button class="link-btn" data-act="swap-open" data-e="${i}">${ui.swap === i ? L('סגור', 'Stäng') : L('תפוס? החלף', 'Upptagen? Byt')}</button>
+            <button class="link-btn" data-act="ex-del" data-e="${i}">${L('הסר תרגיל', 'Ta bort övning')}</button>
           </div>
         </div>
         ${muscleMap(e.name, groupOf(e.swapOf || e.name))}
@@ -749,34 +837,34 @@ function viewActive() {
     .map(([area, idx]) => areaDivider(area, idx.length) + idx.map((i) => card(w.exercises[i], i)).join('')).join('');
 
   return `
-    <p class="muted small" style="margin:0 0 10px">טיפ: לחיצה על מספר הסט מסמנת שהלכת בו <b class="t-fail">עד כשל</b>. כדי למחוק סט – החלק אותו הצידה.</p>
+    <p class="muted small" style="margin:0 0 10px">${L('טיפ: לחיצה על מספר הסט מסמנת שהלכת בו <b class="t-fail">עד כשל</b>. כדי למחוק סט – החלק אותו הצידה.', 'Tips: tryck på setets nummer för att markera att du körde det <b class="t-fail">till failure</b>. Svep ett set åt sidan för att ta bort det.')}</p>
     <div class="wk-head">
-      <input type="text" data-f="wname" value="${esc(w.name)}" aria-label="שם האימון">
+      <input type="text" data-f="wname" value="${esc(w.name)}" aria-label="${L('שם האימון', 'Passets namn')}">
       <span class="elapsed" id="elapsed"></span>
     </div>
     <div class="wk-date">
-      <input type="date" class="pill-in" data-f="wdate" value="${esc(w.date || isoDay(w.start))}" max="${isoDay(Date.now())}" aria-label="תאריך האימון">
-      ${backdated(w) ? `<span class="pill-in mins"><input type="number" inputmode="numeric" data-f="wmins" value="${esc(w.mins ?? 60)}" aria-label="משך בדקות">דק׳</span><span class="muted small">טיימר כבוי</span>` : ''}
-      ${tpl ? `<button class="link-btn" data-act="tpl-edit" data-id="${tpl.id}" style="margin-inline-start:auto">ערוך תבנית</button>` : ''}
+      <input type="date" class="pill-in" data-f="wdate" value="${esc(w.date || isoDay(w.start))}" max="${isoDay(Date.now())}" aria-label="${L('תאריך האימון', 'Passets datum')}">
+      ${backdated(w) ? `<span class="pill-in mins"><input type="number" inputmode="numeric" data-f="wmins" value="${esc(w.mins ?? 60)}" aria-label="${L('משך בדקות', 'Längd i minuter')}">${L('דק׳', 'min')}</span><span class="muted small">${L('טיימר כבוי', 'Timer av')}</span>` : ''}
+      ${tpl ? `<button class="link-btn" data-act="tpl-edit" data-id="${tpl.id}" style="margin-inline-start:auto">${L('ערוך תבנית', 'Redigera mall')}</button>` : ''}
     </div>
     ${viewStretch(w, 'pre')}
     ${exs}
     <div class="card">
       <div class="row">
-        <input type="text" id="new-ex" list="exnames" placeholder="הוסף תרגיל…" class="grow">
-        <button class="btn" data-act="ex-add">הוסף</button>
+        <input type="text" id="new-ex" list="exnames" placeholder="${L('הוסף תרגיל…', 'Lägg till övning…')}" class="grow">
+        <button class="btn" data-act="ex-add">${L('הוסף', 'Lägg till')}</button>
       </div>
       ${datalist()}
     </div>
     ${viewStretch(w, 'post')}
     ${viewMusic()}
-    <button class="btn primary block" data-act="finish">סיים ושמור אימון</button>
-    <button class="btn danger block" data-act="discard">בטל אימון</button>`;
+    <button class="btn primary block" data-act="finish">${L('סיים ושמור אימון', 'Avsluta och spara pass')}</button>
+    <button class="btn danger block" data-act="discard">${L('בטל אימון', 'Avbryt pass')}</button>`;
 }
 
 // Stretching before the workout (warm-up, at the top) and after it (cool-down, at the bottom). Shown by default;
 // skipping or finishing a section folds it to one line. The workout clock runs through both, so they're part of the total time.
-const STRETCH_TITLE = { pre: 'מתיחות פתיחה', post: 'מתיחות סיום' };
+const STRETCH_TITLE = { pre: L('מתיחות פתיחה', 'Uppvärmning'), post: L('מתיחות סיום', 'Nedvarvning') };
 function viewStretch(w, phase) {
   const list = stretchesFor(w, phase);
   const done = new Set(stretchState(w)[phase]);
@@ -784,36 +872,36 @@ function viewStretch(w, phase) {
   if (w.fold[phase]) {
     return `
       <div class="card stretch-fold row between">
-        <span><b>${STRETCH_TITLE[phase]}</b> <span class="muted small">· ${left.length ? (done.size ? `${list.length - left.length}/${list.length} בוצעו` : 'דילגת') : 'הושלם ✓'}</span></span>
-        <button class="link-btn" data-act="stretch-fold" data-ph="${phase}">הצג</button>
+        <span><b>${STRETCH_TITLE[phase]}</b> <span class="muted small">· ${left.length ? (done.size ? `${list.length - left.length}/${list.length} ${L('בוצעו', 'klara')}` : L('דילגת', 'Hoppade över')) : L('הושלם ✓', 'Klart ✓')}</span></span>
+        <button class="link-btn" data-act="stretch-fold" data-ph="${phase}">${L('הצג', 'Visa')}</button>
       </div>`;
   }
   const total = list.reduce((a, x) => a + stretchSecs(x), 0);
   const leftSecs = left.reduce((a, x) => a + stretchSecs(x), 0);
   const rows = list.map((x) => `
     <div class="stretch ${done.has(x.id) ? 'done' : ''}">
-      <button class="stretch-zoom" data-act="stretch-view" data-ph="${phase}" data-id="${x.id}" aria-label="הגדל הדגמה: ${esc(x.name)}">${demoAnim(stretchImages(x))}</button>
+      <button class="stretch-zoom" data-act="stretch-view" data-ph="${phase}" data-id="${x.id}" aria-label="${L('הגדל הדגמה', 'Förstora demo')}: ${esc(x.name)}">${demoAnim(stretchImages(x))}</button>
       <div class="stretch-body">
         <div class="stretch-name">${esc(x.name)}</div>
         <div class="muted small">${esc(x.how)}</div>
         <div class="row" style="margin-top:6px">
-          <button class="rest-pill" data-act="stretch-go" data-ph="${phase}" data-id="${x.id}" aria-label="הפעל טיימר מתיחה">▶ ${x.hold} ש׳${x.sides ? ' לכל צד' : ''}</button>
-          <button class="check" data-act="stretch-done" data-ph="${phase}" data-id="${x.id}" aria-label="סמן מתיחה כבוצעה" aria-pressed="${done.has(x.id)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg></button>
+          <button class="rest-pill" data-act="stretch-go" data-ph="${phase}" data-id="${x.id}" aria-label="${L('הפעל טיימר מתיחה', 'Starta stretchtimer')}">▶ ${x.hold} ${L('ש׳', 's')}${x.sides ? L(' לכל צד', ' per sida') : ''}</button>
+          <button class="check" data-act="stretch-done" data-ph="${phase}" data-id="${x.id}" aria-label="${L('סמן מתיחה כבוצעה', 'Markera stretch som klar')}" aria-pressed="${done.has(x.id)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg></button>
         </div>
       </div>
     </div>`).join('');
   return stretchViewer(phase, list) + `
     <div class="row between" style="margin:${phase === 'pre' ? '0' : '26px'} 0 10px">
       <h2 style="margin:0">${STRETCH_TITLE[phase]}</h2>
-      <button class="btn sm" data-act="stretch-fold" data-ph="${phase}">${left.length ? 'דלג' : 'סגור'}</button>
+      <button class="btn sm" data-act="stretch-fold" data-ph="${phase}">${left.length ? L('דלג', 'Hoppa över') : L('סגור', 'Stäng')}</button>
     </div>
     <div class="card">
       <div class="row between">
-        <span class="muted small">${phase === 'pre' ? 'חימום דינמי' : 'מתיחות סטטיות'} לאזורים של האימון</span>
-        <span class="muted small">${leftSecs ? `נשארו ≈ ${Math.ceil(leftSecs / 60)} מתוך ${Math.ceil(total / 60)} דק׳` : 'הושלם ✓'}</span>
+        <span class="muted small">${phase === 'pre' ? L('חימום דינמי לאזורים של האימון', 'Dynamisk uppvärmning för passets kroppsdelar') : L('מתיחות סטטיות לאזורים של האימון', 'Statisk stretch för passets kroppsdelar')}</span>
+        <span class="muted small">${leftSecs ? L(`נשארו ≈ ${Math.ceil(leftSecs / 60)} מתוך ${Math.ceil(total / 60)} דק׳`, `≈ ${Math.ceil(leftSecs / 60)} av ${Math.ceil(total / 60)} min kvar`) : L('הושלם ✓', 'Klart ✓')}</span>
       </div>
       ${rows}
-      <p class="muted small" style="margin:8px 0 0">נכלל בזמן הכולל של האימון. ▶ מפעיל טיימר שמחליף צד באמצע ומסמן ✓ בסוף.</p>
+      <p class="muted small" style="margin:8px 0 0">${L('נכלל בזמן הכולל של האימון. ▶ מפעיל טיימר שמחליף צד באמצע ומסמן ✓ בסוף.', 'Ingår i passets totala tid. ▶ startar en timer som byter sida halvvägs och bockar av ✓ i slutet.')}</p>
     </div>`;
 }
 
@@ -825,11 +913,11 @@ function stretchViewer(phase, list) {
       <div class="stretch-view-box" data-act="none">
         <div class="row between">
           <b>${esc(x.name)}</b>
-          <button class="icon-btn" data-act="stretch-view-close" aria-label="סגור">✕</button>
+          <button class="icon-btn" data-act="stretch-view-close" aria-label="${L('סגור', 'Stäng')}">✕</button>
         </div>
         ${demoAnim(stretchImages(x), true)}
         <div class="muted small" style="margin-top:8px">${esc(x.how)}</div>
-        <div class="muted small" style="margin-top:4px">${x.hold} ש׳${x.sides ? ' לכל צד' : ''}</div>
+        <div class="muted small" style="margin-top:4px">${x.hold} ${L('ש׳', 's')}${x.sides ? L(' לכל צד', ' per sida') : ''}</div>
       </div>
     </div>` : '';
 }
@@ -840,55 +928,65 @@ function viewSwap(e, i) {
   const done = e.sets.filter((s) => s.done).length;
   return `
     <div class="swap">
-      <div class="muted small">${done ? 'הסטים שכבר בוצעו יישארו כאן, והסטים שנשארו יעברו לתרגיל החלופי.' : 'בחר תרגיל חלופי. מספר הסטים והמנוחה נשמרים, והתבנית לא משתנה.'}</div>
-      <div class="demo-variants">${alts.map((n) => `<button class="chip ${saved.has(n) ? 'on' : ''}" data-act="swap-pick" data-e="${i}" data-n="${esc(n)}">${esc(n)}</button>`).join('') || '<span class="muted small">אין הצעות – הקלד תרגיל למטה</span>'}</div>
+      <div class="muted small">${done ? L('הסטים שכבר בוצעו יישארו כאן, והסטים שנשארו יעברו לתרגיל החלופי.', 'Seten du redan har gjort stannar här, och resten flyttas till den nya övningen.') : L('בחר תרגיל חלופי. מספר הסטים והמנוחה נשמרים, והתבנית לא משתנה.', 'Välj en ersättningsövning. Antal set och vila behålls, och mallen ändras inte.')}</div>
+      <div class="demo-variants">${alts.map((n) => `<button class="chip ${saved.has(n) ? 'on' : ''}" data-act="swap-pick" data-e="${i}" data-n="${esc(n)}">${esc(exName(n))}</button>`).join('') || `<span class="muted small">${L('אין הצעות – הקלד תרגיל למטה', 'Inga förslag – skriv en övning nedan')}</span>`}</div>
       <div class="row" style="margin-top:10px">
-        <input type="text" id="swap-name" list="exnames" placeholder="תרגיל חלופי אחר…" class="grow">
-        <button class="btn sm" data-act="swap-custom" data-e="${i}">החלף</button>
+        <input type="text" id="swap-name" list="exnames" placeholder="${L('תרגיל חלופי אחר…', 'Annan ersättningsövning…')}" class="grow">
+        <button class="btn sm" data-act="swap-custom" data-e="${i}">${L('החלף', 'Byt')}</button>
       </div>
     </div>`;
 }
 
+// Language picker flags, drawn inline so they look the same on every phone.
+const FLAG_IL = '<svg viewBox="0 0 30 22" aria-hidden="true"><rect width="30" height="22" fill="#fff"/><rect y="2.1" width="30" height="3.4" fill="#0038b8"/><rect y="16.5" width="30" height="3.4" fill="#0038b8"/><path d="M15 7.2l3.3 5.7h-6.6zM15 14.8l-3.3-5.7h6.6z" fill="none" stroke="#0038b8" stroke-width=".9"/></svg>';
+const FLAG_SE = '<svg viewBox="0 0 16 10" aria-hidden="true"><rect width="16" height="10" fill="#006aa7"/><rect x="5" width="2" height="10" fill="#fecc00"/><rect y="4" width="16" height="2" fill="#fecc00"/></svg>';
+
 function viewSettings() {
   const hasKey = !!getApiKey();
   return `
-    <h2 style="margin-top:0">אימון</h2>
+    <h2 style="margin-top:0">${L('שפה · Språk', 'Språk · שפה')}</h2>
+    <div class="card lang-pick">
+      <button class="${SV ? '' : 'on'}" data-act="lang" data-k="he" lang="he" dir="rtl" aria-pressed="${!SV}">${FLAG_IL}<span>עברית</span></button>
+      <button class="${SV ? 'on' : ''}" data-act="lang" data-k="sv" lang="sv" dir="ltr" aria-pressed="${SV}">${FLAG_SE}<span>Svenska</span></button>
+    </div>
+
+    <h2>${L('אימון', 'Träning')}</h2>
     <div class="card">
-      <label class="field">זמן מנוחה ברירת מחדל (שניות)
+      <label class="field">${L('זמן מנוחה ברירת מחדל (שניות)', 'Standardvila (sekunder)')}
         <input type="number" inputmode="numeric" data-f="defrest" value="${db.settings.defaultRest}">
       </label>
-      <label class="field">זמן מנוחה בין תרגילים (שניות)
+      <label class="field">${L('זמן מנוחה בין תרגילים (שניות)', 'Vila mellan övningar (sekunder)')}
         <input type="number" inputmode="numeric" data-f="exrest" value="${db.settings.exRest}">
-        <span class="muted small">מופעל אוטומטית כשמסיימים את הסט האחרון בתרגיל. 0 = בלי טיימר.</span>
+        <span class="muted small">${L('מופעל אוטומטית כשמסיימים את הסט האחרון בתרגיל. 0 = בלי טיימר.', 'Startar automatiskt när du avslutar sista setet i en övning. 0 = ingen timer.')}</span>
       </label>
-      <label class="field">יעד ימי אימון בשבוע
-        <input type="number" inputmode="numeric" data-f="wgoal" value="${db.settings.weeklyGoal || ''}" placeholder="0 = בלי יעד">
-        <span class="muted small">אימוני כוח ואירובי נספרים יחד. ימי מנוחה לא שוברים את הרצף, רק שבוע שלא הגיע ליעד.</span>
+      <label class="field">${L('יעד ימי אימון בשבוע', 'Mål: träningsdagar per vecka')}
+        <input type="number" inputmode="numeric" data-f="wgoal" value="${db.settings.weeklyGoal || ''}" placeholder="${L('0 = בלי יעד', '0 = inget mål')}">
+        <span class="muted small">${L('אימוני כוח ואירובי נספרים יחד. ימי מנוחה לא שוברים את הרצף, רק שבוע שלא הגיע ליעד.', 'Styrka och kondition räknas tillsammans. Vilodagar bryter inte sviten, bara en vecka som inte når målet.')}</span>
       </label>
       <label class="check-row">
         <input type="checkbox" data-f="set-lastfail" ${db.settings.lastSetFail ? 'checked' : ''}>
-        <span>הסט האחרון בכל תרגיל הוא עד כשל<br><span class="muted small">מסומן אוטומטית בתחילת אימון. אפשר לבטל לסט מסוים בלחיצה על המספר שלו.</span></span>
+        <span>${L('הסט האחרון בכל תרגיל הוא עד כשל', 'Sista setet i varje övning körs till failure')}<br><span class="muted small">${L('מסומן אוטומטית בתחילת אימון. אפשר לבטל לסט מסוים בלחיצה על המספר שלו.', 'Markeras automatiskt när passet startar. Tryck på ett sets nummer för att ändra det.')}</span></span>
       </label>
       <label class="check-row">
         <input type="checkbox" data-f="set-music" ${db.settings.showMusic !== false ? 'checked' : ''}>
-        <span>הצג "מוזיקה לאימון"</span>
+        <span>${L('הצג "מוזיקה לאימון"', 'Visa "Träningsmusik"')}</span>
       </label>
     </div>
 
-    <h2>גיבוי</h2>
+    <h2>${L('גיבוי', 'Säkerhetskopia')}</h2>
     <div class="card">
-      <button class="btn block" data-act="export" style="margin-top:0">ייצוא גיבוי (קובץ JSON)</button>
-      <button class="btn block" data-act="import">שחזור מגיבוי</button>
+      <button class="btn block" data-act="export" style="margin-top:0">${L('ייצוא גיבוי (קובץ JSON)', 'Exportera säkerhetskopia (JSON-fil)')}</button>
+      <button class="btn block" data-act="import">${L('שחזור מגיבוי', 'Återställ från säkerhetskopia')}</button>
       <input type="file" id="import-file" accept="application/json,.json" hidden>
-      <p class="muted small" style="margin-bottom:0">הנתונים נשמרים רק בטלפון הזה. מומלץ לייצא גיבוי מדי פעם.</p>
+      <p class="muted small" style="margin-bottom:0">${L('הנתונים נשמרים רק בטלפון הזה. מומלץ לייצא גיבוי מדי פעם.', 'Datan sparas bara på den här telefonen. Exportera en säkerhetskopia då och då.')}</p>
     </div>
 
-    <h2>קריאה אוטומטית עם Claude</h2>
+    <h2>${L('קריאה אוטומטית עם Claude', 'Automatisk avläsning med Claude')}</h2>
     <div class="card">
-      <label class="field">מפתח Claude API ${hasKey ? '<span class="ok">✓ שמור</span>' : ''}
+      <label class="field">${L('מפתח Claude API', 'Claude API-nyckel')} ${hasKey ? `<span class="ok">${L('✓ שמור', '✓ Sparad')}</span>` : ''}
         <input type="password" data-f="apikey" value="${esc(getApiKey())}" placeholder="sk-ant-…" autocomplete="off" dir="ltr">
       </label>
-      <p class="muted small" style="margin-bottom:0">אופציונלי, בתשלום לפי שימוש. עם מפתח, האפליקציה קוראת דוחות הרכב גוף מתמונה ומביאה המלצות ישירות מ-Claude בלי העתק-הדבק. זה נפרד מהמנוי ל-Claude ומחויב לפי שימוש (כמה סנטים לדוח). המפתח נשמר רק בטלפון הזה ולא נכלל בקובץ הגיבוי.</p>
+      <p class="muted small" style="margin-bottom:0">${L('אופציונלי, בתשלום לפי שימוש. עם מפתח, האפליקציה קוראת דוחות הרכב גוף מתמונה ומביאה המלצות ישירות מ-Claude בלי העתק-הדבק. זה נפרד מהמנוי ל-Claude ומחויב לפי שימוש (כמה סנטים לדוח). המפתח נשמר רק בטלפון הזה ולא נכלל בקובץ הגיבוי.', 'Valfritt, betalas per användning. Med en nyckel läser appen kroppssammansättningsrapporter från en bild och hämtar råd direkt från Claude utan att kopiera och klistra in. Det är separat från Claude-prenumerationen och debiteras per användning (några ören per rapport). Nyckeln sparas bara på den här telefonen och ingår inte i säkerhetskopian.')}</p>
     </div>`;
 }
 
@@ -903,41 +1001,41 @@ function viewEditor() {
     ${firstOf.has(i) ? areaDivider(draftGroup(e), d.exercises.filter((x) => draftGroup(x) === draftGroup(e)).length) : ''}
     <div class="tex">
       <div class="row">
-        <input type="text" class="grow" list="exnames" data-f="tex-name" data-i="${i}" value="${esc(e.name)}" placeholder="שם התרגיל">
-        <button class="icon-btn" data-act="demo" data-i="${i}" aria-label="הדגמת התרגיל">▶</button>
-        <button class="icon-btn" data-act="tex-up" data-i="${i}" aria-label="הזז למעלה">▲</button>
-        <button class="icon-btn" data-act="tex-down" data-i="${i}" aria-label="הזז למטה">▼</button>
-        <button class="icon-btn" data-act="tex-del" data-i="${i}" aria-label="הסר">✕</button>
+        <input type="text" class="grow" list="exnames" data-f="tex-name" data-i="${i}" value="${esc(e.name)}" placeholder="${L('שם התרגיל', 'Övningens namn')}">
+        <button class="icon-btn" data-act="demo" data-i="${i}" aria-label="${L('הדגמת התרגיל', 'Demo av övningen')}">▶</button>
+        <button class="icon-btn" data-act="tex-up" data-i="${i}" aria-label="${L('הזז למעלה', 'Flytta upp')}">▲</button>
+        <button class="icon-btn" data-act="tex-down" data-i="${i}" aria-label="${L('הזז למטה', 'Flytta ner')}">▼</button>
+        <button class="icon-btn" data-act="tex-del" data-i="${i}" aria-label="${L('הסר', 'Ta bort')}">✕</button>
       </div>
       ${e.name.trim() ? muscleMap(e.name, draftGroup(e)) : ''}
       <div class="grid">
-        <label class="field">סטים<input type="number" inputmode="numeric" data-f="tex-sets" data-i="${i}" value="${esc(e.sets)}"></label>
-        <label class="field">חזרות<input type="number" inputmode="numeric" data-f="tex-reps" data-i="${i}" value="${esc(e.reps)}"></label>
-        <label class="field">מנוחה (ש׳)<input type="number" inputmode="numeric" data-f="tex-rest" data-i="${i}" value="${esc(e.rest)}"></label>
-        <label class="field">משקל (ק״ג)<input type="number" inputmode="decimal" step="any" data-f="tex-w" data-i="${i}" value="${esc(e.w ?? '')}" placeholder="—"></label>
-        <label class="field span2">אזור גוף
-          <select data-f="tex-group" data-i="${i}">${GROUPS.map((g) => `<option ${g === draftGroup(e) ? 'selected' : ''}>${g}</option>`).join('')}</select>
+        <label class="field">${L('סטים', 'Set')}<input type="number" inputmode="numeric" data-f="tex-sets" data-i="${i}" value="${esc(e.sets)}"></label>
+        <label class="field">${L('חזרות', 'Reps')}<input type="number" inputmode="numeric" data-f="tex-reps" data-i="${i}" value="${esc(e.reps)}"></label>
+        <label class="field">${L('מנוחה (ש׳)', 'Vila (s)')}<input type="number" inputmode="numeric" data-f="tex-rest" data-i="${i}" value="${esc(e.rest)}"></label>
+        <label class="field">${L('משקל (ק״ג)', 'Vikt (kg)')}<input type="number" inputmode="decimal" step="any" data-f="tex-w" data-i="${i}" value="${esc(e.w ?? '')}" placeholder="—"></label>
+        <label class="field span2">${L('אזור גוף', 'Kroppsdel')}
+          <select data-f="tex-group" data-i="${i}">${GROUPS.map((g) => `<option value="${g}" ${g === draftGroup(e) ? 'selected' : ''}>${gName(g)}</option>`).join('')}</select>
         </label>
       </div>
     </div>`).join('');
 
   return `
-    ${db.active ? '<p class="muted small" style="margin:0 0 10px">השינויים נשמרים בתבנית לאימונים הבאים. האימון הפעיל לא משתנה – ביטול או שמירה יחזירו אותך אליו.</p>' : ''}
-    <label class="field">שם התבנית<input type="text" data-f="tname" value="${esc(d.name)}" placeholder="למשל: אימון A"></label>
-    <h2>תרגילים</h2>
+    ${db.active ? `<p class="muted small" style="margin:0 0 10px">${L('השינויים נשמרים בתבנית לאימונים הבאים. האימון הפעיל לא משתנה – ביטול או שמירה יחזירו אותך אליו.', 'Ändringarna sparas i mallen till kommande pass. Det pågående passet ändras inte – Avbryt eller Spara tar dig tillbaka till det.')}</p>` : ''}
+    <label class="field">${L('שם התבנית', 'Mallens namn')}<input type="text" data-f="tname" value="${esc(d.name)}" placeholder="${L('למשל: אימון A', 't.ex. Pass A')}"></label>
+    <h2>${L('תרגילים', 'Övningar')}</h2>
     ${exs}
     ${datalist()}
-    <button class="btn ghost block" data-act="tex-add">+ הוסף תרגיל</button>
-    <button class="btn primary block" data-act="tpl-save">שמור תבנית</button>
-    <button class="btn block" data-act="tpl-cancel">ביטול</button>
+    <button class="btn ghost block" data-act="tex-add">${L('+ הוסף תרגיל', '+ Lägg till övning')}</button>
+    <button class="btn primary block" data-act="tpl-save">${L('שמור תבנית', 'Spara mall')}</button>
+    <button class="btn block" data-act="tpl-cancel">${L('ביטול', 'Avbryt')}</button>
     ${d.isNew ? '' : d.confirmDel ? `
     <div class="card confirm-del">
-      <div><b>למחוק את "${esc(d.name || 'התבנית')}"?</b><br><span class="muted small">אימונים שכבר נשמרו לא יימחקו.</span></div>
+      <div><b>${L(`למחוק את "${esc(d.name || 'התבנית')}"?`, `Ta bort "${esc(d.name || 'mallen')}"?`)}</b><br><span class="muted small">${L('אימונים שכבר נשמרו לא יימחקו.', 'Pass som redan sparats tas inte bort.')}</span></div>
       <div class="row" style="margin-top:10px">
-        <button class="btn danger-fill grow" data-act="tpl-del-yes">כן, מחק</button>
-        <button class="btn grow" data-act="tpl-del-no">לא, השאר</button>
+        <button class="btn danger-fill grow" data-act="tpl-del-yes">${L('כן, מחק', 'Ja, ta bort')}</button>
+        <button class="btn grow" data-act="tpl-del-no">${L('לא, השאר', 'Nej, behåll')}</button>
       </div>
-    </div>` : '<button class="btn danger block" data-act="tpl-del">מחק תבנית</button>'}`;
+    </div>` : `<button class="btn danger block" data-act="tpl-del">${L('מחק תבנית', 'Ta bort mall')}</button>`}`;
 }
 
 // ---------- Progress photos ----------
@@ -982,8 +1080,8 @@ async function addPhotos(files, wid) {
       await idb((await photoStore('readwrite')).put({ id: uid(), ts: Date.now(), wid, blob }));
     }
     await loadPhotos();
-    toast(files.length > 1 ? `${files.length} תמונות נשמרו` : 'התמונה נשמרה');
-  } catch { toast('שגיאה בשמירת התמונה'); }
+    toast(files.length > 1 ? L(`${files.length} תמונות נשמרו`, `${files.length} bilder sparade`) : L('התמונה נשמרה', 'Bilden sparad'));
+  } catch { toast(L('שגיאה בשמירת התמונה', 'Kunde inte spara bilden')); }
 }
 
 async function deletePhoto(...ids) {
@@ -992,7 +1090,7 @@ async function deletePhoto(...ids) {
     await Promise.all(ids.map((id) => idb(store.delete(id))));
     ui.photo = null;
     await loadPhotos();
-  } catch { toast('שגיאה במחיקת התמונה'); }
+  } catch { toast(L('שגיאה במחיקת התמונה', 'Kunde inte ta bort bilden')); }
 }
 
 // In-app camera: up to 3 shots in one session (front / side / back), saved together at the end.
@@ -1007,20 +1105,20 @@ async function openCamera(wid) {
   box.className = 'cam';
   box.setAttribute('role', 'dialog');
   box.setAttribute('aria-modal', 'true');
-  box.setAttribute('aria-label', 'צילום תמונות מעקב');
+  box.setAttribute('aria-label', L('צילום תמונות מעקב', 'Ta progressbilder'));
   box.innerHTML = `
     <video playsinline muted autoplay></video>
     <div class="cam-top">
-      <button class="btn sm" data-k="close">ביטול</button>
+      <button class="btn sm" data-k="close">${L('ביטול', 'Avbryt')}</button>
       <span class="cam-count"></span>
-      <button class="btn sm" data-k="flip" aria-label="החלף מצלמה">⟲</button>
+      <button class="btn sm" data-k="flip" aria-label="${L('החלף מצלמה', 'Byt kamera')}">⟲</button>
     </div>
     <div class="cam-bottom">
       <div class="cam-shots"></div>
       <div class="cam-row">
-        <button class="btn sm" data-k="gallery">מהגלריה</button>
-        <button class="cam-shutter" data-k="shoot" aria-label="צלם"></button>
-        <button class="btn sm primary" data-k="save">שמור</button>
+        <button class="btn sm" data-k="gallery">${L('מהגלריה', 'Från galleriet')}</button>
+        <button class="cam-shutter" data-k="shoot" aria-label="${L('צלם', 'Ta bild')}"></button>
+        <button class="btn sm primary" data-k="save">${L('שמור', 'Spara')}</button>
       </div>
     </div>`;
   const video = box.querySelector('video');
@@ -1034,7 +1132,7 @@ async function openCamera(wid) {
   const paint = () => {
     box.querySelector('.cam-count').textContent = `${shots.length}/${CAM_MAX}`;
     box.querySelector('.cam-shots').innerHTML = shots.map((s, i) => `
-      <button class="cam-shot" data-k="drop" data-i="${i}" aria-label="הסר תמונה ${i + 1}"><img src="${s.url}" alt=""><span>✕</span></button>`).join('');
+      <button class="cam-shot" data-k="drop" data-i="${i}" aria-label="${L('הסר תמונה', 'Ta bort bild')} ${i + 1}"><img src="${s.url}" alt=""><span>✕</span></button>`).join('');
     box.querySelector('[data-k="shoot"]').disabled = shots.length >= CAM_MAX;
     box.querySelector('[data-k="save"]').disabled = !shots.length;
   };
@@ -1062,19 +1160,19 @@ async function openCamera(wid) {
     const k = btn.dataset.k;
     if (k === 'shoot') shoot();
     else if (k === 'drop') { URL.revokeObjectURL(shots[+btn.dataset.i].url); shots.splice(+btn.dataset.i, 1); paint(); }
-    else if (k === 'flip') { facing = facing === 'user' ? 'environment' : 'user'; start().catch(() => toast('לא ניתן להחליף מצלמה')); }
+    else if (k === 'flip') { facing = facing === 'user' ? 'environment' : 'user'; start().catch(() => toast(L('לא ניתן להחליף מצלמה', 'Kunde inte byta kamera'))); }
     else if (k === 'save') { const files = shots.map((s) => s.blob); close(); addPhotos(files, wid); }
     else if (k === 'gallery') { close(); pick(); }
     else if (k === 'close') {
       if (!shots.length) return close();
-      ask({ title: 'לבטל את הצילום?', msg: 'התמונות שצולמו לא יישמרו.', ok: 'בטל', danger: true }).then((yes) => yes && close());
+      ask({ title: L('לבטל את הצילום?', 'Avbryta fotograferingen?'), msg: L('התמונות שצולמו לא יישמרו.', 'Bilderna du tog sparas inte.'), ok: L('בטל', 'Släng bilderna'), danger: true }).then((yes) => yes && close());
     }
   });
   box.addEventListener('keydown', (ev) => {
     ev.stopPropagation();
     if (ev.key === 'Escape') box.querySelector('[data-k="close"]').click();
   });
-  try { await start(); } catch { toast('אין גישה למצלמה'); return pick(); }
+  try { await start(); } catch { toast(L('אין גישה למצלמה', 'Ingen åtkomst till kameran')); return pick(); }
   paint();
   document.body.append(box);
   document.body.classList.add('dlg-open');
@@ -1090,23 +1188,23 @@ function photosOf(w, list) {
 function photoStrip(w, mine) {
   return `
     <div class="hist-photos">
-      <div class="row between"><b class="small">תמונות מעקב</b><button class="btn sm" data-act="photo-add" data-id="${w.id}">+ צלם תמונות</button></div>
+      <div class="row between"><b class="small">${L('תמונות מעקב', 'Progressbilder')}</b><button class="btn sm" data-act="photo-add" data-id="${w.id}">${L('+ צלם תמונות', '+ Ta bilder')}</button></div>
       ${mine.length ? `<div class="photo-grid">${mine.map((p) => `
-        <button class="photo-thumb" data-act="photo-open" data-id="${p.id}" aria-label="תמונה מ-${fmtDateFull(p.ts)}"><img src="${p.url}" alt="" loading="lazy"></button>`).join('')}</div>`
-        : '<p class="muted small" style="margin:4px 0 0">נשמרות רק במכשיר הזה ולא נכללות בגיבוי.</p>'}
+        <button class="photo-thumb" data-act="photo-open" data-id="${p.id}" aria-label="${L('תמונה מ-', 'Bild från ')}${fmtDateFull(p.ts)}"><img src="${p.url}" alt="" loading="lazy"></button>`).join('')}</div>`
+        : `<p class="muted small" style="margin:4px 0 0">${L('נשמרות רק במכשיר הזה ולא נכללות בגיבוי.', 'Sparas bara på den här enheten och ingår inte i säkerhetskopian.')}</p>`}
     </div>`;
 }
 
 function photoViewer() {
   const open = photos.find((p) => p.id === ui.photo);
   return open ? `
-    <div class="photo-view" data-act="photo-close" role="dialog" aria-modal="true" aria-label="תמונת מעקב">
+    <div class="photo-view" data-act="photo-close" role="dialog" aria-modal="true" aria-label="${L('תמונת מעקב', 'Progressbild')}">
       <img src="${open.url}" alt="">
       <div class="row between" data-act="none">
         <span>${fmtDateFull(open.ts)}</span>
         <div class="row">
-          <button class="btn sm danger" data-act="photo-del" data-id="${open.id}">מחק</button>
-          <button class="btn sm" data-act="photo-close">סגור</button>
+          <button class="btn sm danger" data-act="photo-del" data-id="${open.id}">${L('מחק', 'Ta bort')}</button>
+          <button class="btn sm" data-act="photo-close">${L('סגור', 'Stäng')}</button>
         </div>
       </div>
     </div>` : '';
@@ -1118,35 +1216,35 @@ function cardioCard(c) {
   return `
     <details class="card hist" data-id="${c.id}" ${ui.histOpen.has(c.id) ? 'open' : ''}>
       <summary>
-        <div class="hist-date"><b>${d.getDate()}</b><span>${d.toLocaleDateString('he-IL', { weekday: 'short' })}</span></div>
+        <div class="hist-date"><b>${d.getDate()}</b><span>${d.toLocaleDateString(LOC, { weekday: 'short' })}</span></div>
         <div class="grow">
-          <div class="hist-name">${CARDIO_BY[c.type].name} <span class="muted small">· אירובי</span></div>
+          <div class="hist-name">${CARDIO_BY[c.type].name} <span class="muted small">· ${L('אירובי', 'Kondition')}</span></div>
           <div class="hist-stats">
             <span><b>${fmtMins(c.mins)}</b></span>
             ${c.km ? `<span><b>${fmtDist(c.type, c.km)}</b></span>` : ''}
             ${pace ? `<span><b dir="ltr">${pace.v}</b> ${pace.u}</span>` : ''}
-            <span><b>${c.kcal}</b> קלוריות</span>
+            <span><b>${c.kcal}</b> ${L('קלוריות', 'kalorier')}</span>
           </div>
         </div>
         <svg class="hist-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
       </summary>
       <div class="hist-actions">
         <span class="muted small">${fmtTime(c.t)}</span>
-        <button class="btn sm danger" data-act="c-del" data-id="${c.id}">מחק</button>
+        <button class="btn sm danger" data-act="c-del" data-id="${c.id}">${L('מחק', 'Ta bort')}</button>
       </div>
     </details>`;
 }
 
 function viewHistory() {
   const list = sortedWorkouts();
-  if (!list.length && !db.cardio.length) return '<div class="empty">עוד לא נשמרו אימונים.<br>אחרי שתסיים אימון הוא יופיע כאן.</div>';
+  if (!list.length && !db.cardio.length) return `<div class="empty">${L('עוד לא נשמרו אימונים.<br>אחרי שתסיים אימון הוא יופיע כאן.', 'Inga sparade pass än.<br>När du avslutar ett pass dyker det upp här.')}</div>`;
   // Workouts and cardio together, newest first.
   const items = [...list.map((w) => ({ t: w.start, w })), ...db.cardio.map((c) => ({ t: c.t, c }))].sort((a, b) => b.t - a.t);
   // Month dividers, then one card per workout: a date block, the name and three stats; tap to see every set.
   let month = '';
   return photoViewer() + `<input type="file" id="photo-file" accept="image/*" multiple hidden>` + items.map(({ t, w, c }) => {
     const d = new Date(t);
-    const m = d.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' });
+    const m = d.toLocaleDateString(LOC, { month: 'long', year: 'numeric' });
     const head = m !== month ? `<h3 class="hist-month">${m}</h3>` : '';
     month = m;
     if (c) return head + cardioCard(c);
@@ -1156,32 +1254,32 @@ function viewHistory() {
     return `${head}
     <details class="card hist" data-id="${w.id}" ${ui.histOpen.has(w.id) ? 'open' : ''}>
       <summary>
-        <div class="hist-date"><b>${d.getDate()}</b><span>${d.toLocaleDateString('he-IL', { weekday: 'short' })}</span></div>
+        <div class="hist-date"><b>${d.getDate()}</b><span>${d.toLocaleDateString(LOC, { weekday: 'short' })}</span></div>
         <div class="grow">
           <div class="hist-name">${esc(w.name)}</div>
-          <div class="muted small">${runs.map(([a]) => esc(a)).join(' · ')}</div>
+          <div class="muted small">${runs.map(([a]) => esc(gName(a))).join(' · ')}</div>
           <div class="hist-stats">
-            <span><b>${w.exercises.length}</b> תרגילים</span>
+            <span><b>${w.exercises.length}</b> ${L('תרגילים', 'övningar')}</span>
             <span><b>${fmtDur(w.end - w.start)}</b></span>
-            <span title="סכום משקל × חזרות בכל הסטים">נפח <b>${Math.round(volume(w)).toLocaleString('he-IL')}</b> ק״ג</span>
-            ${inten != null ? `<span title="ממוצע המשקל בסטים כאחוז מה-1RM המשוער שלך בכל תרגיל">עצימות <b>${inten}%</b></span>` : ''}
-            ${mine.length ? `<span><b>${mine.length}</b> תמונות</span>` : ''}
+            <span title="${L('סכום משקל × חזרות בכל הסטים', 'Summan av vikt × reps i alla set')}">${L('נפח', 'Volym')} <b>${Math.round(volume(w)).toLocaleString(LOC)}</b> ${L('ק״ג', 'kg')}</span>
+            ${inten != null ? `<span title="${L('ממוצע המשקל בסטים כאחוז מה-1RM המשוער שלך בכל תרגיל', 'Snittvikten i seten i procent av din uppskattade 1RM i varje övning')}">${L('עצימות', 'Intensitet')} <b>${inten}%</b></span>` : ''}
+            ${mine.length ? `<span><b>${mine.length}</b> ${L('תמונות', 'bilder')}</span>` : ''}
           </div>
         </div>
         <svg class="hist-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
       </summary>
-      <div class="muted small hist-meta">התחלה ${fmtTime(w.start)}${w.stretch ? ` · כולל ${Math.ceil(w.stretch / 60)} דק׳ מתיחות` : ''}</div>
-      <p class="muted small hist-meta">נפח = משקל × חזרות בכל הסטים (בלי חימום). עצימות = כמה כבד הרמת בממוצע, באחוזים מה-1RM המשוער שלך בכל תרגיל.</p>
+      <div class="muted small hist-meta">${L('התחלה', 'Start')} ${fmtTime(w.start)}${w.stretch ? L(` · כולל ${Math.ceil(w.stretch / 60)} דק׳ מתיחות`, ` · inkl. ${Math.ceil(w.stretch / 60)} min stretch`) : ''}</div>
+      <p class="muted small hist-meta">${L('נפח = משקל × חזרות בכל הסטים (בלי חימום). עצימות = כמה כבד הרמת בממוצע, באחוזים מה-1RM המשוער שלך בכל תרגיל.', 'Volym = vikt × reps i alla set (utan uppvärmning). Intensitet = hur tungt du lyfte i snitt, i procent av din uppskattade 1RM i varje övning.')}</p>
       ${runs.map(([area, idx]) => areaDivider(area, idx.length) + idx.map((i) => `
         <div class="hist-ex">
-          <b>${esc(w.exercises[i].name)}</b>
+          <b>${esc(exName(w.exercises[i].name))}</b>
           <div class="chips">${w.exercises[i].sets.map((s) => chip(s)).join('')}</div>
         </div>`).join('')).join('')}
       ${photoStrip(w, mine)}
       <div class="hist-actions">
-        <input type="date" class="pill-in" data-f="hist-date" data-id="${w.id}" value="${isoDay(w.start)}" max="${isoDay(Date.now())}" aria-label="תאריך האימון">
-        <button class="btn sm" data-act="hist-tpl" data-id="${w.id}">שמור כתבנית</button>
-        <button class="btn sm danger" data-act="hist-del" data-id="${w.id}">מחק</button>
+        <input type="date" class="pill-in" data-f="hist-date" data-id="${w.id}" value="${isoDay(w.start)}" max="${isoDay(Date.now())}" aria-label="${L('תאריך האימון', 'Passets datum')}">
+        <button class="btn sm" data-act="hist-tpl" data-id="${w.id}">${L('שמור כתבנית', 'Spara som mall')}</button>
+        <button class="btn sm danger" data-act="hist-del" data-id="${w.id}">${L('מחק', 'Ta bort')}</button>
       </div>
     </details>`;
   }).join('');
@@ -1203,7 +1301,7 @@ function chart(points, unit, markBest) {
   const path = points.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.y).toFixed(1)}`).join(' ');
   const area = points.length > 1 ? `${path} L${x(points.length - 1).toFixed(1)},${H - B} L${x(0).toFixed(1)},${H - B} Z` : '';
   return `
-    <svg class="chart" viewBox="0 0 ${W} ${H}" style="direction:ltr" role="img" aria-label="גרף התקדמות">
+    <svg class="chart" viewBox="0 0 ${W} ${H}" style="direction:ltr" role="img" aria-label="${L('גרף התקדמות', 'Progressdiagram')}">
       ${ticks.map((v) => `<line class="grid-l" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="ax" x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${max - min < 10 ? v.toFixed(1) : Math.round(v)}</text>`).join('')}
       ${area ? `<path class="ar" d="${area}"/>` : ''}
       <path class="ln" d="${path}"/>
@@ -1221,20 +1319,19 @@ function viewProgress() {
   const sum = (k) => cMonth.reduce((a, c) => a + (c[k] || 0), 0);
   const top = `
     <div class="stats">
-      <div class="stat"><div class="v">${thisMonth}</div><div class="l">אימונים החודש</div></div>
-      <div class="stat"><div class="v">${db.workouts.length}</div><div class="l">אימונים בסה״כ</div></div>
+      <div class="stat"><div class="v">${thisMonth}</div><div class="l">${L('אימונים החודש', 'Pass denna månad')}</div></div>
+      <div class="stat"><div class="v">${db.workouts.length}</div><div class="l">${L('אימונים בסה״כ', 'Pass totalt')}</div></div>
       ${db.cardio.length ? `
-      <div class="stat"><div class="v">${Math.round(sum('kcal')).toLocaleString('he-IL')}</div><div class="l">קלוריות באירובי החודש</div></div>
-      <div class="stat"><div class="v">${r1(sum('km'))}<span class="u"> ק״מ</span></div><div class="l">${cMonth.length} אימוני אירובי · ${Math.round(sum('mins'))} דק׳ החודש</div></div>` : ''}
+      <div class="stat"><div class="v">${Math.round(sum('kcal')).toLocaleString(LOC)}</div><div class="l">${L('קלוריות באירובי החודש', 'Konditionskalorier denna månad')}</div></div>
+      <div class="stat"><div class="v">${r1(sum('km'))}<span class="u"> ${L('ק״מ', 'km')}</span></div><div class="l">${L(`${cMonth.length} אימוני אירובי · ${Math.round(sum('mins'))} דק׳ החודש`, `${cMonth.length} konditionspass · ${Math.round(sum('mins'))} min denna månad`)}</div></div>` : ''}
     </div>`;
 
   const names = [];
   for (const w of sortedWorkouts()) for (const e of w.exercises) if (!names.includes(e.name)) names.push(e.name);
-  if (!names.length) return top + '<div class="empty">אחרי כמה אימונים יופיעו כאן גרפים ושיאים אישיים לכל תרגיל.</div>';
+  if (!names.length) return top + `<div class="empty">${L('אחרי כמה אימונים יופיעו כאן גרפים ושיאים אישיים לכל תרגיל.', 'Efter några pass visas diagram och personliga rekord för varje övning här.')}</div>`;
 
   // Working sets per body area over the chosen period.
-  const sunday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).getTime();
-  const periods = [['week', 'השבוע', sunday], ['month', 'החודש', monthStart], ['all', 'הכול', 0]];
+  const periods = [['week', L('השבוע', 'Vecka'), weekStart(now).getTime()], ['month', L('החודש', 'Månad'), monthStart], ['all', L('הכול', 'Allt'), 0]];
   if (!periods.some(([k]) => k === ui.areaPeriod)) ui.areaPeriod = 'week';
   const from = periods.find(([k]) => k === ui.areaPeriod)[2];
   const perArea = new Map(GROUPS.map((g) => [g, 0]));
@@ -1245,11 +1342,11 @@ function viewProgress() {
   const maxSets = Math.max(1, ...perArea.values());
   const areaCard = `
     <div class="card">
-      <div class="row between"><h3>סטים לפי אזור גוף</h3></div>
+      <div class="row between"><h3>${L('סטים לפי אזור גוף', 'Set per kroppsdel')}</h3></div>
       <div class="seg" style="margin-top:10px">${periods.map(([k, l]) => `<button class="${ui.areaPeriod === k ? 'on' : ''}" data-act="area-period" data-k="${k}">${l}</button>`).join('')}</div>
       ${[...perArea].filter(([g, c]) => c || g !== 'אחר').map(([g, c]) => `
         <div class="bar-row ${c ? '' : 'zero'}">
-          <span class="bar-l">${g}</span>
+          <span class="bar-l">${gName(g)}</span>
           <span class="bar"><span style="width:${(c / maxSets) * 100}%"></span></span>
           <span class="bar-v">${c}</span>
         </div>`).join('')}
@@ -1270,23 +1367,23 @@ function viewProgress() {
   };
   const points = sessions.map((s) => ({ t: s.t, y: metricOf[ui.progMetric](s.e) }));
   const { maxW, maxE } = bestFor(ui.progEx);
-  const metrics = [['e1rm', 'כוח משוער'], ['max', 'משקל מקס׳'], ['vol', 'נפח']];
+  const metrics = [['e1rm', L('כוח משוער', 'Uppskattad styrka')], ['max', L('משקל מקס׳', 'Maxvikt')], ['vol', L('נפח', 'Volym')]];
 
   return `
     ${top}
     ${areaCard}
     <div class="card ex-pick">
-      <div class="area" style="margin-bottom:6px">${groupOf(ui.progEx)}</div>
-      <select data-f="prog-ex" aria-label="בחר תרגיל">${byArea.map(([g, list]) => `<optgroup label="${g}">${list.map((n) => `<option ${n === ui.progEx ? 'selected' : ''}>${esc(n)}</option>`).join('')}</optgroup>`).join('')}</select>
+      <div class="area" style="margin-bottom:6px">${gName(groupOf(ui.progEx))}</div>
+      <select data-f="prog-ex" aria-label="${L('בחר תרגיל', 'Välj övning')}">${byArea.map(([g, list]) => `<optgroup label="${gName(g)}">${list.map((n) => `<option value="${esc(n)}" ${n === ui.progEx ? 'selected' : ''}>${esc(exName(n))}</option>`).join('')}</optgroup>`).join('')}</select>
     </div>
     <div class="stats">
-      <div class="stat"><div class="v" dir="ltr">${maxW ? setLabel(maxW) : '–'}</div><div class="l">שיא משקל</div></div>
-      <div class="stat"><div class="v">${maxE ? fmtW(Math.round(maxE * 2) / 2) : '–'}</div><div class="l">1RM משוער (ק״ג)</div></div>
+      <div class="stat"><div class="v" dir="ltr">${maxW ? setLabel(maxW) : '–'}</div><div class="l">${L('שיא משקל', 'Viktrekord')}</div></div>
+      <div class="stat"><div class="v">${maxE ? fmtW(Math.round(maxE * 2) / 2) : '–'}</div><div class="l">${L('1RM משוער (ק״ג)', 'Uppskattad 1RM (kg)')}</div></div>
     </div>
     <div class="card">
       <div class="seg">${metrics.map(([k, l]) => `<button class="${ui.progMetric === k ? 'on' : ''}" data-act="metric" data-k="${k}">${l}</button>`).join('')}</div>
-      ${chart(points, 'ק״ג', true)}
-      <p class="muted small" style="margin:6px 0 0">${ui.progMetric === 'e1rm' ? 'כוח משוער = המשקל המקסימלי שהיית מרים לחזרה אחת, מחושב מהסט הטוב ביותר.' : ui.progMetric === 'vol' ? 'נפח = משקל × חזרות, מסוכם על כל הסטים.' : 'המשקל הכבד ביותר באימון.'}</p>
+      ${chart(points, L('ק״ג', 'kg'), true)}
+      <p class="muted small" style="margin:6px 0 0">${ui.progMetric === 'e1rm' ? L('כוח משוער = המשקל המקסימלי שהיית מרים לחזרה אחת, מחושב מהסט הטוב ביותר.', 'Uppskattad styrka = den tyngsta vikt du skulle klara en repetition med, beräknad från ditt bästa set.') : ui.progMetric === 'vol' ? L('נפח = משקל × חזרות, מסוכם על כל הסטים.', 'Volym = vikt × reps, summerat över alla set.') : L('המשקל הכבד ביותר באימון.', 'Den tyngsta vikten under passet.')}</p>
     </div>
     ${viewExerciseDash(sessions, maxE)}`;
 }
@@ -1314,10 +1411,10 @@ function viewExerciseDash(sessions, maxE) {
   }
   const tile = (v, l, cls = '') => `<div class="dash-tile ${cls}"><div class="v">${v}</div><div class="l">${l}</div></div>`;
   const tiles = [
-    tile(gain === null ? '–' : `<span dir="ltr">${gain > 0 ? '+' : ''}${Math.round(gain * 100)}%</span>`, 'מאז הפעם הראשונה', gain > 0 ? 'up' : gain < 0 ? 'down' : ''),
-    tile(month, 'פעמים ב־30 יום'),
-    tile(ago === 0 ? 'היום' : ago === 1 ? 'אתמול' : ago, ago > 1 ? 'ימים מהפעם האחרונה' : 'הפעם האחרונה'),
-    tile(records.length, records.length === 1 ? 'שיא שנשבר' : 'שיאים שנשברו'),
+    tile(gain === null ? '–' : `<span dir="ltr">${gain > 0 ? '+' : ''}${Math.round(gain * 100)}%</span>`, L('מאז הפעם הראשונה', 'Sedan första gången'), gain > 0 ? 'up' : gain < 0 ? 'down' : ''),
+    tile(month, L('פעמים ב־30 יום', 'Gånger på 30 dagar')),
+    tile(ago === 0 ? L('היום', 'Idag') : ago === 1 ? L('אתמול', 'Igår') : ago, ago > 1 ? L('ימים מהפעם האחרונה', 'Dagar sedan senast') : L('הפעם האחרונה', 'Senast')),
+    tile(records.length, records.length === 1 ? L('שיא שנשבר', 'Slaget rekord') : L('שיאים שנשברו', 'Slagna rekord')),
   ].join('');
 
   // Next-time targets, built from last session's best set
@@ -1327,37 +1424,37 @@ function viewExerciseDash(sessions, maxE) {
   if (weighted) {
     let rw = Math.ceil(maxE / (1 + r / 30) / WEIGHT_STEP) * WEIGHT_STEP;
     if (e1rm(rw, r) <= maxE) rw += WEIGHT_STEP;
-    goals = goal('עוד חזרה', { w, r: r + 1 }) + goal('עוד משקל', { w: w + WEIGHT_STEP, r })
-      + goal('לשיא חדש', { w: rw, r }, true);
+    goals = goal(L('עוד חזרה', 'En rep till'), { w, r: r + 1 }) + goal(L('עוד משקל', 'Mer vikt'), { w: w + WEIGHT_STEP, r })
+      + goal(L('לשיא חדש', 'Nytt rekord'), { w: rw, r }, true);
   } else {
     const maxR = Math.max(...tops.map((x) => x.set.r));
-    goals = goal('עוד חזרה', { w: 0, r: r + 1 }) + goal('לשיא חדש', { w: 0, r: maxR + 1 }, true);
+    goals = goal(L('עוד חזרה', 'En rep till'), { w: 0, r: r + 1 }) + goal(L('לשיא חדש', 'Nytt rekord'), { w: 0, r: maxR + 1 }, true);
   }
 
   // What the current estimated max means at other rep counts
   const repMax = weighted ? `
-      <h4 class="dash-h">כמה אתה אמור להרים לפי חזרות</h4>
+      <h4 class="dash-h">${L('כמה אתה אמור להרים לפי חזרות', 'Vad du borde klara per antal reps')}</h4>
       <div class="rm-grid">${[1, 3, 5, 8, 10, 12].map((n) => `
-        <div><b>${fmtW(n <= 1 ? Math.floor(maxE / WEIGHT_STEP) * WEIGHT_STEP : Math.floor(maxE / (1 + n / 30) / WEIGHT_STEP) * WEIGHT_STEP)}</b><span>${n === 1 ? 'חזרה' : `${n} חזרות`}</span></div>`).join('')}
+        <div><b>${fmtW(n <= 1 ? Math.floor(maxE / WEIGHT_STEP) * WEIGHT_STEP : Math.floor(maxE / (1 + n / 30) / WEIGHT_STEP) * WEIGHT_STEP)}</b><span>${n === 1 ? L('חזרה', '1 rep') : `${n} ${L('חזרות', 'reps')}`}</span></div>`).join('')}
       </div>
-      <p class="muted small" style="margin:6px 0 0">לפי ה־1RM המשוער שלך, מעוגל למטה ל־${fmtW(WEIGHT_STEP)} ק״ג.</p>` : '';
+      <p class="muted small" style="margin:6px 0 0">${L(`לפי ה־1RM המשוער שלך, מעוגל למטה ל־${fmtW(WEIGHT_STEP)} ק״ג.`, `Utifrån din uppskattade 1RM, avrundat nedåt till ${fmtW(WEIGHT_STEP)} kg.`)}</p>` : '';
 
   const timeline = records.length ? `
-      <h4 class="dash-h">ציר השיאים</h4>
+      <h4 class="dash-h">${L('ציר השיאים', 'Rekordhistorik')}</h4>
       ${records.slice(-5).reverse().map((x) => `
         <div class="rec-row">
           <span class="muted small">${fmtDateFull(x.t)}</span>
           <span class="chip pr">${setLabel(x.set)}</span>
-          <span class="delta up" dir="ltr">+${weighted ? `${fmtW(Math.round(x.gain * 2) / 2)} ק״ג` : x.gain}</span>
+          <span class="delta up" dir="ltr">+${weighted ? `${fmtW(Math.round(x.gain * 2) / 2)} ${L('ק״ג', 'kg')}` : x.gain}</span>
         </div>`).join('')}` : '';
 
   return `
     <div class="card dash">
-      <h3>תמונת מצב</h3>
+      <h3>${L('תמונת מצב', 'Läget just nu')}</h3>
       <div class="dash-tiles">${tiles}</div>
-      <h4 class="dash-h">היעד לפעם הבאה</h4>
+      <h4 class="dash-h">${L('היעד לפעם הבאה', 'Mål till nästa gång')}</h4>
       <div class="goals">${goals}</div>
-      <p class="muted small" style="margin:6px 0 0">לפי הסט הטוב בפעם האחרונה: <span dir="ltr">${setLabel(last.set)}</span>. בחר אחד.</p>
+      <p class="muted small" style="margin:6px 0 0">${L('לפי הסט הטוב בפעם האחרונה', 'Utifrån ditt bästa set förra gången')}: <span dir="ltr">${setLabel(last.set)}</span>. ${L('בחר אחד.', 'Välj ett.')}</p>
       ${repMax}
       ${timeline}
     </div>`;
@@ -1366,22 +1463,22 @@ function viewExerciseDash(sessions, maxE) {
 // ---------- Body metrics ----------
 // better: 1 = higher is better, -1 = lower is better, 0 = neutral (colors the change vs. last measurement).
 const MFIELDS = [
-  { k: 'weight', l: 'משקל', u: 'ק״ג', better: 0 },
-  { k: 'height', l: 'גובה', u: 'ס״מ', better: 0 },
-  { k: 'pbf', l: 'אחוז שומן', u: '%', better: -1 },
-  { k: 'smm', l: 'מסת שריר', u: 'ק״ג', better: 1 },
-  { k: 'fat', l: 'מסת שומן', u: 'ק״ג', better: -1 },
+  { k: 'weight', l: L('משקל', 'Vikt'), u: L('ק״ג', 'kg'), better: 0 },
+  { k: 'height', l: L('גובה', 'Längd'), u: L('ס״מ', 'cm'), better: 0 },
+  { k: 'pbf', l: L('אחוז שומן', 'Fettprocent'), u: '%', better: -1 },
+  { k: 'smm', l: L('מסת שריר', 'Muskelmassa'), u: L('ק״ג', 'kg'), better: 1 },
+  { k: 'fat', l: L('מסת שומן', 'Fettmassa'), u: L('ק״ג', 'kg'), better: -1 },
   { k: 'bmi', l: 'BMI', u: '', better: -1 },
-  { k: 'visceral', l: 'שומן ויסצרלי', u: 'רמה', better: -1 },
-  { k: 'score', l: 'ציון InBody', u: '', better: 1 },
-  { k: 'bmr', l: 'חילוף חומרים (BMR)', u: 'קק״ל', better: 1 },
-  { k: 'ffm', l: 'מסה רזה', u: 'ק״ג', better: 1 },
-  { k: 'tbw', l: 'מים בגוף', u: 'ליטר', better: 0 },
-  { k: 'protein', l: 'חלבון', u: 'ק״ג', better: 1 },
-  { k: 'mineral', l: 'מינרלים', u: 'ק״ג', better: 0 },
+  { k: 'visceral', l: L('שומן ויסצרלי', 'Visceralt fett'), u: L('רמה', 'nivå'), better: -1 },
+  { k: 'score', l: L('ציון InBody', 'InBody-poäng'), u: '', better: 1 },
+  { k: 'bmr', l: L('חילוף חומרים (BMR)', 'Basalmetabolism (BMR)'), u: L('קק״ל', 'kcal'), better: 1 },
+  { k: 'ffm', l: L('מסה רזה', 'Fettfri massa'), u: L('ק״ג', 'kg'), better: 1 },
+  { k: 'tbw', l: L('מים בגוף', 'Kroppsvatten'), u: L('ליטר', 'liter'), better: 0 },
+  { k: 'protein', l: L('חלבון', 'Protein'), u: L('ק״ג', 'kg'), better: 1 },
+  { k: 'mineral', l: L('מינרלים', 'Mineraler'), u: L('ק״ג', 'kg'), better: 0 },
 ];
 const MF = Object.fromEntries(MFIELDS.map((f) => [f.k, f]));
-const CHART_METRICS = [['pbf', 'אחוז שומן'], ['weight', 'משקל'], ['smm', 'שריר'], ['fat', 'שומן ק״ג']];
+const CHART_METRICS = [['pbf', L('אחוז שומן', 'Fettprocent')], ['weight', L('משקל', 'Vikt')], ['smm', L('שריר', 'Muskler')], ['fat', L('שומן ק״ג', 'Fett kg')]];
 
 const API_KEY_KEY = 'gym-tracker-apikey';
 const getApiKey = () => { try { return localStorage.getItem(API_KEY_KEY) || ''; } catch { return ''; } };
@@ -1391,7 +1488,7 @@ const sortedMetrics = () => [...db.metrics].sort((a, b) => b.t - a.t);
 const latestOf = (k) => sortedMetrics().find((m) => m[k] != null);
 const isoDay = (ts) => { const d = new Date(ts); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const dayTs = (iso) => { const [y, m, d] = String(iso).split('-').map(Number); return y && m && d ? new Date(y, m - 1, d, 12).getTime() : null; };
-const fmtDateFull = (ts) => new Date(ts).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric', year: '2-digit' });
+const fmtDateFull = (ts) => new Date(ts).toLocaleDateString(LOC, { day: 'numeric', month: 'numeric', year: '2-digit' });
 
 function deltaHtml(k, cur, prev) {
   if (cur == null || prev == null) return '';
@@ -1404,29 +1501,29 @@ function deltaHtml(k, cur, prev) {
 function viewMetricForm() {
   const d = ui.mdraft;
   const hist = d.history.length ? `
-    <h2>מדידות קודמות מהדוח</h2>
+    <h2>${L('מדידות קודמות מהדוח', 'Tidigare mätningar från rapporten')}</h2>
     <div class="card">
-      <p class="muted small" style="margin-top:0">נמצאו בטבלת ההיסטוריה של הדוח. מסומנות יתווספו (רק משקל, שריר ואחוז שומן).</p>
+      <p class="muted small" style="margin-top:0">${L('נמצאו בטבלת ההיסטוריה של הדוח. מסומנות יתווספו (רק משקל, שריר ואחוז שומן).', 'Hittades i rapportens historiktabell. De markerade läggs till (bara vikt, muskler och fettprocent).')}</p>
       ${d.history.map((h, i) => `
         <label class="hist-row">
           <input type="checkbox" data-f="m-hist" data-i="${i}" ${h.add ? 'checked' : ''} ${h.exists ? 'disabled' : ''}>
-          <span class="grow">${fmtDateFull(dayTs(h.date))}${h.exists ? ' <span class="muted small">(כבר קיימת)</span>' : ''}</span>
+          <span class="grow">${fmtDateFull(dayTs(h.date))}${h.exists ? ` <span class="muted small">${L('(כבר קיימת)', '(finns redan)')}</span>` : ''}</span>
           <span class="muted small" dir="ltr">${[h.weight != null ? `${fmtW(h.weight)}kg` : '', h.smm != null ? `SMM ${fmtW(h.smm)}` : '', h.pbf != null ? `${fmtW(h.pbf)}%` : ''].filter(Boolean).join(' · ')}</span>
         </label>`).join('')}
     </div>` : '';
 
   return `
-    ${d.fromImage ? '<div class="card note">הנתונים נקראו מהתמונה. כדאי לעבור עליהם ולתקן אם משהו לא נקרא נכון.</div>' : ''}
+    ${d.fromImage ? `<div class="card note">${L('הנתונים נקראו מהתמונה. כדאי לעבור עליהם ולתקן אם משהו לא נקרא נכון.', 'Värdena lästes från bilden. Gå igenom dem och rätta om något blev fel.')}</div>` : ''}
     <div class="card">
-      <label class="field">תאריך המדידה<input type="date" data-f="m-date" value="${esc(d.date)}"></label>
+      <label class="field">${L('תאריך המדידה', 'Mätdatum')}<input type="date" data-f="m-date" value="${esc(d.date)}"></label>
       <div class="mgrid">
         ${MFIELDS.map((f) => `<label class="field">${f.l}${f.u ? ` <span class="unit">(${f.u})</span>` : ''}<input type="number" inputmode="decimal" step="any" data-f="m-val" data-k="${f.k}" value="${esc(d.vals[f.k])}"></label>`).join('')}
       </div>
     </div>
     ${hist}
-    <button class="btn primary block" data-act="m-save">שמור מדידה</button>
-    <button class="btn block" data-act="m-cancel">ביטול</button>
-    ${d.isNew ? '' : '<button class="btn danger block" data-act="m-del">מחק מדידה</button>'}`;
+    <button class="btn primary block" data-act="m-save">${L('שמור מדידה', 'Spara mätning')}</button>
+    <button class="btn block" data-act="m-cancel">${L('ביטול', 'Avbryt')}</button>
+    ${d.isNew ? '' : `<button class="btn danger block" data-act="m-del">${L('מחק מדידה', 'Ta bort mätning')}</button>`}`;
 }
 
 function viewMetrics() {
@@ -1436,30 +1533,30 @@ function viewMetrics() {
 
   const paste = ui.pasteOpen ? `
     <div class="card steps">
-      <div class="row between"><h3>קליטת נתונים מ-Claude</h3><button class="icon-btn" data-act="paste-close" aria-label="סגור">✕</button></div>
+      <div class="row between"><h3>${L('קליטת נתונים מ-Claude', 'Hämta värden från Claude')}</h3><button class="icon-btn" data-act="paste-close" aria-label="${L('סגור', 'Stäng')}">✕</button></div>
       <ol>
-        <li>העתק את ההוראה:<button class="btn sm" data-act="paste-copy">העתק הוראה ל-Claude</button></li>
-        <li>פתח את Claude, צרף את תמונת הדוח והדבק את ההוראה.</li>
-        <li>העתק את התשובה שתקבל, חזור לכאן והדבק:
-          <button class="btn sm" data-act="paste-read">הדבק מהלוח</button>
-          <textarea id="paste-text" data-f="paste-text" rows="4" dir="ltr" placeholder="או הדבק כאן ידנית…">${esc(ui.pasteText)}</textarea>
+        <li>${L('העתק את ההוראה:', 'Kopiera instruktionen:')}<button class="btn sm" data-act="paste-copy">${L('העתק הוראה ל-Claude', 'Kopiera instruktion till Claude')}</button></li>
+        <li>${L('פתח את Claude, צרף את תמונת הדוח והדבק את ההוראה.', 'Öppna Claude, bifoga bilden av rapporten och klistra in instruktionen.')}</li>
+        <li>${L('העתק את התשובה שתקבל, חזור לכאן והדבק:', 'Kopiera svaret du får, kom tillbaka hit och klistra in:')}
+          <button class="btn sm" data-act="paste-read">${L('הדבק מהלוח', 'Klistra in från urklipp')}</button>
+          <textarea id="paste-text" data-f="paste-text" rows="4" dir="ltr" placeholder="${L('או הדבק כאן ידנית…', 'eller klistra in här manuellt…')}">${esc(ui.pasteText)}</textarea>
         </li>
       </ol>
-      <button class="btn primary block" data-act="paste-parse">קלוט נתונים</button>
-    </div>` : '<button class="btn primary block" data-act="paste-open" style="margin-top:0">קליטת נתונים מ-Claude</button>';
+      <button class="btn primary block" data-act="paste-parse">${L('קלוט נתונים', 'Läs in värden')}</button>
+    </div>` : `<button class="btn primary block" data-act="paste-open" style="margin-top:0">${L('קליטת נתונים מ-Claude', 'Hämta värden från Claude')}</button>`;
 
   const upload = ui.reading
-    ? '<div class="card center reading"><div class="spinner"></div><div style="margin-top:10px">קורא את הנתונים מהדוח…</div><div class="muted small">זה לוקח בדרך כלל כמה שניות</div></div>'
+    ? `<div class="card center reading"><div class="spinner"></div><div style="margin-top:10px">${L('קורא את הנתונים מהדוח…', 'Läser värdena från rapporten…')}</div><div class="muted small">${L('זה לוקח בדרך כלל כמה שניות', 'Det brukar ta några sekunder')}</div></div>`
     : `${paste}
-       ${hasKey ? '<button class="btn block" data-act="m-upload">קריאה אוטומטית מתמונה</button><input type="file" id="m-file" accept="image/*" hidden>' : ''}
-       <button class="btn ghost block" data-act="m-manual">+ הזנה ידנית</button>`;
+       ${hasKey ? `<button class="btn block" data-act="m-upload">${L('קריאה אוטומטית מתמונה', 'Läs automatiskt från bild')}</button><input type="file" id="m-file" accept="image/*" hidden>` : ''}
+       <button class="btn ghost block" data-act="m-manual">${L('+ הזנה ידנית', '+ Mata in manuellt')}</button>`;
 
   let latest = '', chartCard = '', rows = '';
   if (list.length) {
     const [cur, prev] = list;
     const shown = ['weight', 'pbf', 'smm', 'fat', 'visceral', 'score'].filter((k) => cur[k] != null);
     latest = `
-      <div class="row between" style="margin:18px 0 10px"><h2 style="margin:0">מדידה אחרונה</h2><span class="muted small">${fmtDateFull(cur.t)}</span></div>
+      <div class="row between" style="margin:18px 0 10px"><h2 style="margin:0">${L('מדידה אחרונה', 'Senaste mätningen')}</h2><span class="muted small">${fmtDateFull(cur.t)}</span></div>
       <div class="stats">${shown.map((k) => `
         <div class="stat">
           <div class="v"><span dir="ltr">${fmtW(cur[k])}<span class="u">${MF[k].u === '%' ? '%' : ''}</span></span> ${prev ? deltaHtml(k, cur[k], prev[k]) : ''}</div>
@@ -1471,7 +1568,7 @@ function viewMetrics() {
     chartCard = `
       <div class="card">
         <div class="seg">${CHART_METRICS.map(([k, l]) => `<button class="${ui.bodyMetric === k ? 'on' : ''}" data-act="body-metric" data-k="${k}">${l}</button>`).join('')}</div>
-        ${points.length > 1 ? chart(points, MF[ui.bodyMetric].u) : '<p class="muted small center">צריך לפחות שתי מדידות כדי להציג גרף.</p>'}
+        ${points.length > 1 ? chart(points, MF[ui.bodyMetric].u) : `<p class="muted small center">${L('צריך לפחות שתי מדידות כדי להציג גרף.', 'Det behövs minst två mätningar för att visa ett diagram.')}</p>`}
       </div>`;
 
     rows = list.map((m) => `
@@ -1481,17 +1578,17 @@ function viewMetrics() {
           <span class="muted small" dir="ltr">${[m.weight != null ? `${fmtW(m.weight)} kg` : '', m.pbf != null ? `${fmtW(m.pbf)}%` : ''].filter(Boolean).join(' · ')}</span>
         </summary>
         <div class="mlist">${MFIELDS.filter((f) => m[f.k] != null).map((f) => `<div><span class="muted">${f.l}</span><b dir="ltr">${fmtW(m[f.k])} ${f.u === '%' ? '%' : ''}</b></div>`).join('')}</div>
-        <button class="btn sm" data-act="m-edit" data-id="${m.id}" style="margin-top:10px">עריכה</button>
+        <button class="btn sm" data-act="m-edit" data-id="${m.id}" style="margin-top:10px">${L('עריכה', 'Redigera')}</button>
       </details>`).join('');
   }
 
   const recs = !list.length ? ''
     : ui.recsOpen ? viewRecs()
-      : '<button class="btn primary block" data-act="recs-open">המלצות לשיפור האימון</button>';
+      : `<button class="btn primary block" data-act="recs-open">${L('המלצות לשיפור האימון', 'Råd för bättre träning')}</button>`;
 
   return `
     ${upload}
-    ${list.length ? latest + recs + chartCard + '<h2>כל המדידות</h2>' + rows : '<div class="empty">עוד אין מדידות.<br>צלם את דוח ה-InBody (או כל דוח הרכב גוף), תן ל-Claude לקרוא אותו והדבק את התשובה כאן.</div>'}`;
+    ${list.length ? latest + recs + chartCard + `<h2>${L('כל המדידות', 'Alla mätningar')}</h2>` + rows : `<div class="empty">${L('עוד אין מדידות.<br>צלם את דוח ה-InBody (או כל דוח הרכב גוף), תן ל-Claude לקרוא אותו והדבק את התשובה כאן.', 'Inga mätningar än.<br>Fota din InBody-rapport (eller en annan kroppssammansättningsrapport), låt Claude läsa den och klistra in svaret här.')}</div>`}`;
 }
 
 function newMetricDraft(vals = {}, date = isoDay(Date.now()), history = [], fromImage = false) {
@@ -1509,14 +1606,14 @@ function newMetricDraft(vals = {}, date = isoDay(Date.now()), history = [], from
 async function saveMetric() {
   const d = ui.mdraft;
   const t = dayTs(d.date);
-  if (!t) { toast('בחר תאריך'); return; }
+  if (!t) { toast(L('בחר תאריך', 'Välj ett datum')); return; }
   const entry = { id: d.id, t };
   for (const f of MFIELDS) { const v = num(d.vals[f.k]); if (v != null) entry[f.k] = v; }
-  if (Object.keys(entry).length === 2) { toast('לא הוזנו נתונים'); return; }
+  if (Object.keys(entry).length === 2) { toast(L('לא הוזנו נתונים', 'Inga värden ifyllda')); return; }
 
   // One measurement per day: a new entry on a day that already has one replaces it.
   const sameDay = d.isNew && db.metrics.find((m) => isoDay(m.t) === d.date);
-  if (sameDay && !await ask({ title: 'להחליף את המדידה?', msg: `כבר קיימת מדידה מ-${fmtDateFull(t)}. החדשה תחליף אותה.`, ok: 'החלף' })) return;
+  if (sameDay && !await ask({ title: L('להחליף את המדידה?', 'Ersätta mätningen?'), msg: L(`כבר קיימת מדידה מ-${fmtDateFull(t)}. החדשה תחליף אותה.`, `Det finns redan en mätning från ${fmtDateFull(t)}. Den nya ersätter den.`), ok: L('החלף', 'Ersätt') })) return;
   db.metrics = db.metrics.filter((m) => m.id !== d.id && m !== sameDay);
   db.metrics.push(entry);
 
@@ -1531,7 +1628,7 @@ async function saveMetric() {
   ui.mdraft = null;
   save(); render();
   window.scrollTo(0, 0);
-  toast(added ? `המדידה נשמרה (+${added} מההיסטוריה)` : 'המדידה נשמרה');
+  toast(added ? L(`המדידה נשמרה (+${added} מההיסטוריה)`, `Mätningen sparad (+${added} från historiken)`) : L('המדידה נשמרה', 'Mätningen sparad'));
 }
 
 // Downscale before upload: phone photos are large, and ~1600px is plenty to read the printout.
@@ -1624,9 +1721,9 @@ async function copyText(text) {
 
 function importPasted() {
   const r = parseReportText(ui.pasteText);
-  if (!r) { toast('לא נמצאו נתונים בטקסט. ודא שהעתקת את כל התשובה של Claude', 3500); return; }
-  if (!r.is_report) { toast('Claude לא זיהה דוח הרכב גוף בתמונה', 3500); return; }
-  if (MFIELDS.every((f) => r[f.k] == null)) { toast('לא נמצאו ערכים בתשובה', 3500); return; }
+  if (!r) { toast(L('לא נמצאו נתונים בטקסט. ודא שהעתקת את כל התשובה של Claude', 'Hittade inga värden i texten. Kontrollera att du kopierade hela svaret från Claude'), 3500); return; }
+  if (!r.is_report) { toast(L('Claude לא זיהה דוח הרכב גוף בתמונה', 'Claude hittade ingen kroppssammansättningsrapport i bilden'), 3500); return; }
+  if (MFIELDS.every((f) => r[f.k] == null)) { toast(L('לא נמצאו ערכים בתשובה', 'Inga värden i svaret'), 3500); return; }
   ui.mdraft = newMetricDraft(r, r.date || isoDay(Date.now()), r.history, true);
   ui.pasteOpen = false;
   ui.pasteText = '';
@@ -1654,8 +1751,8 @@ async function readReport(file) {
         ],
       }],
     });
-    if (res.stop_reason === 'refusal') throw new Error('לא ניתן היה לעבד את התמונה');
-    if (res.stop_reason === 'max_tokens') throw new Error('התשובה נקטעה, נסה שוב');
+    if (res.stop_reason === 'refusal') throw uiErr(L('לא ניתן היה לעבד את התמונה', 'Bilden kunde inte bearbetas'));
+    if (res.stop_reason === 'max_tokens') throw uiErr(L('התשובה נקטעה, נסה שוב', 'Svaret klipptes av, försök igen'));
     const text = res.content.find((b) => b.type === 'text')?.text;
     return JSON.parse(text);
   } catch (e) {
@@ -1663,12 +1760,12 @@ async function readReport(file) {
   }
 }
 
-// Hebrew messages for the SDK's error types.
+// User-facing messages for the SDK's error types.
 function apiError(sdk, e) {
-  if (e instanceof sdk.AuthenticationError) return new Error('מפתח ה-API לא תקין');
-  if (e instanceof sdk.RateLimitError) return new Error('יותר מדי בקשות, נסה שוב בעוד דקה');
-  if (e instanceof sdk.APIConnectionError) return new Error('אין חיבור לאינטרנט');
-  if (e instanceof sdk.APIError) return new Error(`שגיאה מהשרת (${e.status ?? '?'})`);
+  if (e instanceof sdk.AuthenticationError) return uiErr(L('מפתח ה-API לא תקין', 'API-nyckeln är ogiltig'));
+  if (e instanceof sdk.RateLimitError) return uiErr(L('יותר מדי בקשות, נסה שוב בעוד דקה', 'För många förfrågningar, försök igen om en minut'));
+  if (e instanceof sdk.APIConnectionError) return uiErr(L('אין חיבור לאינטרנט', 'Ingen internetanslutning'));
+  if (e instanceof sdk.APIError) return uiErr(`${L('שגיאה מהשרת', 'Serverfel')} (${e.status ?? '?'})`);
   return e;
 }
 
@@ -1676,10 +1773,10 @@ async function handleReportFile(file) {
   ui.reading = true; render();
   try {
     const r = await readReport(file);
-    if (!r.is_report) { toast('זה לא נראה כמו דוח הרכב גוף', 3500); return; }
+    if (!r.is_report) { toast(L('זה לא נראה כמו דוח הרכב גוף', 'Det här ser inte ut som en kroppssammansättningsrapport'), 3500); return; }
     ui.mdraft = newMetricDraft(r, r.date && dayTs(r.date) ? r.date : isoDay(Date.now()), r.history || [], true);
   } catch (e) {
-    toast(e.message && /[֐-׿]/.test(e.message) ? e.message : 'לא הצלחתי לקרוא את התמונה', 3500);
+    toast(e.ui ? e.message : L('לא הצלחתי לקרוא את התמונה', 'Kunde inte läsa bilden'), 3500);
   } finally {
     ui.reading = false;
     render();
@@ -1695,9 +1792,9 @@ const AREA_TARGET = { 'חזה': [10, 20], 'גב': [10, 20], 'רגליים': [10,
 // Body fat %: below the first number there's room to build, above the second it's worth cutting first.
 const FAT_BANDS = { m: [12, 20], f: [21, 30] };
 const GOALS = {
-  cut: { l: 'חיטוב', d: 'להוריד שומן ולשמור על השריר', en: 'lose fat while keeping muscle' },
-  recomp: { l: 'שיפור הרכב גוף', d: 'לבנות שריר בלי לעלות בשומן', en: 'build muscle without gaining fat' },
-  bulk: { l: 'מסה נקייה', d: 'לבנות שריר בעודף קלורי קטן', en: 'build muscle in a small calorie surplus' },
+  cut: { l: L('חיטוב', 'Deff'), d: L('להוריד שומן ולשמור על השריר', 'Gå ner i fett och behålla musklerna'), en: 'lose fat while keeping muscle' },
+  recomp: { l: L('שיפור הרכב גוף', 'Bättre kroppssammansättning'), d: L('לבנות שריר בלי לעלות בשומן', 'Bygga muskler utan att gå upp i fett'), en: 'build muscle without gaining fat' },
+  bulk: { l: L('מסה נקייה', 'Ren bulk'), d: L('לבנות שריר בעודף קלורי קטן', 'Bygga muskler med ett litet kaloriöverskott'), en: 'build muscle in a small calorie surplus' },
 };
 
 function bodyProfile() {
@@ -1744,24 +1841,24 @@ function pickGoal(p, sex) {
   return null;
 }
 
-const bmiLabel = (b) => (b < 18.5 ? 'תת-משקל' : b < 25 ? 'תקין' : b < 30 ? 'עודף משקל' : 'השמנה');
+const bmiLabel = (b) => (b < 18.5 ? L('תת-משקל', 'Undervikt') : b < 25 ? L('תקין', 'Normal') : b < 30 ? L('עודף משקל', 'Övervikt') : L('השמנה', 'Fetma'));
 const round50 = (n) => Math.round(n / 50) * 50;
 const r1 = (n) => fmtW(Math.round(n * 10) / 10);
 
 // Movement patterns a balanced program covers, with a stock exercise to suggest when one is missing.
 const PATTERNS = [
-  { k: 'hpush', l: 'דחיקה אופקית (חזה)', re: /לחיצת חזה|שכיבות סמיכה|מקבילים|bench|chest press|push.?up|\bdips?\b/i, add: 'לחיצת חזה במשקולות' },
-  { k: 'vpush', l: 'דחיקה אנכית (כתפיים)', re: /לחיצת כתפיים|לחיצה צבאית|ארנולד|overhead press|shoulder press|military/i, add: 'לחיצת כתפיים במשקולות' },
-  { k: 'hpull', l: 'משיכה אופקית (חתירה)', re: /חתיר|פולי תחתון|\brow/i, add: 'חתירה במשקולת' },
-  { k: 'vpull', l: 'משיכה אנכית (מתח)', re: /מתח|פולי עליון|pull.?up|chin.?up|pulldown/i, add: 'פולי עליון' },
-  { k: 'squat', l: 'סקוואט / לחיצת רגליים', re: /סקוואט|לחיצת רגליים|מכרע|לאנג|squat|leg press|lunge/i, add: 'סקוואט גובלט' },
-  { k: 'hinge', l: 'כפיפת ירך (דדליפט)', re: /דדליפט|היפ טראסט|גשר ישבן|deadlift|hip thrust|\brdl\b|good ?morning/i, add: 'דדליפט רומני' },
-  { k: 'rear', l: 'כתף אחורית', re: /פייס|פרפר הפוך|face ?pull|rear delt|reverse fly/i, add: 'פייס פול' },
+  { k: 'hpush', l: L('דחיקה אופקית (חזה)', 'Horisontell press (bröst)'), re: /לחיצת חזה|שכיבות סמיכה|מקבילים|bänkpress|bröstpress|armhävning|bench|chest press|push.?up|\bdips?\b/i, add: stockName('לחיצת חזה במשקולות') },
+  { k: 'vpush', l: L('דחיקה אנכית (כתפיים)', 'Vertikal press (axlar)'), re: /לחיצת כתפיים|לחיצה צבאית|ארנולד|axelpress|militärpress|overhead press|shoulder press|military/i, add: stockName('לחיצת כתפיים במשקולות') },
+  { k: 'hpull', l: L('משיכה אופקית (חתירה)', 'Horisontellt drag (rodd)'), re: /חתיר|פולי תחתון|rodd|\brow/i, add: stockName('חתירה במשקולת') },
+  { k: 'vpull', l: L('משיכה אנכית (מתח)', 'Vertikalt drag (chins)'), re: /מתח|פולי עליון|chins|latsdrag|pull.?up|chin.?up|pulldown/i, add: stockName('פולי עליון') },
+  { k: 'squat', l: L('סקוואט / לחיצת רגליים', 'Knäböj / benpress'), re: /סקוואט|לחיצת רגליים|מכרע|לאנג|knäböj|benpress|utfall|squat|leg press|lunge/i, add: stockName('סקוואט גובלט') },
+  { k: 'hinge', l: L('כפיפת ירך (דדליפט)', 'Höftfällning (marklyft)'), re: /דדליפט|היפ טראסט|גשר ישבן|marklyft|höftlyft|deadlift|hip thrust|\brdl\b|good ?morning/i, add: stockName('דדליפט רומני') },
+  { k: 'rear', l: L('כתף אחורית', 'Bakre axel'), re: /פייס|פרפר הפוך|face ?pull|omvända flyes|rear delt|reverse fly/i, add: stockName('פייס פול') },
 ];
 const COMPOUND = ['hpush', 'vpush', 'hpull', 'vpull', 'squat', 'hinge'];
-const ISOLATION = /הרחק|פרפר|פק דק|כפיפ(ת|ות) מרפק|פשיט(ת|ות)|הרמת עקבים|פטיש|פרנץ|סקאל|כפיפת ברכיים|curl|extension|raise|\bfly/i;
-const patternsOf = (name) => PATTERNS.filter((p) => p.re.test(name)).map((p) => p.k);
-const isCompound = (name) => !ISOLATION.test(name) && patternsOf(name).some((k) => COMPOUND.includes(k));
+const ISOLATION = /הרחק|פרפר|פק דק|כפיפ(ת|ות) מרפק|פשיט(ת|ות)|הרמת עקבים|פטיש|פרנץ|סקאל|כפיפת ברכיים|sidolyft|flyes|tåhäv|benspark|pushdown|fransk press|curl|extension|raise|\bfly/i;
+const patternsOf = (name) => PATTERNS.filter((p) => p.re.test(canon(name))).map((p) => p.k);
+const isCompound = (name) => !ISOLATION.test(canon(name)) && patternsOf(name).some((k) => COMPOUND.includes(k));
 
 // Review the templates' exercise choice: missing movement patterns, push/pull balance, order, reps, rest and length.
 function programReview() {
@@ -1775,36 +1872,42 @@ function programReview() {
   const missing = PATTERNS.filter((p) => !sets[p.k]);
   if (missing.length) {
     out.push({
-      t: 'דפוסי תנועה חסרים',
-      d: `אין בתבניות ${missing.map((p) => `<b>${p.l}</b>`).join(', ')}. תוכנית מאוזנת עובדת על כל דפוסי התנועה הבסיסיים – כדאי להוסיף: ${missing.map((p) => p.add).join(', ')}.`,
+      t: L('דפוסי תנועה חסרים', 'Saknade rörelsemönster'),
+      d: L(`אין בתבניות ${missing.map((p) => `<b>${p.l}</b>`).join(', ')}. תוכנית מאוזנת עובדת על כל דפוסי התנועה הבסיסיים – כדאי להוסיף: ${missing.map((p) => p.add).join(', ')}.`,
+        `Mallarna saknar ${missing.map((p) => `<b>${p.l}</b>`).join(', ')}. Ett balanserat program tränar alla grundläggande rörelsemönster – lägg gärna till: ${missing.map((p) => p.add).join(', ')}.`),
     });
   }
 
   const push = sets.hpush + sets.vpush, pull = sets.hpull + sets.vpull;
   if (push && pull && push > pull * 1.3) {
-    out.push({ t: 'יחס דחיקה–משיכה', d: `בתבניות ${push} סטים של דחיקה מול ${pull} של משיכה. עודף דחיקה מושך את הכתפיים קדימה ומגביר סיכון לפציעה – כוון ליחס של 1:1 לפחות, למשל עוד 2–3 סטים של חתירה או פייס פול.` });
+    out.push({ t: L('יחס דחיקה–משיכה', 'Balans press–drag'), d: L(`בתבניות ${push} סטים של דחיקה מול ${pull} של משיכה. עודף דחיקה מושך את הכתפיים קדימה ומגביר סיכון לפציעה – כוון ליחס של 1:1 לפחות, למשל עוד 2–3 סטים של חתירה או פייס פול.`,
+      `Mallarna har ${push} set press mot ${pull} set drag. För mycket press drar axlarna framåt och ökar skaderisken – sikta på minst 1:1, till exempel 2–3 set rodd eller face pulls till.`) });
   } else if (push && pull && pull > push * 1.6) {
-    out.push({ t: 'יחס דחיקה–משיכה', d: `${pull} סטים של משיכה מול ${push} בלבד של דחיקה – אפשר להוסיף סטים של לחיצת חזה או כתפיים.` });
+    out.push({ t: L('יחס דחיקה–משיכה', 'Balans press–drag'), d: L(`${pull} סטים של משיכה מול ${push} בלבד של דחיקה – אפשר להוסיף סטים של לחיצת חזה או כתפיים.`,
+      `${pull} set drag mot bara ${push} set press – du kan lägga till set bänkpress eller axelpress.`) });
   }
 
   for (const t of tpls) {
     const notes = [];
     // Big compound lifts first, while fresh; isolation work after.
-    const firstIso = t.exercises.findIndex((e) => ISOLATION.test(e.name));
+    const firstIso = t.exercises.findIndex((e) => ISOLATION.test(canon(e.name)));
+    const nm = (e) => `"${esc(exName(e.name))}"`;
     const lateCompound = firstIso >= 0 && t.exercises.slice(firstIso + 1).find((e) => isCompound(e.name));
-    if (lateCompound) notes.push(`הזז את "${esc(lateCompound.name)}" לפני "${esc(t.exercises[firstIso].name)}" – תרגילים מורכבים כדאי לעשות ראשונים, כשהכוח במיטבו.`);
+    if (lateCompound) notes.push(L(`הזז את ${nm(lateCompound)} לפני ${nm(t.exercises[firstIso])} – תרגילים מורכבים כדאי לעשות ראשונים, כשהכוח במיטבו.`,
+      `Flytta ${nm(lateCompound)} före ${nm(t.exercises[firstIso])} – flerledsövningar görs bäst först, när du är som starkast.`));
     const heavyShortRest = t.exercises.filter((e) => isCompound(e.name) && e.reps <= 8 && e.rest < 120);
-    if (heavyShortRest.length) notes.push(`${heavyShortRest.map((e) => `"${esc(e.name)}"`).join(', ')}: ב-${heavyShortRest[0].reps} חזרות או פחות כדאי לנוח 2–3 דקות, כדי שהסט הבא לא ייחלש.`);
+    if (heavyShortRest.length) notes.push(`${heavyShortRest.map(nm).join(', ')}: ${L(`ב-${heavyShortRest[0].reps} חזרות או פחות כדאי לנוח 2–3 דקות, כדי שהסט הבא לא ייחלש.`, `vid ${heavyShortRest[0].reps} reps eller färre är det bra att vila 2–3 minuter, så att nästa set inte blir sämre.`)}`);
     const oddReps = t.exercises.filter((e) => e.reps > 20 || e.reps < 4);
-    if (oddReps.length) notes.push(`${oddReps.map((e) => `"${esc(e.name)}" (${e.reps})`).join(', ')}: טווח חזרות חריג. לרוב התרגילים 5–15 חזרות עובדות הכי טוב לבניית שריר.`);
+    if (oddReps.length) notes.push(`${oddReps.map((e) => `${nm(e)} (${e.reps})`).join(', ')}: ${L('טווח חזרות חריג. לרוב התרגילים 5–15 חזרות עובדות הכי טוב לבניית שריר.', 'ovanligt repintervall. För de flesta övningar fungerar 5–15 reps bäst för att bygga muskler.')}`);
     const manySets = t.exercises.filter((e) => e.sets > 5);
-    if (manySets.length) notes.push(`${manySets.map((e) => `"${esc(e.name)}"`).join(', ')}: יותר מ-5 סטים לתרגיל אחד – עדיף לפצל לשני תרגילים שונים לאותו שריר.`);
+    if (manySets.length) notes.push(`${manySets.map(nm).join(', ')}: ${L('יותר מ-5 סטים לתרגיל אחד – עדיף לפצל לשני תרגילים שונים לאותו שריר.', 'fler än 5 set för en övning – dela hellre upp på två olika övningar för samma muskel.')}`);
     const total = t.exercises.reduce((a, e) => a + e.sets, 0);
-    if (t.exercises.length > 8 || total > 28) notes.push(`${t.exercises.length} תרגילים ו-${total} סטים – אימון ארוך מדי. האיכות יורדת אחרי כ-20–25 סטים; כדאי לפצל לאימון נוסף.`);
-    if (notes.length) out.push({ t: `תבנית: ${esc(t.name)}`, d: notes.map((n) => `• ${n}`).join('<br>') });
+    if (t.exercises.length > 8 || total > 28) notes.push(L(`${t.exercises.length} תרגילים ו-${total} סטים – אימון ארוך מדי. האיכות יורדת אחרי כ-20–25 סטים; כדאי לפצל לאימון נוסף.`,
+      `${t.exercises.length} övningar och ${total} set – för långt pass. Kvaliteten sjunker efter ungefär 20–25 set; dela gärna upp på ett pass till.`));
+    if (notes.length) out.push({ t: `${L('תבנית', 'Mall')}: ${esc(t.name)}`, d: notes.map((n) => `• ${n}`).join('<br>') });
   }
 
-  if (!out.length) out.push({ t: 'התוכנית מאוזנת', d: 'כל דפוסי התנועה הבסיסיים מכוסים, יחס הדחיקה–משיכה תקין והתרגילים המורכבים באים ראשונים. המשך להתקדם בעומסים.' });
+  if (!out.length) out.push({ t: L('התוכנית מאוזנת', 'Programmet är balanserat'), d: L('כל דפוסי התנועה הבסיסיים מכוסים, יחס הדחיקה–משיכה תקין והתרגילים המורכבים באים ראשונים. המשך להתקדם בעומסים.', 'Alla grundläggande rörelsemönster täcks, balansen press–drag är bra och flerledsövningarna kommer först. Fortsätt öka belastningen.') });
   return out;
 }
 
@@ -1818,14 +1921,15 @@ function buildRecs() {
 
   if (goal) {
     let d = `${GOALS[goal].d}. `;
-    if (p.pbf != null) d += `אחוז השומן שלך (${r1(p.pbf)}%) ${goal === 'cut' ? 'מעל' : goal === 'bulk' ? 'מתחת ל' : 'בתוך'} הטווח ${FAT_BANDS[sex].join('–')}%.`;
-    else d += `לפי BMI ${r1(p.bmi)} (${bmiLabel(p.bmi)}). עם אחוז שומן מהדוח ההמלצה תהיה מדויקת יותר.`;
+    if (p.pbf != null) d += L(`אחוז השומן שלך (${r1(p.pbf)}%) ${goal === 'cut' ? 'מעל' : goal === 'bulk' ? 'מתחת ל' : 'בתוך'} הטווח ${FAT_BANDS[sex].join('–')}%.`,
+      `Din fettprocent (${r1(p.pbf)} %) ligger ${goal === 'cut' ? 'över' : goal === 'bulk' ? 'under' : 'inom'} intervallet ${FAT_BANDS[sex].join('–')} %.`);
+    else d += L(`לפי BMI ${r1(p.bmi)} (${bmiLabel(p.bmi)}). עם אחוז שומן מהדוח ההמלצה תהיה מדויקת יותר.`, `Utifrån BMI ${r1(p.bmi)} (${bmiLabel(p.bmi)}). Med fettprocent från rapporten blir rådet mer exakt.`);
     if (p.ffmi != null) {
-      d += p.ffmi < 19 ? ' מדד השריר (FFMI) נמוך יחסית – יש הרבה מקום לבנות שריר, ובשלב הזה מתקדמים מהר.'
-        : p.ffmi >= 23 ? ' מדד השריר (FFMI) גבוה – קרוב לתקרה הטבעית, ההתקדמות תהיה איטית ותלויה בעקביות.'
-          : ' מדד השריר (FFMI) טוב – יש עוד מקום לגדול בקצב סביר.';
+      d += p.ffmi < 19 ? L(' מדד השריר (FFMI) נמוך יחסית – יש הרבה מקום לבנות שריר, ובשלב הזה מתקדמים מהר.', ' Ditt muskelindex (FFMI) är relativt lågt – det finns mycket utrymme att bygga muskler, och i det här skedet går det fort.')
+        : p.ffmi >= 23 ? L(' מדד השריר (FFMI) גבוה – קרוב לתקרה הטבעית, ההתקדמות תהיה איטית ותלויה בעקביות.', ' Ditt muskelindex (FFMI) är högt – nära det naturliga taket, så framstegen blir långsamma och hänger på kontinuitet.')
+          : L(' מדד השריר (FFMI) טוב – יש עוד מקום לגדול בקצב סביר.', ' Ditt muskelindex (FFMI) är bra – det finns fortfarande utrymme att växa i rimlig takt.');
     }
-    recs.push({ t: `מטרה מומלצת: ${GOALS[goal].l}`, d });
+    recs.push({ t: `${L('מטרה מומלצת', 'Rekommenderat mål')}: ${GOALS[goal].l}`, d });
   }
 
   // Calories: measured BMR when the report has it, otherwise Katch-McArdle from lean mass, otherwise a per-kg estimate.
@@ -1837,53 +1941,57 @@ function buildRecs() {
   const refW = p.bmi >= 30 && p.hm ? 25 * p.hm ** 2 : p.weight;
   const [gLo, gHi] = goal === 'cut' ? [2, 2.4] : goal === 'bulk' ? [1.6, 2] : [1.8, 2.2];
   recs.push({
-    t: 'תזונה',
-    d: `כ-<b>${round50(target)} קק״ל</b> ביום (תחזוקה משוערת ${round50(tdee)}${goal === 'cut' ? ', גירעון של כ-450' : goal === 'bulk' ? ', עודף של כ-250' : ''}). חלבון: <b>${Math.round(refW * gLo)}–${Math.round(refW * gHi)} גרם</b> ביום, מחולק ל-3–5 ארוחות.`,
+    t: L('תזונה', 'Kost'),
+    d: L(`כ-<b>${round50(target)} קק״ל</b> ביום (תחזוקה משוערת ${round50(tdee)}${goal === 'cut' ? ', גירעון של כ-450' : goal === 'bulk' ? ', עודף של כ-250' : ''}). חלבון: <b>${Math.round(refW * gLo)}–${Math.round(refW * gHi)} גרם</b> ביום, מחולק ל-3–5 ארוחות.`,
+      `Cirka <b>${round50(target)} kcal</b> per dag (uppskattat underhåll ${round50(tdee)}${goal === 'cut' ? ', ett underskott på cirka 450' : goal === 'bulk' ? ', ett överskott på cirka 250' : ''}). Protein: <b>${Math.round(refW * gLo)}–${Math.round(refW * gHi)} gram</b> per dag, fördelat på 3–5 måltider.`),
   });
 
   if (p.trend) {
     const { pct, perWeek, smm, weeks } = p.trend;
-    let d = `ב-${Math.round(weeks)} השבועות האחרונים: <span dir="ltr">${perWeek > 0 ? '+' : ''}${fmtW(Math.round(perWeek * 100) / 100)}</span> ק״ג בשבוע. `;
-    if (goal === 'cut') d += pct > -0.25 ? 'המשקל כמעט לא יורד – הורד עוד כ-200 קק״ל ביום או הוסף 2,000–3,000 צעדים.'
-      : pct < -1 ? 'הירידה מהירה מדי ומסכנת שריר – הוסף כ-200 קק״ל ביום.' : 'קצב ירידה מצוין (0.25%–1% מהמשקל בשבוע), המשך כך.';
-    else if (goal === 'bulk') d += pct < 0.1 ? 'המשקל לא עולה – הוסף כ-150–200 קק״ל ביום.'
-      : pct > 0.6 ? 'העלייה מהירה מדי וחלק ממנה שומן – הורד כ-150 קק״ל ביום.' : 'קצב עלייה טוב לבניית שריר נקי.';
-    else d += Math.abs(pct) > 0.5 ? 'המשקל זז מהר מדי לשיפור הרכב גוף – כוון לשמור עליו יציב.' : 'המשקל יציב, כמו שצריך.';
-    if (smm != null) d += smm < -0.5 ? ` מסת השריר ירדה ב-${r1(-smm)} ק״ג – הקפד על חלבון ועל משקלים כבדים.`
-      : smm > 0.3 ? ` מסת השריר עלתה ב-${r1(smm)} ק״ג – האימונים עובדים.` : '';
-    recs.push({ t: 'מגמה', d });
+    const kgWeek = `<span dir="ltr">${perWeek > 0 ? '+' : ''}${fmtW(Math.round(perWeek * 100) / 100)}</span>`;
+    let d = L(`ב-${Math.round(weeks)} השבועות האחרונים: ${kgWeek} ק״ג בשבוע. `, `De senaste ${Math.round(weeks)} veckorna: ${kgWeek} kg per vecka. `);
+    if (goal === 'cut') d += pct > -0.25 ? L('המשקל כמעט לא יורד – הורד עוד כ-200 קק״ל ביום או הוסף 2,000–3,000 צעדים.', 'Vikten går knappt ner – dra ner ytterligare cirka 200 kcal per dag eller lägg till 2 000–3 000 steg.')
+      : pct < -1 ? L('הירידה מהירה מדי ומסכנת שריר – הוסף כ-200 קק״ל ביום.', 'Viktnedgången är för snabb och riskerar musklerna – lägg till cirka 200 kcal per dag.') : L('קצב ירידה מצוין (0.25%–1% מהמשקל בשבוע), המשך כך.', 'Utmärkt takt (0,25–1 % av vikten per vecka), fortsätt så.');
+    else if (goal === 'bulk') d += pct < 0.1 ? L('המשקל לא עולה – הוסף כ-150–200 קק״ל ביום.', 'Vikten går inte upp – lägg till cirka 150–200 kcal per dag.')
+      : pct > 0.6 ? L('העלייה מהירה מדי וחלק ממנה שומן – הורד כ-150 קק״ל ביום.', 'Uppgången är för snabb och en del är fett – dra ner cirka 150 kcal per dag.') : L('קצב עלייה טוב לבניית שריר נקי.', 'Bra takt för att bygga muskler utan mycket fett.');
+    else d += Math.abs(pct) > 0.5 ? L('המשקל זז מהר מדי לשיפור הרכב גוף – כוון לשמור עליו יציב.', 'Vikten ändras för snabbt för en bättre kroppssammansättning – sikta på att hålla den stabil.') : L('המשקל יציב, כמו שצריך.', 'Vikten är stabil, precis som den ska.');
+    if (smm != null) d += smm < -0.5 ? L(` מסת השריר ירדה ב-${r1(-smm)} ק״ג – הקפד על חלבון ועל משקלים כבדים.`, ` Muskelmassan har minskat med ${r1(-smm)} kg – se till att få i dig protein och träna med tunga vikter.`)
+      : smm > 0.3 ? L(` מסת השריר עלתה ב-${r1(smm)} ק״ג – האימונים עובדים.`, ` Muskelmassan har ökat med ${r1(smm)} kg – träningen fungerar.`) : '';
+    recs.push({ t: L('מגמה', 'Trend'), d });
   }
 
   if (tr) {
     const low = [], high = [];
     for (const [g, [lo, hi]] of Object.entries(AREA_TARGET)) {
       const v = tr.sets.get(g);
-      if (v < lo) low.push(`${g} (${r1(v)})`);
-      else if (v > hi) high.push(`${g} (${r1(v)})`);
+      if (v < lo) low.push(`${gName(g)} (${r1(v)})`);
+      else if (v > hi) high.push(`${gName(g)} (${r1(v)})`);
     }
-    let d = `ממוצע ${r1(tr.perWeek)} אימונים בשבוע. `;
-    d += low.length ? `<b>מתחת לטווח המומלץ</b> (סטים בשבוע): ${low.join(', ')} – הוסף 2–4 סטים בשבוע לכל אחד. ` : 'כל האזורים בטווח המומלץ של סטים שבועיים. ';
-    if (high.length) d += `מעל הטווח: ${high.join(', ')} – אם ההתאוששות קשה, אפשר להוריד. `;
-    if (goal === 'cut') d += 'בחיטוב שמור על הנפח – אל תוריד סטים בגלל הגירעון.';
-    recs.push({ t: 'נפח אימון', d });
-    if (tr.perWeek < 2.5) recs.push({ t: 'תדירות', d: 'כדאי להגיע ל-3–4 אימונים בשבוע, כך שכל שריר יעבוד פעמיים בשבוע. זה בונה יותר מאימון ארוך אחד.' });
+    let d = L(`ממוצע ${r1(tr.perWeek)} אימונים בשבוע. `, `I snitt ${r1(tr.perWeek)} pass per vecka. `);
+    d += low.length ? L(`<b>מתחת לטווח המומלץ</b> (סטים בשבוע): ${low.join(', ')} – הוסף 2–4 סטים בשבוע לכל אחד. `, `<b>Under rekommenderat intervall</b> (set per vecka): ${low.join(', ')} – lägg till 2–4 set per vecka för var och en. `)
+      : L('כל האזורים בטווח המומלץ של סטים שבועיים. ', 'Alla kroppsdelar ligger inom rekommenderat antal set per vecka. ');
+    if (high.length) d += L(`מעל הטווח: ${high.join(', ')} – אם ההתאוששות קשה, אפשר להוריד. `, `Över intervallet: ${high.join(', ')} – om återhämtningen känns tung kan du dra ner. `);
+    if (goal === 'cut') d += L('בחיטוב שמור על הנפח – אל תוריד סטים בגלל הגירעון.', 'Behåll volymen under deffen – dra inte ner på set på grund av underskottet.');
+    recs.push({ t: L('נפח אימון', 'Träningsvolym'), d });
+    if (tr.perWeek < 2.5) recs.push({ t: L('תדירות', 'Frekvens'), d: L('כדאי להגיע ל-3–4 אימונים בשבוע, כך שכל שריר יעבוד פעמיים בשבוע. זה בונה יותר מאימון ארוך אחד.', 'Sikta på 3–4 pass per vecka, så att varje muskel tränas två gånger i veckan. Det bygger mer än ett långt pass.') });
   } else {
-    recs.push({ t: 'נפח אימון', d: 'אין אימונים מ-4 השבועות האחרונים. התחל ב-3 אימונים בשבוע, 10–12 סטים שבועיים לכל אזור גדול.' });
+    recs.push({ t: L('נפח אימון', 'Träningsvolym'), d: L('אין אימונים מ-4 השבועות האחרונים. התחל ב-3 אימונים בשבוע, 10–12 סטים שבועיים לכל אזור גדול.', 'Inga pass de senaste 4 veckorna. Börja med 3 pass per vecka, 10–12 set per vecka för varje stor muskelgrupp.') });
   }
 
   recs.push({
-    t: 'עצימות',
+    t: L('עצימות', 'Intensitet'),
     d: goal === 'cut'
-      ? 'שמור על משקלים כבדים ב-6–10 חזרות, 1–2 חזרות לפני כשל. המשקל הכבד הוא מה שאומר לגוף לשמור על השריר בגירעון.'
-      : 'רוב הסטים ב-6–12 חזרות, 1–2 חזרות לפני כשל. כשמגיעים לראש טווח החזרות בכל הסטים – מעלים 2.5 ק״ג.',
+      ? L('שמור על משקלים כבדים ב-6–10 חזרות, 1–2 חזרות לפני כשל. המשקל הכבד הוא מה שאומר לגוף לשמור על השריר בגירעון.', 'Behåll tunga vikter på 6–10 reps, 1–2 reps från failure. Den tunga vikten är det som säger åt kroppen att behålla musklerna under ett underskott.')
+      : L('רוב הסטים ב-6–12 חזרות, 1–2 חזרות לפני כשל. כשמגיעים לראש טווח החזרות בכל הסטים – מעלים 2.5 ק״ג.', 'De flesta set på 6–12 reps, 1–2 reps från failure. När du når toppen av repintervallet i alla set – öka med 2,5 kg.'),
   });
 
   const highVisceral = p.visceral != null && p.visceral >= 10;
   recs.push({
-    t: 'אירובי',
+    t: L('אירובי', 'Kondition'),
     d: goal === 'cut' || highVisceral
-      ? `2–3 פעמים בשבוע 20–30 דקות בדופק בינוני (הליכה בשיפוע, אופניים) ו-8,000–10,000 צעדים ביום${highVisceral ? `. השומן הוויסצרלי (רמה ${fmtW(p.visceral)}) מעל 10 – אירובי קבוע הוא הדרך היעילה להוריד אותו` : ''}.`
-      : '1–2 פעמים בשבוע 20 דקות אירובי קל לבריאות הלב, בלי לפגוע בהתאוששות.',
+      ? L(`2–3 פעמים בשבוע 20–30 דקות בדופק בינוני (הליכה בשיפוע, אופניים) ו-8,000–10,000 צעדים ביום${highVisceral ? `. השומן הוויסצרלי (רמה ${fmtW(p.visceral)}) מעל 10 – אירובי קבוע הוא הדרך היעילה להוריד אותו` : ''}.`,
+        `2–3 gånger i veckan 20–30 minuter på måttlig puls (gång i lutning, cykel) och 8 000–10 000 steg om dagen${highVisceral ? `. Ditt viscerala fett (nivå ${fmtW(p.visceral)}) är över 10 – regelbunden kondition är det effektivaste sättet att få ner det` : ''}.`)
+      : L('1–2 פעמים בשבוע 20 דקות אירובי קל לבריאות הלב, בלי לפגוע בהתאוששות.', '1–2 gånger i veckan 20 minuter lätt kondition för hjärtat, utan att störa återhämtningen.'),
   });
 
   return { p, sex, goal, recs, tdee, tr };
@@ -1895,33 +2003,37 @@ function viewRecs() {
   const { p, sex, goal } = r;
   const stats = [
     p.bmi != null && [r1(p.bmi), `BMI · ${bmiLabel(p.bmi)}`],
-    p.ffmi != null && [r1(p.ffmi), 'FFMI · מדד שריר'],
-    p.pbf != null && [`${r1(p.pbf)}<span class="u">%</span>`, 'אחוז שומן'],
-    p.ffm != null && [r1(p.ffm), 'מסה רזה (ק״ג)'],
+    p.ffmi != null && [r1(p.ffmi), L('FFMI · מדד שריר', 'FFMI · muskelindex')],
+    p.pbf != null && [`${r1(p.pbf)}<span class="u">%</span>`, L('אחוז שומן', 'Fettprocent')],
+    p.ffm != null && [r1(p.ffm), L('מסה רזה (ק״ג)', 'Fettfri massa (kg)')],
   ].filter(Boolean);
   const ai = db.aiRec, hasKey = !!getApiKey();
   const review = programReview();
 
   return `
     <div class="card recs">
-      <div class="row between"><h3>המלצות לשיפור האימון</h3><button class="icon-btn" data-act="recs-close" aria-label="סגור">✕</button></div>
-      <div class="seg" style="margin-top:10px">${[['m', 'גבר'], ['f', 'אישה']].map(([k, l]) => `<button class="${sex === k ? 'on' : ''}" data-act="rec-sex" data-k="${k}">${l}</button>`).join('')}</div>
-      ${p.height ? '' : `<div class="card note">חסר גובה – בלעדיו אי אפשר לחשב BMI ומדד שריר. <button class="btn sm" data-act="m-edit" data-id="${p.m.id}">הוסף גובה למדידה</button></div>`}
+      <div class="row between"><h3>${L('המלצות לשיפור האימון', 'Råd för bättre träning')}</h3><button class="icon-btn" data-act="recs-close" aria-label="${L('סגור', 'Stäng')}">✕</button></div>
+      <div class="seg" style="margin-top:10px">${[['m', L('גבר', 'Man')], ['f', L('אישה', 'Kvinna')]].map(([k, l]) => `<button class="${sex === k ? 'on' : ''}" data-act="rec-sex" data-k="${k}">${l}</button>`).join('')}</div>
+      ${p.height ? '' : `<div class="card note">${L('חסר גובה – בלעדיו אי אפשר לחשב BMI ומדד שריר.', 'Längd saknas – utan den går det inte att räkna ut BMI och muskelindex.')} <button class="btn sm" data-act="m-edit" data-id="${p.m.id}">${L('הוסף גובה למדידה', 'Lägg till längd i mätningen')}</button></div>`}
       ${stats.length ? `<div class="stats">${stats.map(([n, l]) => `<div class="stat"><div class="v" dir="ltr">${n}</div><div class="l">${l}</div></div>`).join('')}</div>` : ''}
       ${r.recs.map((x) => `<div class="rec"><h4>${x.t}</h4><p>${x.d}</p></div>`).join('')}
-      ${review.length ? `<h3 class="rec-head">סקירת התרגילים בתוכנית</h3>${review.map((x) => `<div class="rec"><h4>${x.t}</h4><p>${x.d}</p></div>`).join('')}` : ''}
-      <p class="muted small" style="margin-bottom:0">לפי ${p.height ? `גובה ${fmtW(p.height)} ס״מ, ` : ''}משקל ${fmtW(p.weight)} ק״ג${p.pbf != null ? ' והרכב הגוף' : ''} מ-${fmtDateFull(p.m.t)} ומהאימונים של 4 השבועות האחרונים. אלה המלצות כלליות, לא תחליף למאמן או לדיאטנית.</p>
+      ${review.length ? `<h3 class="rec-head">${L('סקירת התרגילים בתוכנית', 'Genomgång av programmets övningar')}</h3>${review.map((x) => `<div class="rec"><h4>${x.t}</h4><p>${x.d}</p></div>`).join('')}` : ''}
+      <p class="muted small" style="margin-bottom:0">${L(
+        `לפי ${p.height ? `גובה ${fmtW(p.height)} ס״מ, ` : ''}משקל ${fmtW(p.weight)} ק״ג${p.pbf != null ? ' והרכב הגוף' : ''} מ-${fmtDateFull(p.m.t)} ומהאימונים של 4 השבועות האחרונים. אלה המלצות כלליות, לא תחליף למאמן או לדיאטנית.`,
+        `Utifrån ${p.height ? `längd ${fmtW(p.height)} cm, ` : ''}vikt ${fmtW(p.weight)} kg${p.pbf != null ? ' och kroppssammansättning' : ''} från ${fmtDateFull(p.m.t)} och passen de senaste 4 veckorna. Det här är allmänna råd, ingen ersättning för en tränare eller dietist.`)}</p>
     </div>
     <div class="card">
-      <h3>המלצות מותאמות מ-Claude</h3>
-      <p class="muted small" style="margin:6px 0 10px">Claude יקבל את המדדים, האימונים והתבניות שלך${goal ? ` (מטרה: ${GOALS[goal].l})` : ''}, יעבור על כל תרגיל בתוכנית ויציע שיפורים – מבוסס על חיפוש באתרי הכושר והמחקר המובילים, עם קישורים למקורות.</p>
+      <h3>${L('המלצות מותאמות מ-Claude', 'Personliga råd från Claude')}</h3>
+      <p class="muted small" style="margin:6px 0 10px">${L(
+        `Claude יקבל את המדדים, האימונים והתבניות שלך${goal ? ` (מטרה: ${GOALS[goal].l})` : ''}, יעבור על כל תרגיל בתוכנית ויציע שיפורים – מבוסס על חיפוש באתרי הכושר והמחקר המובילים, עם קישורים למקורות.`,
+        `Claude får dina mätvärden, pass och mallar${goal ? ` (mål: ${GOALS[goal].l})` : ''}, går igenom varje övning i programmet och föreslår förbättringar – baserat på sökningar på ledande tränings- och forskningssajter, med länkar till källorna.`)}</p>
       ${ui.recLoading
-        ? '<div class="center reading"><div class="spinner"></div><div style="margin-top:10px">Claude מנתח את הנתונים…</div></div>'
-        : `<button class="btn primary block" data-act="rec-ai">${hasKey ? (ai ? 'בקש המלצות מחדש' : 'קבל המלצות מ-Claude') : 'העתק בקשה ל-Claude'}</button>`}
-      ${hasKey ? '' : '<p class="muted small" style="margin-bottom:0">הבקשה תועתק עם הנתונים שלך – הדבק אותה בצ׳אט עם Claude (עם חיפוש באינטרנט מופעל). עם מפתח API (בהגדרות ⚙ למעלה) התשובה והמקורות יופיעו כאן.</p>'}
+        ? `<div class="center reading"><div class="spinner"></div><div style="margin-top:10px">${L('Claude מנתח את הנתונים…', 'Claude analyserar datan…')}</div></div>`
+        : `<button class="btn primary block" data-act="rec-ai">${hasKey ? (ai ? L('בקש המלצות מחדש', 'Be om nya råd') : L('קבל המלצות מ-Claude', 'Få råd från Claude')) : L('העתק בקשה ל-Claude', 'Kopiera förfrågan till Claude')}</button>`}
+      ${hasKey ? '' : `<p class="muted small" style="margin-bottom:0">${L('הבקשה תועתק עם הנתונים שלך – הדבק אותה בצ׳אט עם Claude (עם חיפוש באינטרנט מופעל). עם מפתח API (בהגדרות ⚙ למעלה) התשובה והמקורות יופיעו כאן.', 'Förfrågan kopieras med din data – klistra in den i en chatt med Claude (med webbsökning påslagen). Med en API-nyckel (i inställningarna ⚙ uppe) visas svaret och källorna här.')}</p>`}
       ${ai ? `<div class="ai-text">${aiHtml(ai.text)}</div>
-        ${ai.sources?.length ? `<div class="sources"><b>מקורות</b>${ai.sources.map((x) => `<a href="${esc(x.url)}" target="_blank" rel="noopener"><span dir="auto">${esc(x.title || x.url)}</span><span class="muted small" dir="ltr">${esc(hostOf(x.url))}</span></a>`).join('')}</div>` : ''}
-        <p class="muted small" style="margin-bottom:0">התקבל ב-${fmtDateFull(ai.t)}</p>` : ''}
+        ${ai.sources?.length ? `<div class="sources"><b>${L('מקורות', 'Källor')}</b>${ai.sources.map((x) => `<a href="${esc(x.url)}" target="_blank" rel="noopener"><span dir="auto">${esc(x.title || x.url)}</span><span class="muted small" dir="ltr">${esc(hostOf(x.url))}</span></a>`).join('')}</div>` : ''}
+        <p class="muted small" style="margin-bottom:0">${L('התקבל ב-', 'Mottaget ')}${fmtDateFull(ai.t)}</p>` : ''}
     </div>`;
 }
 
@@ -1940,7 +2052,7 @@ function recPrompt() {
   const { p, sex, goal, tdee, tr } = buildRecs();
   const v = (n) => (n == null ? '?' : r1(n));
   const hist = sortedMetrics().slice(0, 8).map((m) => `- ${isoDay(m.t)}: ${MFIELDS.filter((f) => m[f.k] != null).map((f) => `${f.k}=${fmtW(m[f.k])}`).join(', ')}`).join('\n');
-  const sets = tr ? [...tr.sets].filter(([, c]) => c).map(([g, c]) => `${g}: ${v(c)}`).join(', ') : 'no workouts logged';
+  const sets = tr ? [...tr.sets].filter(([, c]) => c).map(([g, c]) => `${gName(g)}: ${v(c)}`).join(', ') : 'no workouts logged';
   const review = programReview();
   const strip = (h) => h.replace(/<br>/g, ' ').replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#39;/g, "'");
   const tpls = db.templates.map((t) => `- ${t.name}: ${t.exercises.map((e) => `${e.name} ${e.sets}x${e.reps}${e.w ? ` @${e.w}kg` : ''}, rest ${e.rest}s`).join('; ')}`).join('\n');
@@ -1964,14 +2076,14 @@ Go through my program exercise by exercise. For each template say what works, an
 
 Base your recommendations on reliable sources: search the leading bodybuilding, fat loss and muscle gain sites and research summaries (${REC_DOMAINS.slice(0, 8).join(', ')}) and rely on what they say rather than on general impressions. Cite the sources you used.
 
-Answer in Hebrew, short and practical, as a bulleted list under a few short headings (one heading per template). No tables.`;
+Answer in ${L('Hebrew', 'Swedish')}, short and practical, as a bulleted list under a few short headings (one heading per template). No tables.`;
 }
 
 async function fetchAiRecs() {
   ui.recLoading = true; render();
   let sdk = null;
   try {
-    sdk = await import(SDK_URL).catch(() => { throw new Error('אין חיבור לאינטרנט'); });
+    sdk = await import(SDK_URL).catch(() => { throw uiErr(L('אין חיבור לאינטרנט', 'Ingen internetanslutning')); });
     const client = new sdk.default({ apiKey: getApiKey(), dangerouslyAllowBrowser: true });
     // Long searches can pause the turn; send the partial answer back so Claude continues where it stopped.
     const messages = [{ role: 'user', content: recPrompt() }], blocks = [];
@@ -1985,13 +2097,13 @@ async function fetchAiRecs() {
         tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 8, allowed_domains: REC_DOMAINS }],
         messages,
       });
-      if (res.stop_reason === 'refusal') throw new Error('Claude לא החזיר המלצות');
+      if (res.stop_reason === 'refusal') throw uiErr(L('Claude לא החזיר המלצות', 'Claude gav inga råd'));
       blocks.push(...res.content);
       if (res.stop_reason !== 'pause_turn') break;
       messages.push({ role: 'assistant', content: res.content });
     }
     const text = blocks.filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
-    if (!text) throw new Error('התקבלה תשובה ריקה, נסה שוב');
+    if (!text) throw uiErr(L('התקבלה תשובה ריקה, נסה שוב', 'Tomt svar, försök igen'));
     // Sources Claude cited; if it cited none, the pages its searches found.
     let sources = blocks.flatMap((b) => (b.type === 'text' && b.citations) || []).filter((c) => c.url).map((c) => ({ url: c.url, title: c.title }));
     if (!sources.length) sources = blocks.filter((b) => b.type === 'web_search_tool_result' && Array.isArray(b.content)).flatMap((b) => b.content).map((x) => ({ url: x.url, title: x.title }));
@@ -2000,7 +2112,7 @@ async function fetchAiRecs() {
     save();
   } catch (e) {
     const err = sdk ? apiError(sdk, e) : e;
-    toast(err.message && /[֐-׿]/.test(err.message) ? err.message : 'לא הצלחתי לקבל המלצות', 3500);
+    toast(err.ui ? err.message : L('לא הצלחתי לקבל המלצות', 'Kunde inte hämta råd'), 3500);
   } finally {
     ui.recLoading = false;
     render();
@@ -2043,6 +2155,17 @@ const HE_EN = [
   ['רחבה', 'wide'], ['רחב', 'wide'], ['צרה', 'narrow close'], ['צר', 'narrow close'],
   ['גומי', 'bands'], ['ישיבה', 'seated'], ['עמידה', 'standing'], ['שכיבה', 'lying'], ['יד אחת', 'one arm'],
 ];
+// Swedish → English for names typed by hand in Swedish (the app's own Swedish names go through the Hebrew list).
+const SV_EN = [
+  ['rumänska marklyft', 'romanian deadlift'], ['rumänsk marklyft', 'romanian deadlift'], ['marklyft', 'deadlift'],
+  ['lutande bänkpress', 'incline bench press'], ['bänkpress', 'bench press'], ['bröstpress', 'chest press'], ['axelpress', 'shoulder press'],
+  ['militärpress', 'military press'], ['benpress', 'leg press'], ['knäböj', 'squat'], ['utfall', 'lunge'], ['tåhävningar', 'calf raise'],
+  ['tåhävning', 'calf raise'], ['lårcurl', 'leg curl'], ['benspark', 'leg extensions'], ['höftlyft', 'hip thrust'], ['hammarcurl', 'hammer curl'],
+  ['bicepscurl', 'curl'], ['fransk press', 'triceps extension'], ['sidolyft', 'lateral raise'], ['latsdrag', 'lat pulldown'],
+  ['kabelrodd', 'seated cable rows'], ['rodd', 'row'], ['armhävningar', 'pushups'], ['plankan', 'plank'], ['planka', 'plank'],
+  ['hängande', 'hanging'], ['benlyft', 'leg raise'], ['skivstång', 'barbell'], ['hantlar', 'dumbbell'], ['hantel', 'dumbbell'],
+  ['kabel', 'cable'], ['maskin', 'machine'], ['sittande', 'seated'], ['stående', 'standing'], ['liggande', 'lying'], ['omvända', 'reverse'],
+];
 const hasHebrew = (s) => /[֐-׿]/.test(s);
 const HE_STOP = ['עם', 'של', 'על', 'את', 'או', 'ו', 'ב', 'ל', 'ה'];
 // Dictionary translation, plus the Hebrew words it didn't know (left for the automatic translator).
@@ -2055,26 +2178,34 @@ function splitHebrew(q) {
   return { dict: [...out, ...(q.match(/[a-z0-9]+/gi) || [])].join(' '), rest: rest.join(' ') };
 }
 
-// Automatic Hebrew → English through MyMemory (free, no key). Returns its translations, best first.
+// Automatic Hebrew (or Swedish) → English through MyMemory (free, no key). Returns its translations, best first.
 const mtCache = new Map();
-async function machineTranslate(text) {
-  if (!mtCache.has(text)) {
-    const p = fetch(`https://api.mymemory.translated.net/get?langpair=he|en&q=${encodeURIComponent(text)}`, { signal: AbortSignal.timeout(8000) })
+async function machineTranslate(text, from = 'he') {
+  const key = `${from}|${text}`;
+  if (!mtCache.has(key)) {
+    const p = fetch(`https://api.mymemory.translated.net/get?langpair=${from}|en&q=${encodeURIComponent(text)}`, { signal: AbortSignal.timeout(8000) })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((r) => [r.responseData?.translatedText, ...(r.matches || []).filter((m) => m.match >= 0.5).map((m) => m.translation)]
         .filter((t) => t && !hasHebrew(t) && !/MYMEMORY WARNING/i.test(t)));
-    p.catch(() => mtCache.delete(text));
-    mtCache.set(text, p);
+    p.catch(() => mtCache.delete(key));
+    mtCache.set(key, p);
   }
-  return mtCache.get(text).catch(() => []);
+  return mtCache.get(key).catch(() => []);
 }
 
 const cleanQuery = (s) => String(s).toLowerCase().split(/[^a-z0-9-]+/).filter((t) => t && !EN_STOP.includes(t)).join(' ');
 // A few English versions of what was typed: the gym dictionary (with the words it didn't know translated
 // automatically), then automatic translations of the whole phrase. The first one is searched by default.
 async function translateVariants(q) {
-  q = String(q || '').trim();
-  if (!hasHebrew(q)) return q ? [q] : [];
+  q = canon(String(q || '').trim());
+  if (!q) return [];
+  if (!hasHebrew(q)) {
+    if (!SV) return [q];
+    let dict = q.toLowerCase();
+    for (const [sv, en] of SV_EN) if (dict.includes(sv)) dict = dict.split(sv).join(` ${en} `);
+    const tr = await machineTranslate(q, 'sv');
+    return [...new Set([dict, ...tr.slice(0, 2), q].map(cleanQuery).filter(Boolean))].slice(0, 4);
+  }
   const { dict, rest } = splitHebrew(q);
   const [restTr, fullTr] = await Promise.all([rest ? machineTranslate(rest) : [], machineTranslate(q)]);
   const variants = [
@@ -2142,7 +2273,7 @@ const demoAnim = (images, big) => `
   </div>`;
 
 function openDemo(name) {
-  if (!name.trim()) { toast('קודם תן שם לתרגיל'); return; }
+  if (!name.trim()) { toast(L('קודם תן שם לתרגיל', 'Ge övningen ett namn först')); return; }
   ui.demo = { name, q: name, variants: [], vi: 0, vq: null, results: null, loading: false, error: '', picking: !db.demos[name] };
   renderSheet();
   if (ui.demo.picking) runDemoSearch();
@@ -2162,9 +2293,9 @@ async function runDemoSearch(vi = 0) {
     d.variants = useful.length ? useful : variants; d.vq = d.q;
     const q = variants[d.vi] || '';
     d.results = q ? searchExercises(list, q, groupOf(d.name)) : [];
-    if (!d.results.length) d.error = q ? 'לא נמצאו תרגילים. נסה תרגום אחר או מילים אחרות.' : 'לא הצלחתי לתרגם. בדוק את החיבור לאינטרנט או כתוב באנגלית.';
+    if (!d.results.length) d.error = q ? L('לא נמצאו תרגילים. נסה תרגום אחר או מילים אחרות.', 'Inga övningar hittades. Prova en annan översättning eller andra ord.') : L('לא הצלחתי לתרגם. בדוק את החיבור לאינטרנט או כתוב באנגלית.', 'Kunde inte översätta. Kontrollera internetanslutningen eller skriv på engelska.');
   } catch {
-    d.error = 'אין חיבור לאינטרנט. החיפוש צריך רשת.';
+    d.error = L('אין חיבור לאינטרנט. החיפוש צריך רשת.', 'Ingen internetanslutning. Sökningen behöver nätet.');
   }
   d.loading = false;
   if (ui.demo === d) renderSheet();
@@ -2180,8 +2311,8 @@ function viewDemo() {
       <div class="demo-en" dir="ltr">${esc(saved.name)}</div>
       ${saved.instructions?.length ? `<ol class="demo-steps" dir="ltr">${saved.instructions.map((s) => `<li>${esc(s)}</li>`).join('')}</ol>` : ''}
       <div class="row" style="margin-top:12px">
-        <button class="btn sm" data-act="demo-change">החלף הדגמה</button>
-        <button class="btn sm danger" data-act="demo-clear">הסר</button>
+        <button class="btn sm" data-act="demo-change">${L('החלף הדגמה', 'Byt demo')}</button>
+        <button class="btn sm danger" data-act="demo-clear">${L('הסר', 'Ta bort')}</button>
       </div>`;
   } else {
     const results = d.loading
@@ -2195,22 +2326,22 @@ function viewDemo() {
         </button>`).join('');
     body = `
       <div class="row">
-        <input type="search" class="grow" data-f="demo-q" id="demo-q" value="${esc(d.q)}" placeholder="שם התרגיל (עברית או אנגלית)" dir="auto" enterkeyhint="search">
-        <button class="btn" data-act="demo-search">חפש</button>
+        <input type="search" class="grow" data-f="demo-q" id="demo-q" value="${esc(d.q)}" placeholder="${L('שם התרגיל (עברית או אנגלית)', 'Övningens namn (svenska eller engelska)')}" dir="auto" enterkeyhint="search">
+        <button class="btn" data-act="demo-search">${L('חפש', 'Sök')}</button>
       </div>
       ${d.variants.length > 1 || (d.variants.length && hasHebrew(d.vq || '')) ? `
-        <div class="muted small" style="margin-top:10px">תרגומים לאנגלית (לחץ כדי לחפש):</div>
+        <div class="muted small" style="margin-top:10px">${L('תרגומים לאנגלית (לחץ כדי לחפש):', 'Engelska översättningar (tryck för att söka):')}</div>
         <div class="demo-variants" dir="ltr">${d.variants.map((v, k) => `<button class="chip ${k === d.vi ? 'on' : ''}" data-act="demo-variant" data-k="${k}">${esc(v)}</button>`).join('')}</div>` : ''}
-      <p class="muted small" style="margin:8px 0 0">בחר את ההדגמה המתאימה. היא תישמר לתרגיל הזה.</p>
+      <p class="muted small" style="margin:8px 0 0">${L('בחר את ההדגמה המתאימה. היא תישמר לתרגיל הזה.', 'Välj rätt demo. Den sparas för den här övningen.')}</p>
       <div class="demo-grid">${results}</div>
-      ${saved ? '<button class="btn block" data-act="demo-back">חזרה להדגמה השמורה</button>' : ''}`;
+      ${saved ? `<button class="btn block" data-act="demo-back">${L('חזרה להדגמה השמורה', 'Tillbaka till sparad demo')}</button>` : ''}`;
   }
   return `
-    <div class="sheet-panel" data-act="none" role="dialog" aria-modal="true" aria-label="הדגמת תרגיל">
+    <div class="sheet-panel" data-act="none" role="dialog" aria-modal="true" aria-label="${L('הדגמת תרגיל', 'Övningsdemo')}">
       <div class="sheet-grab" aria-hidden="true"></div>
       <div class="row between" style="margin-bottom:12px">
-        <h3 class="grow">${esc(d.name)}</h3>
-        <button class="icon-btn" data-act="demo-close" aria-label="סגור">✕</button>
+        <h3 class="grow">${esc(exName(d.name))}</h3>
+        <button class="icon-btn" data-act="demo-close" aria-label="${L('סגור', 'Stäng')}">✕</button>
       </div>
       ${body}
     </div>`;
@@ -2396,18 +2527,18 @@ function render() {
   let title, html;
   document.querySelector('.gear').classList.toggle('on', ui.tab === 'settings');
   switch (ui.tab) {
-    case 'settings': title = 'הגדרות'; html = viewSettings(); break;
-    case 'history': title = 'היסטוריה'; html = viewHistory(); break;
-    case 'progress': title = 'התקדמות'; html = viewProgress(); break;
+    case 'settings': title = L('הגדרות', 'Inställningar'); html = viewSettings(); break;
+    case 'history': title = L('היסטוריה', 'Historik'); html = viewHistory(); break;
+    case 'progress': title = L('התקדמות', 'Framsteg'); html = viewProgress(); break;
     case 'body':
-      title = ui.mdraft ? (ui.mdraft.isNew ? 'מדידה חדשה' : 'עריכת מדידה') : 'מדדי גוף';
+      title = ui.mdraft ? (ui.mdraft.isNew ? L('מדידה חדשה', 'Ny mätning') : L('עריכת מדידה', 'Redigera mätning')) : L('מדדי גוף', 'Kropp');
       html = viewMetrics();
       break;
     // Templates live inside the workout tab: the editor opens over the start screen or the active workout and returns to it.
     default:
-      if (ui.cdraft) { title = 'אירובי'; html = viewCardioForm(); }
-      else if (ui.draft) { title = ui.draft.isNew ? 'תבנית חדשה' : 'עריכת תבנית'; html = viewEditor(); }
-      else { title = db.active ? 'אימון פעיל' : 'אימון'; html = db.active ? viewActive() : viewStart(); }
+      if (ui.cdraft) { title = L('אירובי', 'Kondition'); html = viewCardioForm(); }
+      else if (ui.draft) { title = ui.draft.isNew ? L('תבנית חדשה', 'Ny mall') : L('עריכת תבנית', 'Redigera mall'); html = viewEditor(); }
+      else { title = db.active ? L('אימון פעיל', 'Pågående pass') : L('אימון', 'Träning'); html = db.active ? viewActive() : viewStart(); }
   }
   $('#title').textContent = title;
   $('#view').innerHTML = html;
@@ -2454,7 +2585,7 @@ function rememberAlt(ex, name) {
 function swapExercise(e, name) {
   name = String(name || '').trim();
   const ex = db.active.exercises[e];
-  if (!name || name === ex.name) { toast('בחר או הקלד תרגיל חלופי'); return; }
+  if (!name || name === ex.name) { toast(L('בחר או הקלד תרגיל חלופי', 'Välj eller skriv en ersättningsövning')); return; }
   const origin = rememberAlt(ex, name);
   const left = Math.max(1, work(ex.sets).filter((s) => !s.done).length);
   const warmup = ex.sets.some((s) => s.wu && !s.done);
@@ -2470,7 +2601,7 @@ function swapExercise(e, name) {
   }
   ui.swap = null;
   save(); render();
-  toast(`הוחלף ל${name}`);
+  toast(L(`הוחלף ל${name}`, `Bytt till ${exName(name)}`));
 }
 
 // The original station freed up: the sets not done yet on the alternative go back to the original exercise.
@@ -2493,15 +2624,16 @@ function unswapExercise(e) {
   else db.active.exercises.splice(db.active.exercises.indexOf(alt), 1);
   ui.swap = null;
   save(); render();
-  toast(`חזרת ל${origin}`);
+  toast(L(`חזרת ל${origin}`, `Tillbaka till ${exName(origin)}`));
 }
 
 async function startWorkout(tpl) {
-  if (!await ask({ title: `להתחיל את "${tpl ? tpl.name : 'אימון חופשי'}"?`, msg: 'שעון האימון יתחיל לרוץ.', ok: 'יאללה, מתחילים', cancel: 'לא עכשיו' })) return;
+  const free = L('אימון חופשי', 'Fritt pass');
+  if (!await ask({ title: L(`להתחיל את "${tpl ? tpl.name : free}"?`, `Starta "${tpl ? tpl.name : free}"?`), msg: L('שעון האימון יתחיל לרוץ.', 'Passets klocka börjar gå.'), ok: L('יאללה, מתחילים', 'Kör igång!'), cancel: L('לא עכשיו', 'Inte nu') })) return;
   db.active = {
     id: uid(),
     templateId: tpl ? tpl.id : null,
-    name: tpl ? tpl.name : 'אימון חופשי',
+    name: tpl ? tpl.name : free,
     start: Date.now(),
     exercises: tpl ? tpl.exercises.map((e, i) => makeExercise(e, i === 0)) : [],
   };
@@ -2522,8 +2654,8 @@ async function clockMenu() {
   const w = db.active;
   if (!w || backdated(w)) return;
   const pick = w.held
-    ? await ask({ title: 'השעון מושהה', ok: 'המשך', extra: 'עצור וסיים', cancel: 'סגור' })
-    : await ask({ title: 'שעון האימון', msg: 'להשהות את השעון או לעצור ולסיים את האימון?', ok: 'השהה', extra: 'עצור וסיים', cancel: 'ביטול' });
+    ? await ask({ title: L('השעון מושהה', 'Klockan är pausad'), ok: L('המשך', 'Fortsätt'), extra: L('עצור וסיים', 'Stoppa och avsluta'), cancel: L('סגור', 'Stäng') })
+    : await ask({ title: L('שעון האימון', 'Passets klocka'), msg: L('להשהות את השעון או לעצור ולסיים את האימון?', 'Pausa klockan eller stoppa och avsluta passet?'), ok: L('השהה', 'Pausa'), extra: L('עצור וסיים', 'Stoppa och avsluta') });
   if (!pick || db.active !== w) return;
   if (pick === 'extra') { finishWorkout(); return; }
   if (w.held) { w.pausedMs = (w.pausedMs || 0) + (Date.now() - w.held); delete w.held; }
@@ -2545,10 +2677,10 @@ async function finishWorkout() {
   const undone = w.exercises.reduce((a, e) => a + e.sets.filter((s) => !s.done && (s.w !== '' || s.r !== '')).length, 0);
 
   if (!exercises.length) {
-    if (await ask({ title: 'לבטל את האימון?', msg: 'לא סומן אף סט כבוצע (✓), אז אין מה לשמור.', ok: 'בטל אימון', cancel: 'חזרה לאימון', danger: true })) discardWorkout(true);
+    if (await ask({ title: L('לבטל את האימון?', 'Avbryta passet?'), msg: L('לא סומן אף סט כבוצע (✓), אז אין מה לשמור.', 'Inget set är markerat som klart (✓), så det finns inget att spara.'), ok: L('בטל אימון', 'Avbryt pass'), cancel: L('חזרה לאימון', 'Tillbaka till passet'), danger: true })) discardWorkout(true);
     return;
   }
-  if (undone && !await ask({ title: 'לסיים את האימון?', msg: `${undone} סטים מולאו אבל לא סומנו ב-✓, והם לא יישמרו.`, ok: 'סיים בכל זאת', cancel: 'חזרה לאימון' })) return;
+  if (undone && !await ask({ title: L('לסיים את האימון?', 'Avsluta passet?'), msg: L(`${undone} סטים מולאו אבל לא סומנו ב-✓, והם לא יישמרו.`, `${undone} set är ifyllda men inte markerade med ✓, och de sparas inte.`), ok: L('סיים בכל זאת', 'Avsluta ändå'), cancel: L('חזרה לאימון', 'Tillbaka till passet') })) return;
 
   const prs = exercises.filter((e) => {
     const { maxE } = bestFor(e.name);
@@ -2574,7 +2706,7 @@ async function finishWorkout() {
       };
     });
     const sig = (list) => list.map((x) => `${x.name}|${x.sets}|${x.rest}`).join(';');
-    if (sig(updated) !== sig(tpl.exercises) && await ask({ title: 'לעדכן את התבנית?', msg: `שינית את המבנה של "${tpl.name}" באימון הזה (תרגילים, סטים או מנוחה).`, ok: 'עדכן תבנית', cancel: 'השאר כמו שהיא' })) {
+    if (sig(updated) !== sig(tpl.exercises) && await ask({ title: L('לעדכן את התבנית?', 'Uppdatera mallen?'), msg: L(`שינית את המבנה של "${tpl.name}" באימון הזה (תרגילים, סטים או מנוחה).`, `Du ändrade upplägget för "${tpl.name}" under passet (övningar, set eller vila).`), ok: L('עדכן תבנית', 'Uppdatera mall'), cancel: L('השאר כמו שהיא', 'Behåll som den är') })) {
       tpl.exercises = updated;
     }
     // Keep each template exercise's weight at the heaviest working weight just done.
@@ -2596,18 +2728,18 @@ async function finishWorkout() {
   const stretched = stretchState(w);
   const stretch = ['pre', 'post'].reduce((a, ph) => a + stretched[ph].reduce((b, id) => b + stretchSecs(findStretch(ph, id)), 0), 0);
   if (backdated(w)) end += stretch * 1000;
-  db.workouts.push({ id: w.id, templateId: w.templateId, name: w.name || 'אימון', start, end, exercises, ...(stretch ? { stretch } : {}) });
+  db.workouts.push({ id: w.id, templateId: w.templateId, name: w.name || L('אימון', 'Pass'), start, end, exercises, ...(stretch ? { stretch } : {}) });
   db.active = null;
   stopTimer();
   save();
   releaseWakeLock();
   render();
   window.scrollTo(0, 0);
-  toast(prs.length ? `שיא חדש: ${prs.join(', ')}` : 'האימון נשמר', prs.length ? 4000 : 2600);
+  toast(prs.length ? `${L('שיא חדש', 'Nytt rekord')}: ${prs.map(exName).join(', ')}` : L('האימון נשמר', 'Passet sparat'), prs.length ? 4000 : 2600);
 }
 
 async function discardWorkout(skipConfirm) {
-  if (!skipConfirm && !await ask({ title: 'לבטל את האימון?', msg: 'מה שהוזן לא יישמר.', ok: 'בטל אימון', cancel: 'המשך להתאמן', danger: true })) return;
+  if (!skipConfirm && !await ask({ title: L('לבטל את האימון?', 'Avbryta passet?'), msg: L('מה שהוזן לא יישמר.', 'Det du har fyllt i sparas inte.'), ok: L('בטל אימון', 'Avbryt pass'), cancel: L('המשך להתאמן', 'Fortsätt träna'), danger: true })) return;
   db.active = null;
   stopTimer();
   save();
@@ -2670,8 +2802,8 @@ function tick() {
   const left = Math.ceil(leftMs / 1000);
   const over = left <= 0;
   box.classList.toggle('over', over);
-  $('#timer-label').textContent = timer.label || 'מנוחה';
-  $('#timer-time').textContent = over ? (timer.stretch ? 'כל הכבוד!' : 'יאללה!') : fmtDur(left * 1000);
+  $('#timer-label').textContent = timer.label || L('מנוחה', 'Vila');
+  $('#timer-time').textContent = over ? (timer.stretch ? L('כל הכבוד!', 'Snyggt!') : L('יאללה!', 'Kör!')) : fmtDur(left * 1000);
   $('#timer-fill').style.width = `${over ? 100 : Math.max(0, Math.min(100, (leftMs / (timer.total * 1000)) * 100))}%`;
   if (over && !timer.beeped) {
     timer.beeped = true;
@@ -2698,7 +2830,7 @@ async function exportData() {
   const name = `gym-backup-${new Date().toISOString().slice(0, 10)}.json`;
   const file = new File([json], name, { type: 'application/json' });
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
-    try { await navigator.share({ files: [file], title: 'גיבוי אימונים' }); return; } catch (e) { if (e.name === 'AbortError') return; }
+    try { await navigator.share({ files: [file], title: L('גיבוי אימונים', 'Säkerhetskopia av träningen') }); return; } catch (e) { if (e.name === 'AbortError') return; }
   }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(file);
@@ -2713,12 +2845,12 @@ function importData(file) {
     try {
       const d = JSON.parse(reader.result);
       if (!Array.isArray(d.templates) || !Array.isArray(d.workouts)) throw new Error('bad');
-      if (!await ask({ title: 'לשחזר את הגיבוי?', msg: `${d.workouts.length} אימונים ו-${d.templates.length} תבניות. הנתונים הנוכחיים יוחלפו.`, ok: 'שחזר', danger: true })) return;
+      if (!await ask({ title: L('לשחזר את הגיבוי?', 'Återställa säkerhetskopian?'), msg: L(`${d.workouts.length} אימונים ו-${d.templates.length} תבניות. הנתונים הנוכחיים יוחלפו.`, `${d.workouts.length} pass och ${d.templates.length} mallar. Nuvarande data ersätts.`), ok: L('שחזר', 'Återställ'), danger: true })) return;
       db = { ...seed(), ...d, settings: { ...seed().settings, ...(d.settings || {}) } };
       save();
       render();
-      toast('הגיבוי שוחזר');
-    } catch { toast('הקובץ לא תקין'); }
+      toast(L('הגיבוי שוחזר', 'Säkerhetskopian återställd'));
+    } catch { toast(L('הקובץ לא תקין', 'Ogiltig fil')); }
   };
   reader.readAsText(file);
 }
@@ -2736,8 +2868,8 @@ function kpOpen(input) {
   input.blur();
   input.classList.add('kp-on', 'kp-fresh');
   const ex = db.active?.exercises[+input.dataset.e];
-  $('#kp-ex').textContent = ex ? ex.name : '';
-  $('#kp-f').textContent = input.dataset.f === 'w' ? 'משקל (ק״ג)' : 'חזרות';
+  $('#kp-ex').textContent = ex ? exName(ex.name) : '';
+  $('#kp-f').textContent = input.dataset.f === 'w' ? L('משקל (ק״ג)', 'Vikt (kg)') : L('חזרות', 'Reps');
   kpBox.querySelector('[data-k="."]').disabled = input.dataset.kp !== 'decimal';
   kpBox.classList.remove('hidden');
   document.documentElement.classList.add('kp-open');
@@ -2833,7 +2965,7 @@ document.addEventListener('click', (ev) => {
         // Empty weight: use last time's value, or carry over the previous set's weight.
         if (set.w === '') set.w = set.pw || (s > 0 && !ex.sets[s - 1].wu ? ex.sets[s - 1].w : '');
         if (set.r === '') set.r = set.pr;
-        if (num(set.r) == null) { toast('הזן מספר חזרות'); return; }
+        if (num(set.r) == null) { toast(L('הזן מספר חזרות', 'Ange antal reps')); return; }
         set.done = true;
         if (!backdated(db.active)) {
           // Final set of the exercise: rest before the next exercise instead of between sets (none after the workout's last set).
@@ -2841,7 +2973,7 @@ document.addEventListener('click', (ev) => {
           const allDone = db.active.exercises.every((x) => x.sets.every((y) => y.done));
           const exRest = num(db.settings.exRest) ?? DEFAULT_SETTINGS.exRest;
           if (!exDone) startTimer(ex.rest);
-          else if (!allDone && exRest > 0) startTimer(exRest, { label: 'מנוחה בין תרגילים' });
+          else if (!allDone && exRest > 0) startTimer(exRest, { label: L('מנוחה בין תרגילים', 'Vila mellan övningar') });
         }
       } else {
         set.done = false;
@@ -2854,7 +2986,7 @@ document.addEventListener('click', (ev) => {
       set.fail = !set.fail;
       save(); render();
       if (set.fail) {
-        toast('הסט סומן כ"עד כשל" – הזן כמה חזרות עשית', 2000);
+        toast(L('הסט סומן כ"עד כשל" – הזן כמה חזרות עשית', 'Setet är markerat "till failure" – ange hur många reps du gjorde'), 2000);
         const rIn = document.querySelector(`input[data-f="r"][data-e="${e}"][data-s="${s}"]`);
         if (set.r === '' && rIn) kpOpen(rIn);
       }
@@ -2878,7 +3010,7 @@ document.addEventListener('click', (ev) => {
       break;
     }
     case 'set-del':
-      ask({ title: `למחוק את סט ${s + 1}?`, msg: ex.name, ok: 'מחק', danger: true })
+      ask({ title: L(`למחוק את סט ${s + 1}?`, `Ta bort set ${s + 1}?`), msg: exName(ex.name), ok: L('מחק', 'Ta bort'), danger: true })
         .then((yes) => { if (yes) { ex.sets.splice(s, 1); save(); render(); } });
       break;
     case 'wu-add': {
@@ -2888,7 +3020,7 @@ document.addEventListener('click', (ev) => {
       break;
     }
     case 'ex-del':
-      ask({ title: 'להסיר את התרגיל?', msg: `"${ex.name}" יוסר מהאימון הזה.`, ok: 'הסר', danger: true })
+      ask({ title: L('להסיר את התרגיל?', 'Ta bort övningen?'), msg: L(`"${ex.name}" יוסר מהאימון הזה.`, `"${exName(ex.name)}" tas bort från det här passet.`), ok: L('הסר', 'Ta bort'), danger: true })
         .then((yes) => { if (yes) { db.active.exercises.splice(e, 1); ui.swap = null; save(); render(); } });
       break;
     case 'swap-open': ui.swap = ui.swap === e ? null : e; render(); break;
@@ -2896,7 +3028,7 @@ document.addEventListener('click', (ev) => {
     case 'swap-pick':swapExercise(e, el.dataset.n); break;
     case 'swap-custom': swapExercise(e, $('#swap-name').value); break;
     case 'ex-rest':
-      ask({ title: 'זמן מנוחה', msg: `בשניות, ל"${ex.name}"`, ok: 'שמור', input: { type: 'number', value: ex.rest } }).then((t) => {
+      ask({ title: L('זמן מנוחה', 'Vilotid'), msg: L(`בשניות, ל"${ex.name}"`, `I sekunder, för "${exName(ex.name)}"`), ok: L('שמור', 'Spara'), input: { type: 'number', value: ex.rest } }).then((t) => {
         const v = num(t);
         if (v && v > 0) { ex.rest = Math.round(v); save(); render(); }
       });
@@ -2911,9 +3043,9 @@ document.addEventListener('click', (ev) => {
 
     case 'stretch-go': {
       const phase = el.dataset.ph, x = findStretch(phase, el.dataset.id);
-      const label = `מתיחה: ${x.name}`, end = { stretch: x.id, phase };
+      const label = `${L('מתיחה', 'Stretch')}: ${x.name}`, end = { stretch: x.id, phase };
       startTimer(x.hold, x.sides
-        ? { label: `${label} · צד 1`, next: { label: `${label} · צד 2`, ...end } }
+        ? { label: `${label} · ${L('צד', 'sida')} 1`, next: { label: `${label} · ${L('צד', 'sida')} 2`, ...end } }
         : { label, ...end });
       break;
     }
@@ -2950,7 +3082,7 @@ document.addEventListener('click', (ev) => {
     case 'tpl-del-yes': db.templates = db.templates.filter((t) => t.id !== ui.draft.id); ui.draft = null; save(); render(); break;
     case 'tpl-save': {
       const d = ui.draft;
-      if (!d.name.trim()) { toast('תן שם לתבנית'); return; }
+      if (!d.name.trim()) { toast(L('תן שם לתבנית', 'Ge mallen ett namn')); return; }
       const tpl = {
         id: d.id,
         name: d.name.trim(),
@@ -2967,13 +3099,13 @@ document.addEventListener('click', (ev) => {
       const idx = db.templates.findIndex((t) => t.id === d.id);
       if (idx >= 0) db.templates[idx] = tpl; else db.templates.push(tpl);
       ui.draft = null; save(); render(); window.scrollTo(0, 0);
-      toast('התבנית נשמרה');
+      toast(L('התבנית נשמרה', 'Mallen sparad'));
       break;
     }
     case 'tex-add': ui.draft.exercises.push({ id: uid(), name: '', sets: 2, reps: 8, rest: db.settings.defaultRest }); render(); break;
     case 'tex-del': {
       const n = ui.draft.exercises[i].name.trim();
-      ask({ title: 'להסיר מהתבנית?', msg: n ? `"${n}" יוסר מהתבנית.` : '', ok: 'הסר', danger: true })
+      ask({ title: L('להסיר מהתבנית?', 'Ta bort från mallen?'), msg: n ? L(`"${n}" יוסר מהתבנית.`, `"${n}" tas bort från mallen.`) : '', ok: L('הסר', 'Ta bort'), danger: true })
         .then((yes) => { if (yes) { ui.draft.exercises.splice(i, 1); render(); } });
       break;
     }
@@ -2996,7 +3128,7 @@ document.addEventListener('click', (ev) => {
     }
 
     case 'hist-del':
-      ask({ title: 'למחוק את האימון?', msg: 'הוא יימחק מההיסטוריה, יחד עם תמונות המעקב שלו.', ok: 'מחק', danger: true }).then((yes) => {
+      ask({ title: L('למחוק את האימון?', 'Ta bort passet?'), msg: L('הוא יימחק מההיסטוריה, יחד עם תמונות המעקב שלו.', 'Det tas bort från historiken, tillsammans med dess progressbilder.'), ok: L('מחק', 'Ta bort'), danger: true }).then((yes) => {
         if (!yes) return;
         const gone = photos.filter((p) => p.wid === el.dataset.id).map((p) => p.id);
         db.workouts = db.workouts.filter((w) => w.id !== el.dataset.id); save(); render();
@@ -3008,10 +3140,10 @@ document.addEventListener('click', (ev) => {
     case 'photo-close': ui.photo = null; render(); break;
     case 'stretch-view': ui.stretchView = { ph: el.dataset.ph, id: el.dataset.id }; render(); break;
     case 'stretch-view-close': ui.stretchView = null; render(); break;
-    case 'photo-del': ask({ title: 'למחוק את התמונה?', ok: 'מחק', danger: true }).then((yes) => yes && deletePhoto(el.dataset.id)); break;
+    case 'photo-del': ask({ title: L('למחוק את התמונה?', 'Ta bort bilden?'), ok: L('מחק', 'Ta bort'), danger: true }).then((yes) => yes && deletePhoto(el.dataset.id)); break;
     case 'hist-tpl': {
       const w = db.workouts.find((x) => x.id === el.dataset.id);
-      ask({ title: 'תבנית חדשה', msg: 'איך לקרוא לה?', ok: 'שמור תבנית', input: { value: w.name } }).then((name) => {
+      ask({ title: L('תבנית חדשה', 'Ny mall'), msg: L('איך לקרוא לה?', 'Vad ska den heta?'), ok: L('שמור תבנית', 'Spara mall'), input: { value: w.name } }).then((name) => {
         if (!name) return;
         db.templates.push({
           id: uid(), name,
@@ -3019,14 +3151,14 @@ document.addEventListener('click', (ev) => {
             id: uid(), name: x.name, sets: work(x.sets).length, reps: work(x.sets)[0].r, rest: db.settings.defaultRest,
           })),
         });
-        save(); toast('נשמרה תבנית חדשה');
+        save(); toast(L('נשמרה תבנית חדשה', 'Ny mall sparad'));
       });
       break;
     }
 
     case 'metric': ui.progMetric = el.dataset.k; render(); break;
     case 'music-app': db.settings.musicApp = el.dataset.k; save(); render(); break;
-    case 'music-hide': db.settings.showMusic = false; save(); render(); toast('אפשר להחזיר בהגדרות'); break;
+    case 'music-hide': db.settings.showMusic = false; save(); render(); toast(L('אפשר להחזיר בהגדרות', 'Kan visas igen i inställningarna')); break;
     case 'area-period': ui.areaPeriod = el.dataset.k; render(); break;
 
     case 'body-metric': ui.bodyMetric = el.dataset.k; render(); break;
@@ -3035,22 +3167,22 @@ document.addEventListener('click', (ev) => {
     case 'rec-sex': db.settings.sex = el.dataset.k; save(); render(); break;
     case 'rec-ai':
       if (getApiKey()) fetchAiRecs();
-      else copyText(recPrompt()).then((ok) => toast(ok ? 'הבקשה הועתקה עם הנתונים שלך. הדבק אותה בצ׳אט עם Claude' : 'ההעתקה נכשלה', 3500));
+      else copyText(recPrompt()).then((ok) => toast(ok ? L('הבקשה הועתקה עם הנתונים שלך. הדבק אותה בצ׳אט עם Claude', 'Förfrågan kopierades med din data. Klistra in den i en chatt med Claude') : L('ההעתקה נכשלה', 'Kopieringen misslyckades'), 3500));
       break;
     case 'm-upload':
-      if (!getApiKey()) { toast('כדי לקרוא תמונות צריך להזין מפתח Claude API בהגדרות', 3500); ui.tab = 'settings'; render(); window.scrollTo(0, 0); $('[data-f="apikey"]')?.focus(); return; }
+      if (!getApiKey()) { toast(L('כדי לקרוא תמונות צריך להזין מפתח Claude API בהגדרות', 'För att läsa bilder behöver du ange en Claude API-nyckel i inställningarna'), 3500); ui.tab = 'settings'; render(); window.scrollTo(0, 0); $('[data-f="apikey"]')?.focus(); return; }
       $('#m-file').click();
       break;
     case 'paste-open': ui.pasteOpen = true; render(); break;
     case 'paste-close': ui.pasteOpen = false; ui.pasteText = ''; render(); break;
     case 'paste-copy':
-      copyText(CHAT_PROMPT).then((ok) => toast(ok ? 'ההוראה הועתקה. עכשיו פתח את Claude' : 'ההעתקה נכשלה'));
+      copyText(CHAT_PROMPT).then((ok) => toast(ok ? L('ההוראה הועתקה. עכשיו פתח את Claude', 'Instruktionen kopierad. Öppna nu Claude') : L('ההעתקה נכשלה', 'Kopieringen misslyckades')));
       break;
     case 'paste-read':
       if (!navigator.clipboard?.readText) { $('#paste-text').focus(); return; }
       navigator.clipboard.readText()
         .then((t) => { ui.pasteText = t; render(); importPasted(); })
-        .catch(() => { toast('אין גישה ללוח, הדבק ידנית בתיבה'); $('#paste-text')?.focus(); });
+        .catch(() => { toast(L('אין גישה ללוח, הדבק ידנית בתיבה', 'Ingen åtkomst till urklipp, klistra in i rutan')); $('#paste-text')?.focus(); });
       break;
     case 'paste-parse': importPasted(); break;
     case 'm-manual': ui.mdraft = newMetricDraft(); render(); window.scrollTo(0, 0); break;
@@ -3063,7 +3195,7 @@ document.addEventListener('click', (ev) => {
     case 'm-save': saveMetric(); break;
     case 'm-cancel': ui.mdraft = null; render(); break;
     case 'm-del':
-      ask({ title: 'למחוק את המדידה?', ok: 'מחק', danger: true })
+      ask({ title: L('למחוק את המדידה?', 'Ta bort mätningen?'), ok: L('מחק', 'Ta bort'), danger: true })
         .then((yes) => { if (yes) { db.metrics = db.metrics.filter((m) => m.id !== ui.mdraft.id); ui.mdraft = null; save(); render(); } });
       break;
     case 'demo': openDemo(el.dataset.e != null ? ex.name : ui.draft.exercises[i].name); break;
@@ -3083,7 +3215,7 @@ document.addEventListener('click', (ev) => {
       break;
     }
     case 'demo-clear':
-      ask({ title: 'להסיר את ההדגמה?', msg: `ההדגמה של "${ui.demo.name}" תוסר.`, ok: 'הסר', danger: true }).then((yes) => {
+      ask({ title: L('להסיר את ההדגמה?', 'Ta bort demon?'), msg: L(`ההדגמה של "${ui.demo.name}" תוסר.`, `Demon för "${exName(ui.demo.name)}" tas bort.`), ok: L('הסר', 'Ta bort'), danger: true }).then((yes) => {
         if (!yes) return;
         delete db.demos[ui.demo.name];
         ui.demo = null;
@@ -3096,10 +3228,16 @@ document.addEventListener('click', (ev) => {
     case 'c-cancel': ui.cdraft = null; render(); window.scrollTo(0, 0); break;
     case 'c-save': saveCardio(); break;
     case 'c-del':
-      ask({ title: 'למחוק את האימון?', ok: 'מחק', danger: true }).then((yes) => {
+      ask({ title: L('למחוק את האימון?', 'Ta bort passet?'), ok: L('מחק', 'Ta bort'), danger: true }).then((yes) => {
         if (!yes) return;
         db.cardio = db.cardio.filter((c) => c.id !== el.dataset.id); save(); render();
       });
+      break;
+    case 'lang':
+      if (el.dataset.k !== LANG) {
+        try { localStorage.setItem(LANG_KEY, el.dataset.k); } catch { /* ignore */ }
+        location.reload();
+      }
       break;
     case 'export': exportData(); break;
     case 'import': $('#import-file').click(); break;
@@ -3193,7 +3331,7 @@ document.addEventListener('change', (ev) => {
     const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), t.getHours(), t.getMinutes()).getTime();
     w.end = start + (w.end - w.start);
     w.start = start;
-    save(); render(); toast('התאריך עודכן');
+    save(); render(); toast(L('התאריך עודכן', 'Datumet uppdaterat'));
   }
   if (el.dataset.f === 'set-lastfail') { db.settings.lastSetFail = el.checked; save(); }
   if (el.dataset.f === 'set-music') { db.settings.showMusic = el.checked; save(); }
@@ -3271,7 +3409,7 @@ sheetEl.addEventListener('touchend', endSheetDrag);
 sheetEl.addEventListener('touchcancel', endSheetDrag);
 
 // ---------- Swipe to delete a set ----------
-// Drag a set row sideways (either direction). Past the threshold it stays open over a "מחק" button;
+// Drag a set row sideways (either direction). Past the threshold it stays open over a delete button;
 // deleting takes that second tap, so a stray touch can't remove a set.
 const SWIPE_OPEN = 76;
 let swipe = null, openRow = null, swallowClick = false;
@@ -3331,6 +3469,25 @@ document.addEventListener('click', (ev) => {
 }, true);
 
 // ---------- Boot ----------
+// index.html is written in Hebrew; in Swedish its fixed labels are swapped here.
+if (SV) {
+  const set = (sel, text, label) => {
+    const el = $(sel);
+    if (text != null) el.textContent = text;
+    if (label != null) el.setAttribute('aria-label', label);
+  };
+  set('#top-elapsed', null, 'Passets klocka: pausa eller stoppa');
+  set('.topbar .gear', null, 'Inställningar och säkerhetskopia');
+  set('#timer [data-act="timer-add"]', null, '15 sekunder till');
+  set('#timer [data-act="timer-sub"]', null, '15 sekunder mindre');
+  set('#timer [data-act="timer-stop"]', null, 'Stoppa timern');
+  set('#keypad', null, 'Sifferknappar');
+  set('#keypad [data-k="back"]', null, 'Radera siffra');
+  set('#keypad [data-k="next"]', 'Nästa');
+  set('#keypad [data-k="done"]', 'Klar');
+  const tabs = { workout: 'Träning', history: 'Historik', progress: 'Framsteg', body: 'Kropp' };
+  document.querySelectorAll('.tabs button').forEach((b) => { b.querySelector('span').textContent = tabs[b.dataset.tab]; });
+}
 if (db.active) requestWakeLock();
 render();
 loadPhotos();

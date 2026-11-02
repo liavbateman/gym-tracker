@@ -10,6 +10,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="BTMN">
   <title>BTMN</title>
+  <!-- Swedish is picked in settings; switch direction before anything is drawn. -->
+  <script>try { if (localStorage.getItem('gym-tracker-lang') === 'sv') { document.documentElement.lang = 'sv'; document.documentElement.dir = 'ltr'; } } catch (e) {}</script>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/icon-180.png?v=3">
   <link rel="icon" href="icons/logo.svg?v=3" type="image/svg+xml">
