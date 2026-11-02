@@ -396,7 +396,8 @@ function toast(msg, ms = 2600) {
 
 // In-app dialog in place of the browser's confirm() / prompt(), which look like iOS system alerts.
 // Resolves true / false, or with `input` the typed text (null when cancelled).
-function ask({ title, msg = '', ok = 'אישור', cancel = 'ביטול', danger = false, input = null }) {
+// extra: a third button's label; picking it resolves to 'extra'.
+function ask({ title, msg = '', ok = 'אישור', cancel = 'ביטול', danger = false, input = null, extra = null }) {
   return new Promise((resolve) => {
     const prev = document.activeElement;
     const box = document.createElement('div');
@@ -407,23 +408,24 @@ function ask({ title, msg = '', ok = 'אישור', cancel = 'ביטול', danger
       ${input ? `<input type="${input.type === 'number' ? 'number" inputmode="numeric' : 'text'}" value="${esc(input.value)}" aria-labelledby="dlg-t">` : ''}
       <div class="dlg-btns">
         <button class="btn" data-k="no">${esc(cancel)}</button>
+        ${extra ? `<button class="btn" data-k="extra">${esc(extra)}</button>` : ''}
         <button class="btn ${danger ? 'danger-fill' : 'primary'}" data-k="yes">${esc(ok)}</button>
       </div>
     </div>`;
     const field = box.querySelector('input');
-    const done = (yes) => {
+    const done = (yes, k) => {
       box.classList.add('out');
       document.body.classList.remove('dlg-open');
       setTimeout(() => box.remove(), 140);
       prev?.focus?.({ preventScroll: true });
-      resolve(input ? (yes ? field.value.trim() : null) : yes);
+      resolve(k === 'extra' ? 'extra' : input ? (yes ? field.value.trim() : null) : yes);
     };
     // Handled here and kept from the app's own click / key handlers underneath.
     box.addEventListener('click', (ev) => {
       ev.stopPropagation();
       if (box.classList.contains('out')) return;
       const k = ev.target.closest('[data-k]')?.dataset.k;
-      if (k) done(k === 'yes');
+      if (k) done(k === 'yes', k);
       else if (ev.target === box) done(false);
     });
     box.addEventListener('keydown', (ev) => {
@@ -2327,6 +2329,28 @@ async function startWorkout(tpl) {
 // A workout logged after the fact: the user picked a day other than the one it was opened on.
 const backdated = (w) => !!w.date && w.date !== isoDay(w.start);
 
+// Workout clock time, minus any paused stretches. w.held is the moment it was paused / stopped.
+const elapsedMs = (w) => (w.held ?? Date.now()) - w.start - (w.pausedMs || 0);
+
+// Tapping the clock in the top bar offers to pause or stop it; it keeps running until one is picked.
+async function clockMenu() {
+  const w = db.active;
+  if (!w || backdated(w)) return;
+  if (w.held) {
+    const msg = w.clock === 'stopped' ? 'השעון עצור.' : 'השעון מושהה.';
+    if (!await ask({ title: 'שעון האימון', msg, ok: 'המשך', cancel: 'סגור' })) return;
+    w.pausedMs = (w.pausedMs || 0) + (Date.now() - w.held);
+    delete w.held; delete w.clock;
+  } else {
+    const pick = await ask({ title: 'שעון האימון', msg: 'להשהות או לעצור את השעון?', ok: 'עצור', extra: 'השהה', cancel: 'ביטול' });
+    if (!pick || db.active !== w) return;
+    w.held = Date.now();
+    w.clock = pick === 'extra' ? 'paused' : 'stopped';
+  }
+  save();
+  tick();
+}
+
 async function finishWorkout() {
   const w = db.active;
   const exercises = w.exercises
@@ -2380,7 +2404,7 @@ async function finishWorkout() {
     }
   }
 
-  let start = w.start, end = Date.now();
+  let start = w.start, end = start + elapsedMs(w);
   if (backdated(w)) {
     // Keep the time of day it was entered at, on the chosen day; the duration comes from the field.
     const t = new Date(w.start), d = new Date(dayTs(w.date));
@@ -2448,13 +2472,15 @@ function beep() {
 
 function tick() {
   const el = $('#elapsed');
-  if (el && db.active) el.textContent = backdated(db.active) ? '' : fmtDur(Date.now() - db.active.start);
+  if (el && db.active) el.textContent = backdated(db.active) ? '' : fmtDur(elapsedMs(db.active));
+  if (el) el.classList.toggle('held', !!db.active?.held);
   // Mirror it in the top bar while the page's own clock is scrolled out of view (or on another tab).
   const top = $('#top-elapsed');
   const live = db.active && !backdated(db.active);
   const seen = el && el.getBoundingClientRect().bottom > $('.topbar').offsetHeight;
   top.classList.toggle('hidden', !live || !!seen);
-  if (live && !seen) top.textContent = fmtDur(Date.now() - db.active.start);
+  top.classList.toggle('held', !!(live && db.active.held));
+  if (live && !seen) top.textContent = fmtDur(elapsedMs(db.active));
 
   const box = $('#timer');
   if (!timer) { box.classList.add('hidden'); return; }
@@ -2780,6 +2806,7 @@ document.addEventListener('click', (ev) => {
       break;
     case 'demo': openDemo(el.dataset.e != null ? ex.name : ui.draft.exercises[i].name); break;
     case 'demo-close': ui.demo = null; renderSheet(); break;
+    case 'clock': clockMenu(); break;
     case 'bateman': openBateman(); break;
     case 'bateman-close': closeBateman(); break;
     case 'demo-search': runDemoSearch(); break;
