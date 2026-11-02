@@ -72,6 +72,15 @@
     <button data-tab="body"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 9.5a5 5 0 0 1 7 0M12 9.5l1.5-2"/></svg><span>מדדי גוף</span></button>
   </nav>
 
-  <script src="app.js"></script>
+  <!-- Plain scripts sharing one global scope, in this order; main.js boots the app. -->
+  <script src="js/core.js"></script>
+  <script src="js/workout.js"></script>
+  <script src="js/history.js"></script>
+  <script src="js/body.js"></script>
+  <script src="js/recs.js"></script>
+  <script src="js/demos.js"></script>
+  <script src="js/bateman.js"></script>
+  <script src="js/actions.js"></script>
+  <script src="js/main.js"></script>
 </body>
 </html>
