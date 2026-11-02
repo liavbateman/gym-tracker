@@ -691,7 +691,7 @@ function viewStart() {
 const stepper = (e, s, f, value, placeholder, mode) => `
   <div class="stepper">
     <button data-act="step" data-f="${f}" data-d="1" data-e="${e}" data-s="${s}" aria-label="הוסף">+</button>
-    <input type="number" inputmode="${mode}" step="any" data-f="${f}" data-e="${e}" data-s="${s}" value="${esc(value)}" placeholder="${esc(placeholder)}">
+    <input type="text" inputmode="none" readonly data-kp="${mode}" data-f="${f}" data-e="${e}" data-s="${s}" value="${esc(value)}" placeholder="${esc(placeholder)}">
     <button data-act="step" data-f="${f}" data-d="-1" data-e="${e}" data-s="${s}" aria-label="הפחת">−</button>
   </div>`;
 
@@ -2412,6 +2412,7 @@ function render() {
   $('#title').textContent = title;
   $('#view').innerHTML = html;
   openRow = null;
+  if (kp.el) kpReattach();
   tick();
 }
 
@@ -2722,6 +2723,84 @@ function importData(file) {
   reader.readAsText(file);
 }
 
+// ---------- Set keypad ----------
+// Weight and reps open a small in-app keypad instead of the phone keyboard. While it's up the page doesn't scroll;
+// the first key replaces the value, "הבא" moves on to the next field, and a tap anywhere else closes it.
+const kp = { el: null, fresh: false };
+const kpBox = $('#keypad');
+
+function kpOpen(input) {
+  if (kp.el && kp.el !== input) kp.el.classList.remove('kp-on', 'kp-fresh');
+  kp.el = input;
+  kp.fresh = true;
+  input.blur();
+  input.classList.add('kp-on', 'kp-fresh');
+  const ex = db.active?.exercises[+input.dataset.e];
+  $('#kp-ex').textContent = ex ? ex.name : '';
+  $('#kp-f').textContent = input.dataset.f === 'w' ? 'משקל (ק״ג)' : 'חזרות';
+  kpBox.querySelector('[data-k="."]').disabled = input.dataset.kp !== 'decimal';
+  kpBox.classList.remove('hidden');
+  document.documentElement.classList.add('kp-open');
+  const h = kpBox.offsetHeight;
+  document.documentElement.style.setProperty('--kp-h', `${h}px`);
+  // Bring the field above the keypad (and below the top bar) before the page is locked.
+  const r = input.getBoundingClientRect(), top = $('.topbar').getBoundingClientRect().bottom;
+  const bottom = innerHeight - h - 12;
+  if (r.bottom > bottom) window.scrollBy(0, r.bottom - bottom);
+  else if (r.top < top + 8) window.scrollBy(0, r.top - top - 8);
+}
+
+function kpClose() {
+  if (!kp.el) return;
+  kp.el.classList.remove('kp-on', 'kp-fresh');
+  kp.el = null;
+  kpBox.classList.add('hidden');
+  document.documentElement.classList.remove('kp-open');
+}
+
+// After a re-render the field is a new element: pick it up again, or close if it's gone.
+function kpReattach() {
+  const { f, e, s } = kp.el.dataset;
+  const next = document.querySelector(`input[data-kp][data-f="${f}"][data-e="${e}"][data-s="${s}"]`);
+  if (!next) { kpClose(); return; }
+  kp.el = next;
+  next.classList.add('kp-on');
+  if (kp.fresh) next.classList.add('kp-fresh');
+}
+
+function kpKey(k) {
+  const el = kp.el;
+  if (!el) return;
+  if (k === 'done') { kpClose(); return; }
+  if (k === 'next') {
+    const all = [...document.querySelectorAll('input[data-kp]')];
+    const nxt = all[all.indexOf(el) + 1];
+    if (nxt) kpOpen(nxt); else kpClose();
+    return;
+  }
+  let v = kp.fresh ? '' : el.value;
+  if (k === 'back') v = v.slice(0, -1);
+  else if (k === '.') { if (el.dataset.kp !== 'decimal' || v.includes('.')) return; v = (v || '0') + '.'; }
+  else if (v.replace('.', '').length >= 5) return;
+  else v = v === '0' ? k : v + k;
+  kp.fresh = false;
+  el.classList.remove('kp-fresh');
+  el.value = v;
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+kpBox.addEventListener('pointerdown', (ev) => ev.preventDefault()); // keep taps on the keypad from moving focus
+kpBox.addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-k]');
+  if (b && !b.disabled) kpKey(b.dataset.k);
+});
+document.addEventListener('pointerdown', (ev) => {
+  if (!kp.el) return;
+  const t = ev.target;
+  if (t.closest('#keypad') || t.matches('input[data-kp]') || t.closest('.stepper') === kp.el.parentElement) return;
+  kpClose();
+}, true);
+
 // ---------- Events ----------
 document.addEventListener('click', (ev) => {
   unlockAudio();
@@ -2735,6 +2814,7 @@ document.addEventListener('click', (ev) => {
     window.scrollTo(0, 0);
     return;
   }
+  if (ev.target.matches('input[data-kp]')) { kpOpen(ev.target); return; }
   const el = ev.target.closest('[data-act]');
   if (!el) return;
   const act = el.dataset.act;
@@ -2775,7 +2855,8 @@ document.addEventListener('click', (ev) => {
       save(); render();
       if (set.fail) {
         toast('הסט סומן כ"עד כשל" – הזן כמה חזרות עשית', 2000);
-        if (set.r === '') document.querySelector(`input[data-f="r"][data-e="${e}"][data-s="${s}"]`)?.focus();
+        const rIn = document.querySelector(`input[data-f="r"][data-e="${e}"][data-s="${s}"]`);
+        if (set.r === '' && rIn) kpOpen(rIn);
       }
       break;
     }
@@ -2786,6 +2867,7 @@ document.addEventListener('click', (ev) => {
       const cur = num(set[f]) ?? num(f === 'w' ? set.pw : set.pr) ?? 0;
       set[f] = fmtW(Math.max(0, cur + step * +el.dataset.d));
       el.parentElement.querySelector('input').value = set[f];
+      kp.fresh = false; kp.el?.classList.remove('kp-fresh');
       save();
       break;
     }
@@ -3030,10 +3112,10 @@ for (const t of ['gesturestart', 'gesturechange', 'gestureend']) {
   document.addEventListener(t, (ev) => ev.preventDefault(), { passive: false });
 }
 document.addEventListener('touchmove', (ev) => {
-  if (ev.touches.length > 1) ev.preventDefault();
+  if (ev.touches.length > 1 || kp.el) ev.preventDefault(); // the page also stays put while the set keypad is up
 }, { passive: false });
 document.addEventListener('wheel', (ev) => {
-  if (ev.ctrlKey) ev.preventDefault();
+  if (ev.ctrlKey || kp.el) ev.preventDefault();
 }, { passive: false });
 
 // iOS shake-to-undo: a phone dropped on the gym floor counts as a shake and wipes what was typed.
@@ -3123,6 +3205,10 @@ document.addEventListener('change', (ev) => {
 });
 
 document.addEventListener('keydown', (ev) => {
+  if (kp.el) {
+    const k = /^[0-9.]$/.test(ev.key) ? ev.key : { Backspace: 'back', Enter: 'next', Tab: 'next', Escape: 'done' }[ev.key];
+    if (k) { ev.preventDefault(); kpKey(k); return; }
+  }
   if (ev.key === 'Enter' && ev.target.id === 'new-ex') $('[data-act="ex-add"]').click();
   if (ev.key === 'Enter' && ev.target.id === 'swap-name') $('[data-act="swap-custom"]').click();
   if (ev.key === 'Enter' && ev.target.id === 'demo-q') { ev.target.blur(); runDemoSearch(); }
