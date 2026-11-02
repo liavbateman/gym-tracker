@@ -394,6 +394,60 @@ function toast(msg, ms = 2600) {
   toastTimer = setTimeout(() => t.classList.add('hidden'), ms);
 }
 
+// In-app dialog in place of the browser's confirm() / prompt(), which look like iOS system alerts.
+// Resolves true / false, or with `input` the typed text (null when cancelled).
+function ask({ title, msg = '', ok = 'אישור', cancel = 'ביטול', danger = false, input = null }) {
+  return new Promise((resolve) => {
+    const prev = document.activeElement;
+    const box = document.createElement('div');
+    box.className = 'dlg';
+    box.innerHTML = `<div class="dlg-card${danger ? ' danger' : ''}" role="alertdialog" aria-modal="true" aria-labelledby="dlg-t"${msg ? ' aria-describedby="dlg-m"' : ''}>
+      <h2 id="dlg-t">${esc(title)}</h2>
+      ${msg ? `<p id="dlg-m">${esc(msg)}</p>` : ''}
+      ${input ? `<input type="${input.type === 'number' ? 'number" inputmode="numeric' : 'text'}" value="${esc(input.value)}" aria-labelledby="dlg-t">` : ''}
+      <div class="dlg-btns">
+        <button class="btn" data-k="no">${esc(cancel)}</button>
+        <button class="btn ${danger ? 'danger-fill' : 'primary'}" data-k="yes">${esc(ok)}</button>
+      </div>
+    </div>`;
+    const field = box.querySelector('input');
+    const done = (yes) => {
+      box.classList.add('out');
+      document.body.classList.remove('dlg-open');
+      setTimeout(() => box.remove(), 140);
+      prev?.focus?.({ preventScroll: true });
+      resolve(input ? (yes ? field.value.trim() : null) : yes);
+    };
+    // Handled here and kept from the app's own click / key handlers underneath.
+    box.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      if (box.classList.contains('out')) return;
+      const k = ev.target.closest('[data-k]')?.dataset.k;
+      if (k) done(k === 'yes');
+      else if (ev.target === box) done(false);
+    });
+    box.addEventListener('keydown', (ev) => {
+      ev.stopPropagation();
+      if (box.classList.contains('out')) return;
+      if (ev.key === 'Escape') done(false);
+      else if (ev.key === 'Enter' && ev.target === field) done(true);
+      else if (ev.key === 'Tab') {
+        const els = [...box.querySelectorAll('input, button')];
+        const i = els.indexOf(document.activeElement);
+        const j = (i + (ev.shiftKey ? -1 : 1) + els.length) % els.length;
+        ev.preventDefault();
+        els[j].focus();
+      }
+    });
+    document.body.append(box);
+    document.body.classList.add('dlg-open');
+    // A destructive action starts on "cancel", so Enter alone can't delete anything.
+    const first = field || box.querySelector(danger ? '[data-k="no"]' : '[data-k="yes"]');
+    first.focus({ preventScroll: true });
+    if (field) field.select();
+  });
+}
+
 // ---------- Views ----------
 function viewWeek() {
   const now = new Date();
@@ -1162,7 +1216,7 @@ function newMetricDraft(vals = {}, date = isoDay(Date.now()), history = [], from
   };
 }
 
-function saveMetric() {
+async function saveMetric() {
   const d = ui.mdraft;
   const t = dayTs(d.date);
   if (!t) { toast('בחר תאריך'); return; }
@@ -1172,7 +1226,7 @@ function saveMetric() {
 
   // One measurement per day: a new entry on a day that already has one replaces it.
   const sameDay = d.isNew && db.metrics.find((m) => isoDay(m.t) === d.date);
-  if (sameDay && !confirm(`כבר קיימת מדידה מ-${fmtDateFull(t)}. להחליף אותה?`)) return;
+  if (sameDay && !await ask({ title: 'להחליף את המדידה?', msg: `כבר קיימת מדידה מ-${fmtDateFull(t)}. החדשה תחליף אותה.`, ok: 'החלף' })) return;
   db.metrics = db.metrics.filter((m) => m.id !== d.id && m !== sameDay);
   db.metrics.push(entry);
 
@@ -2158,8 +2212,8 @@ function saveAlt(e, name) {
   toast(`נשמר כחלופה ל${origin}`);
 }
 
-function startWorkout(tpl) {
-  if (!confirm(`להתחיל את "${tpl ? tpl.name : 'אימון חופשי'}"? שעון האימון יתחיל לרוץ.`)) return;
+async function startWorkout(tpl) {
+  if (!await ask({ title: `להתחיל את "${tpl ? tpl.name : 'אימון חופשי'}"?`, msg: 'שעון האימון יתחיל לרוץ.', ok: 'יאללה, מתחילים', cancel: 'לא עכשיו' })) return;
   db.active = {
     id: uid(),
     templateId: tpl ? tpl.id : null,
@@ -2176,7 +2230,7 @@ function startWorkout(tpl) {
 // A workout logged after the fact: the user picked a day other than the one it was opened on.
 const backdated = (w) => !!w.date && w.date !== isoDay(w.start);
 
-function finishWorkout() {
+async function finishWorkout() {
   const w = db.active;
   const exercises = w.exercises
     .map((e) => ({
@@ -2189,10 +2243,10 @@ function finishWorkout() {
   const undone = w.exercises.reduce((a, e) => a + e.sets.filter((s) => !s.done && (s.w !== '' || s.r !== '')).length, 0);
 
   if (!exercises.length) {
-    if (confirm('לא סומן אף סט כבוצע (✓). לבטל את האימון בלי לשמור?')) discardWorkout(true);
+    if (await ask({ title: 'לבטל את האימון?', msg: 'לא סומן אף סט כבוצע (✓), אז אין מה לשמור.', ok: 'בטל אימון', cancel: 'חזרה לאימון', danger: true })) discardWorkout(true);
     return;
   }
-  if (undone && !confirm(`${undone} סטים מולאו אבל לא סומנו ב-✓, והם לא יישמרו. לסיים בכל זאת?`)) return;
+  if (undone && !await ask({ title: 'לסיים את האימון?', msg: `${undone} סטים מולאו אבל לא סומנו ב-✓, והם לא יישמרו.`, ok: 'סיים בכל זאת', cancel: 'חזרה לאימון' })) return;
 
   const prs = exercises.filter((e) => {
     const { maxE } = bestFor(e.name);
@@ -2218,7 +2272,7 @@ function finishWorkout() {
       };
     });
     const sig = (list) => list.map((x) => `${x.name}|${x.sets}|${x.rest}`).join(';');
-    if (sig(updated) !== sig(tpl.exercises) && confirm(`שינית את המבנה של "${tpl.name}" באימון הזה (תרגילים, סטים או מנוחה). לעדכן את התבנית?`)) {
+    if (sig(updated) !== sig(tpl.exercises) && await ask({ title: 'לעדכן את התבנית?', msg: `שינית את המבנה של "${tpl.name}" באימון הזה (תרגילים, סטים או מנוחה).`, ok: 'עדכן תבנית', cancel: 'השאר כמו שהיא' })) {
       tpl.exercises = updated;
     }
     // Keep each template exercise's weight at the heaviest working weight just done.
@@ -2250,8 +2304,8 @@ function finishWorkout() {
   toast(prs.length ? `שיא חדש: ${prs.join(', ')}` : 'האימון נשמר', prs.length ? 4000 : 2600);
 }
 
-function discardWorkout(skipConfirm) {
-  if (!skipConfirm && !confirm('לבטל את האימון? מה שהוזן לא יישמר.')) return;
+async function discardWorkout(skipConfirm) {
+  if (!skipConfirm && !await ask({ title: 'לבטל את האימון?', msg: 'מה שהוזן לא יישמר.', ok: 'בטל אימון', cancel: 'המשך להתאמן', danger: true })) return;
   db.active = null;
   stopTimer();
   save();
@@ -2351,11 +2405,11 @@ async function exportData() {
 
 function importData(file) {
   const reader = new FileReader();
-  reader.onload = () => {
+  reader.onload = async () => {
     try {
       const d = JSON.parse(reader.result);
       if (!Array.isArray(d.templates) || !Array.isArray(d.workouts)) throw new Error('bad');
-      if (!confirm(`לשחזר ${d.workouts.length} אימונים ו-${d.templates.length} תבניות? הנתונים הנוכחיים יוחלפו.`)) return;
+      if (!await ask({ title: 'לשחזר את הגיבוי?', msg: `${d.workouts.length} אימונים ו-${d.templates.length} תבניות. הנתונים הנוכחיים יוחלפו.`, ok: 'שחזר', danger: true })) return;
       db = { ...seed(), ...d, settings: { ...seed().settings, ...(d.settings || {}) } };
       save();
       render();
@@ -2432,7 +2486,8 @@ document.addEventListener('click', (ev) => {
       break;
     }
     case 'set-del':
-      if (confirm(`למחוק את סט ${s + 1} של "${ex.name}"?`)) { ex.sets.splice(s, 1); save(); render(); }
+      ask({ title: `למחוק את סט ${s + 1}?`, msg: ex.name, ok: 'מחק', danger: true })
+        .then((yes) => { if (yes) { ex.sets.splice(s, 1); save(); render(); } });
       break;
     case 'wu-add': {
       const first = ex.sets.find((x) => !x.wu);
@@ -2441,18 +2496,20 @@ document.addEventListener('click', (ev) => {
       break;
     }
     case 'ex-del':
-      if (confirm(`להסיר את "${ex.name}" מהאימון?`)) { db.active.exercises.splice(e, 1); ui.swap = null; save(); render(); }
+      ask({ title: 'להסיר את התרגיל?', msg: `"${ex.name}" יוסר מהאימון הזה.`, ok: 'הסר', danger: true })
+        .then((yes) => { if (yes) { db.active.exercises.splice(e, 1); ui.swap = null; save(); render(); } });
       break;
     case 'swap-open': ui.swap = ui.swap === e ? null : e; render(); break;
     case 'unswap': unswapExercise(e); break;
     case 'swap-pick':swapExercise(e, el.dataset.n); break;
     case 'swap-custom': swapExercise(e, $('#swap-name').value); break;
     case 'alt-save': saveAlt(e, $('#swap-name').value); break;
-    case 'ex-rest': {
-      const v = num(prompt('זמן מנוחה בשניות לתרגיל הזה:', ex.rest));
-      if (v && v > 0) { ex.rest = Math.round(v); save(); render(); }
+    case 'ex-rest':
+      ask({ title: 'זמן מנוחה', msg: `בשניות, ל"${ex.name}"`, ok: 'שמור', input: { type: 'number', value: ex.rest } }).then((t) => {
+        const v = num(t);
+        if (v && v > 0) { ex.rest = Math.round(v); save(); render(); }
+      });
       break;
-    }
     case 'ex-add': {
       const name = $('#new-ex').value.trim();
       if (!name) return;
@@ -2525,7 +2582,8 @@ document.addEventListener('click', (ev) => {
     case 'tex-add': ui.draft.exercises.push({ id: uid(), name: '', sets: 2, reps: 8, rest: db.settings.defaultRest }); render(); break;
     case 'tex-del': {
       const n = ui.draft.exercises[i].name.trim();
-      if (confirm(n ? `להסיר את "${n}" מהתבנית?` : 'להסיר את התרגיל מהתבנית?')) { ui.draft.exercises.splice(i, 1); render(); }
+      ask({ title: 'להסיר מהתבנית?', msg: n ? `"${n}" יוסר מהתבנית.` : '', ok: 'הסר', danger: true })
+        .then((yes) => { if (yes) { ui.draft.exercises.splice(i, 1); render(); } });
       break;
     }
     case 'tex-up':
@@ -2547,27 +2605,29 @@ document.addEventListener('click', (ev) => {
     }
 
     case 'hist-del':
-      if (confirm('למחוק את האימון מההיסטוריה? גם תמונות המעקב שלו יימחקו.')) {
+      ask({ title: 'למחוק את האימון?', msg: 'הוא יימחק מההיסטוריה, יחד עם תמונות המעקב שלו.', ok: 'מחק', danger: true }).then((yes) => {
+        if (!yes) return;
         const gone = photos.filter((p) => p.wid === el.dataset.id).map((p) => p.id);
         db.workouts = db.workouts.filter((w) => w.id !== el.dataset.id); save(); render();
         if (gone.length) deletePhoto(...gone);
-      }
+      });
       break;
     case 'photo-add': ui.photoFor = el.dataset.id; $('#photo-file').click(); break;
     case 'photo-open': ui.photo = el.dataset.id; render(); break;
     case 'photo-close': ui.photo = null; render(); break;
-    case 'photo-del': if (confirm('למחוק את התמונה?')) deletePhoto(el.dataset.id); break;
+    case 'photo-del': ask({ title: 'למחוק את התמונה?', ok: 'מחק', danger: true }).then((yes) => yes && deletePhoto(el.dataset.id)); break;
     case 'hist-tpl': {
       const w = db.workouts.find((x) => x.id === el.dataset.id);
-      const name = prompt('שם לתבנית החדשה:', w.name);
-      if (!name) return;
-      db.templates.push({
-        id: uid(), name: name.trim(),
-        exercises: w.exercises.filter((x) => work(x.sets).length).map((x) => ({
-          id: uid(), name: x.name, sets: work(x.sets).length, reps: work(x.sets)[0].r, rest: db.settings.defaultRest,
-        })),
+      ask({ title: 'תבנית חדשה', msg: 'איך לקרוא לה?', ok: 'שמור תבנית', input: { value: w.name } }).then((name) => {
+        if (!name) return;
+        db.templates.push({
+          id: uid(), name,
+          exercises: w.exercises.filter((x) => work(x.sets).length).map((x) => ({
+            id: uid(), name: x.name, sets: work(x.sets).length, reps: work(x.sets)[0].r, rest: db.settings.defaultRest,
+          })),
+        });
+        save(); toast('נשמרה תבנית חדשה');
       });
-      save(); toast('נשמרה תבנית חדשה');
       break;
     }
 
@@ -2610,7 +2670,8 @@ document.addEventListener('click', (ev) => {
     case 'm-save': saveMetric(); break;
     case 'm-cancel': ui.mdraft = null; render(); break;
     case 'm-del':
-      if (confirm('למחוק את המדידה?')) { db.metrics = db.metrics.filter((m) => m.id !== ui.mdraft.id); ui.mdraft = null; save(); render(); }
+      ask({ title: 'למחוק את המדידה?', ok: 'מחק', danger: true })
+        .then((yes) => { if (yes) { db.metrics = db.metrics.filter((m) => m.id !== ui.mdraft.id); ui.mdraft = null; save(); render(); } });
       break;
     case 'demo': openDemo(el.dataset.e != null ? ex.name : ui.draft.exercises[i].name); break;
     case 'demo-close': ui.demo = null; renderSheet(); break;
@@ -2628,10 +2689,12 @@ document.addEventListener('click', (ev) => {
       break;
     }
     case 'demo-clear':
-      if (!confirm(`להסיר את ההדגמה של "${ui.demo.name}"?`)) return;
-      delete db.demos[ui.demo.name];
-      ui.demo = null;
-      save(); render(); renderSheet();
+      ask({ title: 'להסיר את ההדגמה?', msg: `ההדגמה של "${ui.demo.name}" תוסר.`, ok: 'הסר', danger: true }).then((yes) => {
+        if (!yes) return;
+        delete db.demos[ui.demo.name];
+        ui.demo = null;
+        save(); render(); renderSheet();
+      });
       break;
     case 'export': exportData(); break;
     case 'import': $('#import-file').click(); break;

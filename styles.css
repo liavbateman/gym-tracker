@@ -547,6 +547,46 @@ details.adv summary { cursor: pointer; }
 }
 .toast.hidden { display: none; }
 
+/* Confirm / prompt dialog: an index card pinned over the page, instead of the iOS system alert. */
+.dlg {
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; align-items: center; justify-content: center;
+  padding: calc(16px + var(--safe-t)) 16px calc(16px + var(--safe-b));
+  background: rgba(15, 20, 28, .5);
+  animation: dlg-fade .16s ease-out;
+}
+body.dlg-open { overflow: hidden; }
+.dlg-card {
+  width: 100%; max-width: 360px;
+  background-color: var(--sheet);
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 22px 22px;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  box-shadow: 5px 5px 0 var(--ink);
+  padding: 18px 18px 16px;
+  animation: dlg-pop .2s cubic-bezier(.2, 1.3, .4, 1);
+}
+/* The title gets a stroke of highlighter; a destructive one gets the red pen instead. */
+.dlg-card h2 {
+  display: inline; margin: 0;
+  font-size: 34px; line-height: 1.15;
+  background: linear-gradient(transparent 58%, var(--hl) 58%, var(--hl) 92%, transparent 92%);
+  padding: 0 3px;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
+}
+.dlg-card.danger h2 { background: none; padding: 0; text-decoration: underline 2px var(--red); text-underline-offset: 6px; }
+@media (prefers-color-scheme: dark) { .dlg-card:not(.danger) h2 { color: var(--hl-ink); background: var(--hl); border-radius: 3px; } }
+.dlg-card p { margin: 12px 0 0; color: var(--ink-soft); font-size: 15px; line-height: 1.5; }
+.dlg-card input { margin-top: 14px; font-size: 20px; font-weight: 600; }
+.dlg-card input[type=number] { font-family: var(--display); font-size: 32px; padding: 6px 10px; }
+.dlg-btns { display: flex; gap: 10px; margin-top: 20px; }
+.dlg-btns .btn { flex: 1; min-height: 48px; padding: 10px 12px; }
+.dlg.out { animation: dlg-fade .14s ease-in reverse forwards; pointer-events: none; }
+@keyframes dlg-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes dlg-pop { from { opacity: 0; transform: translateY(14px) rotate(-1.5deg) scale(.96); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .dlg, .dlg-card { animation: none !important; } .dlg.out { opacity: 0; } }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; }
 }
