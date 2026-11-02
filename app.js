@@ -2710,6 +2710,20 @@ document.addEventListener('click', (ev) => {
   }
 });
 
+// iOS shake-to-undo: a phone dropped on the gym floor counts as a shake and wipes what was typed.
+// Block the undo/redo itself, and clear a field's undo history once it's left so there's nothing to offer.
+document.addEventListener('beforeinput', (ev) => {
+  if (ev.inputType === 'historyUndo' || ev.inputType === 'historyRedo') ev.preventDefault();
+}, true);
+document.addEventListener('focusout', (ev) => {
+  const el = ev.target;
+  if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) return;
+  if (['checkbox', 'radio', 'file', 'range', 'button', 'submit'].includes(el.type)) return;
+  const v = el.value;
+  el.value = v + ' ';
+  el.value = v;
+}, true);
+
 document.addEventListener('input', (ev) => {
   const el = ev.target;
   const f = el.dataset.f;
