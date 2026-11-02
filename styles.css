@@ -611,6 +611,79 @@ html.kp-open #view { padding-bottom: var(--kp-h, 240px); }
 .kp-grid .kp-zero { grid-column: span 2; }
 .kp-grid .kp-done { grid-row: span 2; height: auto; background: var(--ink); color: var(--paper); box-shadow: none; font-family: var(--body); font-size: 16px; }
 
+/* Exercise notes: a strip of highlighter tape under the exercise name. */
+.ex-note {
+  display: inline-flex; align-items: baseline; gap: 6px; max-width: 100%;
+  margin-top: 6px; padding: 4px 9px 5px;
+  border: 0; border-radius: 3px;
+  background: color-mix(in srgb, var(--hl) 60%, transparent);
+  color: var(--hl-ink);
+  font: 500 13px/1.35 var(--body); text-align: start;
+  transform: rotate(-.6deg);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--ink) 18%, transparent);
+}
+.ex-note span { font-size: 12px; opacity: .6; }
+.note-add { display: block; padding: 6px 0 0; font-size: 12px; }
+
+/* Note keyboard: a sheet of logbook paper with the note written on a ruled line, over a keyboard in the keypad's style. */
+html.tk-open, html.tk-open body { overflow: hidden; overscroll-behavior: none; }
+.tkb {
+  position: fixed; inset: 0; z-index: 30;
+  display: flex; align-items: flex-end;
+  background: rgba(10, 14, 22, .38);
+  touch-action: none;
+  animation: tk-fade .18s ease-out;
+}
+.tkb.hidden { display: none; }
+.tk-panel {
+  width: 100%;
+  padding: 10px 8px calc(10px + var(--safe-b));
+  background: var(--sheet);
+  border-top: 1px solid var(--rule);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -14px 30px -16px rgba(15, 20, 28, .55);
+  animation: tk-rise .22s cubic-bezier(.2, .9, .3, 1.1);
+}
+.tk-head, .tk-paper, .tk-keys { max-width: 616px; margin-inline: auto; }
+.tk-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 4px 8px; }
+.tk-head b { flex: 1; text-align: center; font: 700 22px/1 var(--display); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tk-link { min-width: 52px; background: none; border: 0; padding: 6px 2px; color: var(--ink-soft); font: 500 14px var(--body); }
+.tk-link.hidden { visibility: hidden; }
+.tk-paper {
+  position: relative;
+  min-height: 74px; margin-bottom: 10px; padding: 10px 14px 20px;
+  border-radius: 10px;
+  background-color: var(--field);
+  background-image: repeating-linear-gradient(to bottom, transparent 0 27px, color-mix(in srgb, var(--ink) 13%, transparent) 27px 28px);
+  background-position: 0 10px;
+  box-shadow: inset 0 0 0 1px var(--rule);
+}
+.tk-paper::before { content: ''; position: absolute; inset-block: 0; inset-inline-start: 8px; width: 1px; background: color-mix(in srgb, var(--red) 45%, transparent); }
+.tk-text { font: 500 17px/28px var(--body); color: var(--ink); white-space: pre-wrap; word-break: break-word; }
+.tk-text.empty::before { content: attr(data-ph); color: var(--ink-soft); opacity: .7; }
+.tk-caret { display: inline-block; width: 2px; height: 20px; margin-inline-start: 1px; vertical-align: -4px; background: var(--ink); animation: tk-blink 1s steps(1) infinite; }
+.tk-text.empty .tk-caret { margin-inline-start: -2px; }
+.tk-count { position: absolute; bottom: 4px; inset-inline-end: 10px; font: 500 10px var(--body); color: var(--ink-soft); direction: ltr; }
+.tk-keys { direction: ltr; display: grid; gap: 7px; }
+.tk-row { display: flex; gap: 5px; justify-content: center; }
+.tk-row button {
+  flex: 1 1 0; min-width: 0; max-width: 58px; height: 44px;
+  border: 0; border-radius: 8px;
+  background: var(--field); color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--rule), 0 2px 0 var(--rule);
+  font: 500 19px/1 var(--body);
+  transition: transform .08s, background-color .08s;
+}
+.tk-row button.down { transform: translateY(2px) scale(.94); background: var(--hl); color: var(--hl-ink); box-shadow: none; }
+.tk-row .tk-fn { flex-grow: 1.4; max-width: 74px; background: transparent; font-size: 14px; font-weight: 600; }
+.tk-row .tk-back { font-size: 18px; }
+.tk-row .tk-space { flex-grow: 4.5; max-width: none; }
+.tk-row .tk-save { flex-grow: 2; max-width: 96px; background: var(--ink); color: var(--paper); box-shadow: none; font-size: 15px; font-weight: 600; }
+@keyframes tk-rise { from { transform: translateY(100%); } }
+@keyframes tk-fade { from { background: transparent; } }
+@keyframes tk-blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .tkb, .tk-panel, .tk-caret { animation: none; } }
+
 .toast {
   position: fixed;
   z-index: 20;

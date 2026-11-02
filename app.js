@@ -33,6 +33,7 @@ function seed() {
     metrics: [],
     cardio: [],
     rest: [],
+    notes: {},
     active: null,
   };
 }
@@ -55,6 +56,7 @@ if (!Array.isArray(db.rest)) db.rest = []; // days marked as rest days, as YYYY-
 if (!db.muscles || typeof db.muscles !== 'object') db.muscles = {}; // exercise name -> body area, when set by hand
 if (!db.demos || typeof db.demos !== 'object') db.demos = {}; // exercise name -> chosen technique demo
 if (!db.alts || typeof db.alts !== 'object') db.alts = {}; // exercise name -> alternatives used when it's taken
+if (!db.notes || typeof db.notes !== 'object') db.notes = {}; // exercise name -> standing note ("seat on 4"), shown every workout
 
 // ---------- Body areas ----------
 const GROUPS = ['חזה', 'גב', 'כתפיים', 'רגליים', 'יד קדמית', 'יד אחורית', 'בטן', 'אחר'];
@@ -695,6 +697,14 @@ const stepper = (e, s, f, value, placeholder, mode) => `
     <button data-act="step" data-f="${f}" data-d="-1" data-e="${e}" data-s="${s}" aria-label="הפחת">−</button>
   </div>`;
 
+// An exercise's standing note, kept by name so it follows the exercise into every workout and template.
+function noteChip(name, attrs) {
+  const n = db.notes?.[name];
+  return n
+    ? `<button class="ex-note" data-act="note" ${attrs} aria-label="ערוך הערה"><span aria-hidden="true">✎</span>${esc(n)}</button>`
+    : `<button class="link-btn note-add" data-act="note" ${attrs}>+ הערה</button>`;
+}
+
 function viewActive() {
   const w = db.active;
   const tpl = db.templates.find((t) => t.id === w.templateId);
@@ -725,6 +735,7 @@ function viewActive() {
             ${e.swapOf ? `<div class="muted small">במקום ${esc(e.swapOf)} · <button class="link-btn" data-act="unswap" data-e="${i}" style="padding:0">התפנה? חזור</button></div>` : ''}
             <button class="link-btn demo-link" data-act="demo" data-e="${i}">▶ ${db.demos[e.name] ? 'הדגמה' : 'חפש הדגמה'}</button>
             <div class="prev">${prev ? 'פעם קודמת: ' + prev.map(prevLabel).join(' · ') : 'תרגיל חדש'}</div>
+            ${noteChip(e.name, `data-e="${i}"`)}
           </div>
           <button class="rest-pill" data-act="ex-rest" data-e="${i}" aria-label="שנה זמן מנוחה">מנוחה ${e.rest} ש׳</button>
         </div>
@@ -909,7 +920,7 @@ function viewEditor() {
         <button class="icon-btn" data-act="tex-down" data-i="${i}" aria-label="הזז למטה">▼</button>
         <button class="icon-btn" data-act="tex-del" data-i="${i}" aria-label="הסר">✕</button>
       </div>
-      ${e.name.trim() ? muscleMap(e.name, draftGroup(e)) : ''}
+      ${e.name.trim() ? muscleMap(e.name, draftGroup(e)) + noteChip(e.name.trim(), `data-i="${i}"`) : ''}
       <div class="grid">
         <label class="field">סטים<input type="number" inputmode="numeric" data-f="tex-sets" data-i="${i}" value="${esc(e.sets)}"></label>
         <label class="field">חזרות<input type="number" inputmode="numeric" data-f="tex-reps" data-i="${i}" value="${esc(e.reps)}"></label>
@@ -2801,6 +2812,103 @@ document.addEventListener('pointerdown', (ev) => {
   kpClose();
 }, true);
 
+// ---------- Note keyboard ----------
+// Notes are typed on an in-app keyboard in the logbook style rather than the phone's: the text is written onto a
+// strip of paper above the keys. Tapping outside saves, like "שמור".
+const NOTE_MAX = 120;
+const TK_LAYOUTS = {
+  he: [['ק', 'ר', 'א', 'ט', 'ו', 'ן', 'ם', 'פ'], ['ש', 'ד', 'ג', 'כ', 'ע', 'י', 'ח', 'ל', 'ך', 'ף'], ['ז', 'ס', 'ב', 'ה', 'נ', 'מ', 'צ', 'ת', 'ץ', 'back']],
+  en: [['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'], ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'], ['z', 'x', 'c', 'v', 'b', 'n', 'm', 'back']],
+  num: [['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'], ['-', '/', ':', '(', ')', '״', "'", '"', '×', '°'], ['+', '=', '%', '!', '?', ',', '@', '#', 'back']],
+};
+const tk = { name: null, text: '', lang: 'he', num: false, repeat: null };
+const tkBox = $('#tkb');
+
+function tkKeys() {
+  const rows = TK_LAYOUTS[tk.num ? 'num' : tk.lang];
+  const key = (k) => k === 'back'
+    ? '<button class="tk-fn tk-back" data-tk="back" aria-label="מחק">⌫</button>'
+    : `<button data-tk="${esc(k)}">${esc(k)}</button>`;
+  return rows.map((r) => `<div class="tk-row">${r.map(key).join('')}</div>`).join('') + `
+    <div class="tk-row">
+      <button class="tk-fn" data-tk="num">${tk.num ? (tk.lang === 'he' ? 'אבג' : 'abc') : '123'}</button>
+      <button class="tk-fn" data-tk="lang" aria-label="החלף שפה">${tk.lang === 'he' ? 'EN' : 'עב'}</button>
+      <button class="tk-space" data-tk=" " aria-label="רווח"></button>
+      <button data-tk=".">.</button>
+      <button class="tk-save" data-tk="save">שמור</button>
+    </div>`;
+}
+
+function tkPaint() {
+  $('#tk-text').innerHTML = esc(tk.text) + '<i class="tk-caret"></i>';
+  $('#tk-text').classList.toggle('empty', !tk.text);
+  $('#tk-count').textContent = `${tk.text.length}/${NOTE_MAX}`;
+  $('#tk-clear').classList.toggle('hidden', !tk.text);
+}
+
+function tkOpen(name) {
+  kpClose();
+  tk.name = name;
+  tk.text = db.notes[name] || '';
+  tk.num = false;
+  $('#tk-ex').textContent = name;
+  $('#tk-keys').innerHTML = tkKeys();
+  tkPaint();
+  tkBox.classList.remove('hidden');
+  document.documentElement.classList.add('tk-open');
+}
+
+function tkClose(keep) {
+  if (!tk.name) return;
+  if (keep) {
+    const t = tk.text.trim().replace(/\s+/g, ' ');
+    if (t) db.notes[tk.name] = t; else delete db.notes[tk.name];
+    save();
+  }
+  tk.name = null;
+  tkStopRepeat();
+  tkBox.classList.add('hidden');
+  document.documentElement.classList.remove('tk-open');
+  render();
+}
+
+function tkKey(k) {
+  if (k === 'save') { tkClose(true); return; }
+  if (k === 'cancel') { tkClose(false); return; }
+  if (k === 'num') { tk.num = !tk.num; $('#tk-keys').innerHTML = tkKeys(); return; }
+  if (k === 'lang') { tk.lang = tk.lang === 'he' ? 'en' : 'he'; tk.num = false; $('#tk-keys').innerHTML = tkKeys(); return; }
+  if (k === 'clear') tk.text = '';
+  else if (k === 'back') tk.text = [...tk.text].slice(0, -1).join('');
+  else if (tk.text.length >= NOTE_MAX || (k === ' ' && (!tk.text || tk.text.endsWith(' ')))) return;
+  else tk.text += k;
+  navigator.vibrate?.(4);
+  tkPaint();
+}
+
+// Holding ⌫ keeps deleting, faster after the first beat.
+function tkStopRepeat() { clearTimeout(tk.repeat); clearInterval(tk.repeat); tk.repeat = null; }
+
+// Closing waits for the click, so the tap that closes the keyboard can't land on a button underneath it.
+const TK_CLOSERS = ['save', 'cancel'];
+tkBox.addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-tk]');
+  if (ev.target === tkBox) tkClose(true);
+  else if (b && TK_CLOSERS.includes(b.dataset.tk)) tkKey(b.dataset.tk);
+});
+tkBox.addEventListener('pointerdown', (ev) => {
+  const b = ev.target.closest('[data-tk]');
+  ev.preventDefault();
+  if (!b || TK_CLOSERS.includes(b.dataset.tk)) return;
+  b.classList.add('down');
+  setTimeout(() => b.classList.remove('down'), 140);
+  tkKey(b.dataset.tk);
+  if (b.dataset.tk === 'back') {
+    tkStopRepeat();
+    tk.repeat = setTimeout(() => { tk.repeat = setInterval(() => tkKey('back'), 70); }, 420);
+  }
+});
+for (const t of ['pointerup', 'pointercancel', 'pointerleave']) tkBox.addEventListener(t, tkStopRepeat);
+
 // ---------- Events ----------
 document.addEventListener('click', (ev) => {
   unlockAudio();
@@ -2825,6 +2933,11 @@ document.addEventListener('click', (ev) => {
     case 'start': startWorkout(db.templates.find((t) => t.id === el.dataset.id)); break;
     case 'start-empty': startWorkout(null); break;
     case 'finish': finishWorkout(); break;
+    case 'note': {
+      const name = el.dataset.e != null ? ex?.name : ui.draft?.exercises[i]?.name.trim();
+      if (name) tkOpen(name);
+      break;
+    }
     case 'discard': discardWorkout(); break;
 
     case 'set-done': {
@@ -3112,7 +3225,7 @@ for (const t of ['gesturestart', 'gesturechange', 'gestureend']) {
   document.addEventListener(t, (ev) => ev.preventDefault(), { passive: false });
 }
 document.addEventListener('touchmove', (ev) => {
-  if (ev.touches.length > 1 || kp.el) ev.preventDefault(); // the page also stays put while the set keypad is up
+  if (ev.touches.length > 1 || kp.el || tk.name) ev.preventDefault(); // the page also stays put while a keypad is up
 }, { passive: false });
 document.addEventListener('wheel', (ev) => {
   if (ev.ctrlKey || kp.el) ev.preventDefault();
@@ -3205,6 +3318,11 @@ document.addEventListener('change', (ev) => {
 });
 
 document.addEventListener('keydown', (ev) => {
+  if (tk.name) {
+    const k = ev.key.length === 1 ? ev.key : { Backspace: 'back', Enter: 'save', Escape: 'cancel' }[ev.key];
+    if (k && !ev.ctrlKey && !ev.metaKey) { ev.preventDefault(); tkKey(k); }
+    return;
+  }
   if (kp.el) {
     const k = /^[0-9.]$/.test(ev.key) ? ev.key : { Backspace: 'back', Enter: 'next', Tab: 'next', Escape: 'done' }[ev.key];
     if (k) { ev.preventDefault(); kpKey(k); return; }
