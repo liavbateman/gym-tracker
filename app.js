@@ -3,7 +3,7 @@
 // ---------- Storage ----------
 const KEY = 'gym-tracker-v1';
 const TIMER_KEY = 'gym-tracker-timer';
-const DEFAULT_SETTINGS = { defaultRest: 90, exRest: 150, lastSetFail: true, musicApp: 'spotify', showMusic: true };
+const DEFAULT_SETTINGS = { defaultRest: 90, exRest: 150, lastSetFail: true, musicApp: 'spotify', showMusic: true, weeklyGoal: 4 };
 const WEIGHT_STEP = 2.5;
 
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -31,6 +31,8 @@ function seed() {
     ],
     workouts: [],
     metrics: [],
+    cardio: [],
+    rest: [],
     active: null,
   };
 }
@@ -48,6 +50,8 @@ function load() {
 
 let db = load();
 if (!Array.isArray(db.metrics)) db.metrics = [];
+if (!Array.isArray(db.cardio)) db.cardio = []; // { id, t, type, mins, km?, kcal }
+if (!Array.isArray(db.rest)) db.rest = []; // days marked as rest days, as YYYY-MM-DD
 if (!db.muscles || typeof db.muscles !== 'object') db.muscles = {}; // exercise name -> body area, when set by hand
 if (!db.demos || typeof db.demos !== 'object') db.demos = {}; // exercise name -> chosen technique demo
 if (!db.alts || typeof db.alts !== 'object') db.alts = {}; // exercise name -> alternatives used when it's taken
@@ -449,20 +453,161 @@ function ask({ title, msg = '', ok = 'אישור', cancel = 'ביטול', danger
 }
 
 // ---------- Views ----------
+// Days with any training (a workout or cardio), as toDateString keys.
+const activeDays = () => new Set([...db.workouts.map((w) => w.start), ...db.cardio.map((c) => c.t)].map((t) => new Date(t).toDateString()));
+const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+const weekStart = (d = new Date()) => addDays(d, -d.getDay());
+const weekCount = (sunday, days) => [0, 1, 2, 3, 4, 5, 6].filter((i) => days.has(addDays(sunday, i).toDateString())).length;
+// Weeks in a row that reached the weekly goal. This week counts once it's reached; until then it doesn't break the run.
+function weekStreak(goal, days) {
+  let sun = weekStart(), n = weekCount(sun, days) >= goal ? 1 : 0;
+  for (let k = 0; k < 520; k++) {
+    sun = addDays(sun, -7);
+    if (weekCount(sun, days) < goal) break;
+    n++;
+  }
+  return n;
+}
+
+// Tapping a day marks it as a rest day (or unmarks it). Days with training show a filled box, cardio a dot.
 function viewWeek() {
   const now = new Date();
-  const sunday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
-  const days = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
+  const sunday = weekStart(now);
+  const names = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
   const trained = new Set(db.workouts.map((w) => new Date(w.start).toDateString()));
-  let count = 0;
-  const cells = days.map((d, i) => {
-    const day = new Date(sunday.getFullYear(), sunday.getMonth(), sunday.getDate() + i);
-    const on = trained.has(day.toDateString());
-    if (on) count++;
-    const today = day.toDateString() === now.toDateString();
-    return `<div class="${today ? 'today' : ''}"><span class="${on ? 'on' : ''}"></span>${d}</div>`;
+  const cardio = new Set(db.cardio.map((c) => new Date(c.t).toDateString()));
+  const days = activeDays();
+  const goal = db.settings.weeklyGoal || 0;
+  const count = weekCount(sunday, days);
+  const streak = goal ? weekStreak(goal, days) : 0;
+  const cells = names.map((d, i) => {
+    const day = addDays(sunday, i);
+    const k = day.toDateString(), iso = isoDay(day.getTime());
+    const rest = db.rest.includes(iso) && !days.has(k);
+    const today = k === now.toDateString();
+    return `<button class="${today ? 'today' : ''}" data-act="day-rest" data-d="${iso}" aria-label="${day.toLocaleDateString('he-IL', { weekday: 'long' })}${rest ? ', יום מנוחה' : ''}">
+      <span class="${trained.has(k) ? 'on' : ''} ${rest ? 'rest' : ''}">${cardio.has(k) ? '<i></i>' : ''}</span>${d}</button>`;
   }).join('');
-  return `<div class="card"><div class="row between"><h3>השבוע</h3><span class="muted small">${count === 1 ? 'אימון אחד' : `${count} אימונים`}</span></div><div class="week">${cells}</div></div>`;
+  const done = goal && count >= goal;
+  return `<div class="card">
+    <div class="row between"><h3>השבוע</h3><span class="muted small">${goal ? `<b class="${done ? 'goal-done' : ''}">${count}/${goal}</b> ימי אימון` : count === 1 ? 'יום אימון אחד' : `${count} ימי אימון`}</span></div>
+    ${goal ? `<div class="goal-bar"><div style="width:${Math.min(100, (count / goal) * 100)}%"></div></div>` : ''}
+    <div class="week">${cells}</div>
+    <div class="row between muted small week-foot"><span>לחיצה על יום מסמנת יום מנוחה</span>${streak > 1 ? `<span>רצף <b>${streak}</b> שבועות ביעד</span>` : done ? '<span>היעד השבועי הושג ✓</span>' : ''}</div>
+  </div>`;
+}
+
+// Quick actions for today: log cardio, or call it a rest day.
+function viewToday() {
+  const today = isoDay(Date.now());
+  const rest = db.rest.includes(today);
+  const done = db.cardio.filter((c) => isoDay(c.t) === today);
+  return `
+    <div class="row">
+      <button class="btn grow" data-act="c-new">+ אירובי</button>
+      <button class="btn grow ${rest ? 'primary' : ''}" data-act="day-rest" data-d="${today}">${rest ? '✓ יום מנוחה' : 'היום יום מנוחה'}</button>
+    </div>
+    ${rest ? '<p class="muted small rest-note">השריר נבנה בזמן המנוחה: לישון טוב, לאכול מספיק חלבון ולשתות מים. הליכה קלה או מתיחות לא מקלקלות יום מנוחה.</p>' : ''}
+    ${done.length ? `<p class="muted small rest-note">היום: ${done.map((c) => `${CARDIO_BY[c.type].name} ${fmtMins(c.mins)} · ${c.kcal} קק״ל`).join(' | ')}</p>` : ''}`;
+}
+
+// ---------- Cardio ----------
+// Calories = MET × body weight (kg) × hours, METs from the Compendium of Physical Activities, picked by speed where
+// the distance is known. Running with a distance uses ACSM's running equation instead (oxygen cost from speed).
+// dist: 'km' or 'm' (swimming is logged in meters); met: fixed MET, or a function of speed in km/h (null when unknown).
+const CARDIO = [
+  { k: 'run', name: 'ריצה', dist: 'km', met: () => 9.8 },
+  { k: 'walk', name: 'הליכה', dist: 'km', met: (v) => (v == null ? 3.5 : v < 3.2 ? 2.8 : v < 4.8 ? 3.5 : v < 5.6 ? 4.3 : v < 6.4 ? 5 : 7) },
+  { k: 'swim', name: 'שחייה', dist: 'm', met: (v) => (v == null ? 7 : v < 1.5 ? 6 : v < 2.4 ? 8.3 : v < 3.3 ? 9.8 : 10.5) },
+  { k: 'bike', name: 'אופניים', dist: 'km', met: (v) => (v == null ? 7 : v < 16 ? 4 : v < 19 ? 6.8 : v < 22 ? 8 : v < 25 ? 10 : 12) },
+  { k: 'elliptical', name: 'אליפטיקל', met: () => 5 },
+  { k: 'row', name: 'חתירה', met: () => 7 },
+  { k: 'stairs', name: 'מדרגות', met: () => 9 },
+  { k: 'rope', name: 'דילגית', met: () => 11 },
+  { k: 'hiit', name: 'HIIT', met: () => 8 },
+  { k: 'other', name: 'אחר', met: () => 6 },
+];
+const CARDIO_BY = Object.fromEntries(CARDIO.map((c) => [c.k, c]));
+const bodyWeight = () => latestOf('weight')?.weight || db.settings.bodyWeight || null;
+const fmtMins = (m) => (m >= 60 ? `${Math.floor(m / 60)}:${String(Math.round(m % 60)).padStart(2, '0')} ש׳` : `${Math.round(m)} דק׳`);
+const fmtPace = (minsPer) => { const t = Math.round(minsPer * 60); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
+
+function cardioKcal(type, mins, km, kg) {
+  if (!mins || !kg) return 0;
+  const kmh = km ? km / (mins / 60) : null;
+  // ACSM, level running: VO2 = 0.2 × speed (m/min) + 3.5 ml/kg/min; ~5 kcal per liter of oxygen.
+  if (type === 'run' && kmh) return ((0.2 * (kmh * 1000 / 60) + 3.5) * kg / 1000) * 5 * mins;
+  return CARDIO_BY[type].met(kmh) * kg * (mins / 60);
+}
+
+// Pace for runs, walks and swims, speed for rides: { v, u }, or null without both time and distance.
+function cardioPace(type, mins, km) {
+  if (!mins || !km) return null;
+  if (type === 'swim') return { v: fmtPace(mins / (km * 10)), u: 'ל-100 מ׳' };
+  if (type === 'bike') return { v: r1(km / (mins / 60)), u: 'קמ״ש' };
+  return { v: fmtPace(mins / km), u: 'לק״מ' };
+}
+const fmtDist = (type, km) => (CARDIO_BY[type].dist === 'm' ? `${Math.round(km * 1000).toLocaleString('he-IL')} מ׳` : `${r1(km)} ק״מ`);
+
+// The form's numbers, read from the draft: minutes, distance in km, and calories (typed, or worked out).
+function cardioCalc(d) {
+  const type = CARDIO_BY[d.type];
+  const mins = num(d.mins), dist = type.dist ? num(d.dist) : null;
+  const km = dist ? (type.dist === 'm' ? dist / 1000 : dist) : null;
+  const kg = num(d.bw) || bodyWeight() || 75;
+  const auto = Math.round(cardioKcal(d.type, mins, km, kg));
+  return { mins, km, auto, kcal: num(d.kcal) != null ? Math.round(num(d.kcal)) : auto };
+}
+
+function cardioSummary(d) {
+  const { mins, km, kcal } = cardioCalc(d);
+  const pace = cardioPace(d.type, mins, km);
+  return `<div><b>${kcal || '–'}</b> קלוריות</div>${pace ? `<div><b dir="ltr">${pace.v}</b> ${pace.u}</div>` : ''}`;
+}
+
+function viewCardioForm() {
+  const d = ui.cdraft;
+  const type = CARDIO_BY[d.type];
+  const known = bodyWeight();
+  return `
+    <div class="card cform">
+      <div class="ctypes">${CARDIO.map((c) => `<button class="${c.k === d.type ? 'on' : ''}" data-act="c-type" data-k="${c.k}">${c.name}</button>`).join('')}</div>
+      <div class="cgrid">
+        <label class="field">זמן (דקות)<input type="number" inputmode="decimal" step="any" data-f="c-mins" value="${esc(d.mins)}" placeholder="30"></label>
+        ${type.dist ? `<label class="field">${type.dist === 'm' ? 'מרחק (מטר)' : 'מרחק (ק״מ)'}<input type="number" inputmode="decimal" step="any" data-f="c-dist" value="${esc(d.dist)}" placeholder="${type.dist === 'm' ? '1000' : '5'}"></label>` : ''}
+      </div>
+      <div class="c-sum" id="c-sum">${cardioSummary(d)}</div>
+      <label class="field">קלוריות מהשעון (לא חובה)<input type="number" inputmode="numeric" data-f="c-kcal" value="${esc(d.kcal)}" placeholder="חישוב אוטומטי"></label>
+      ${known ? '' : `<label class="field">משקל גוף (ק״ג)<input type="number" inputmode="decimal" step="any" data-f="c-bw" value="${esc(d.bw)}" placeholder="75"><span class="muted small">נשמר לפעם הבאה. מדידה בלשונית מדדי גוף מעדכנת אותו.</span></label>`}
+      <label class="field">תאריך<input type="date" data-f="c-date" value="${d.date}" max="${isoDay(Date.now())}"></label>
+      <p class="muted small" style="margin-bottom:0">החישוב לפי ${known ? `המשקל שלך (${r1(known)} ק״ג)` : 'משקל הגוף'}, הזמן${type.dist ? ' והקצב' : ''}. זו הערכה; שעון עם דופק מדייק יותר.</p>
+    </div>
+    <div class="row">
+      <button class="btn grow" data-act="c-cancel">ביטול</button>
+      <button class="btn primary grow" data-act="c-save">שמור</button>
+    </div>`;
+}
+
+function saveCardio() {
+  const d = ui.cdraft;
+  const { mins, km, kcal } = cardioCalc(d);
+  if (!mins || mins <= 0) { toast('כמה דקות?'); return; }
+  if (num(d.bw)) db.settings.bodyWeight = num(d.bw);
+  const today = d.date === isoDay(Date.now());
+  db.cardio.push({ id: uid(), t: today || !dayTs(d.date) ? Date.now() : dayTs(d.date), type: d.type, mins, ...(km ? { km } : {}), kcal });
+  // Training that day means it wasn't a rest day after all.
+  db.rest = db.rest.filter((x) => x !== d.date);
+  ui.cdraft = null;
+  save(); render(); window.scrollTo(0, 0);
+  toast(`נשמר: ${CARDIO_BY[d.type].name}, ${kcal} קלוריות`);
+}
+
+function toggleRest(iso) {
+  const has = db.rest.includes(iso);
+  if (!has && activeDays().has(new Date(dayTs(iso)).toDateString())) { toast('ביום הזה כבר יש אימון'); return; }
+  db.rest = has ? db.rest.filter((x) => x !== iso) : [...db.rest, iso];
+  save(); render();
+  toast(has ? 'בוטל יום המנוחה' : 'סומן יום מנוחה');
 }
 
 // ---------- Workout music ----------
@@ -530,6 +675,7 @@ function viewStart() {
 
   return `
     ${viewWeek()}
+    ${viewToday()}
     <h2>התחל אימון</h2>
     ${tpls || '<p class="muted">אין עדיין תבניות. צור תבנית כדי להתחיל אימון ממנה.</p>'}
     <div class="row">
@@ -712,6 +858,10 @@ function viewSettings() {
       <label class="field">זמן מנוחה בין תרגילים (שניות)
         <input type="number" inputmode="numeric" data-f="exrest" value="${db.settings.exRest}">
         <span class="muted small">מופעל אוטומטית כשמסיימים את הסט האחרון בתרגיל. 0 = בלי טיימר.</span>
+      </label>
+      <label class="field">יעד ימי אימון בשבוע
+        <input type="number" inputmode="numeric" data-f="wgoal" value="${db.settings.weeklyGoal || ''}" placeholder="0 = בלי יעד">
+        <span class="muted small">אימוני כוח ואירובי נספרים יחד. ימי מנוחה לא שוברים את הרצף, רק שבוע שלא הגיע ליעד.</span>
       </label>
       <label class="check-row">
         <input type="checkbox" data-f="set-lastfail" ${db.settings.lastSetFail ? 'checked' : ''}>
@@ -960,16 +1110,44 @@ function photoViewer() {
     </div>` : '';
 }
 
+function cardioCard(c) {
+  const d = new Date(c.t);
+  const pace = cardioPace(c.type, c.mins, c.km);
+  return `
+    <details class="card hist" data-id="${c.id}" ${ui.histOpen.has(c.id) ? 'open' : ''}>
+      <summary>
+        <div class="hist-date"><b>${d.getDate()}</b><span>${d.toLocaleDateString('he-IL', { weekday: 'short' })}</span></div>
+        <div class="grow">
+          <div class="hist-name">${CARDIO_BY[c.type].name} <span class="muted small">· אירובי</span></div>
+          <div class="hist-stats">
+            <span><b>${fmtMins(c.mins)}</b></span>
+            ${c.km ? `<span><b>${fmtDist(c.type, c.km)}</b></span>` : ''}
+            ${pace ? `<span><b dir="ltr">${pace.v}</b> ${pace.u}</span>` : ''}
+            <span><b>${c.kcal}</b> קלוריות</span>
+          </div>
+        </div>
+        <svg class="hist-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+      </summary>
+      <div class="hist-actions">
+        <span class="muted small">${fmtTime(c.t)}</span>
+        <button class="btn sm danger" data-act="c-del" data-id="${c.id}">מחק</button>
+      </div>
+    </details>`;
+}
+
 function viewHistory() {
   const list = sortedWorkouts();
-  if (!list.length) return '<div class="empty">עוד לא נשמרו אימונים.<br>אחרי שתסיים אימון הוא יופיע כאן.</div>';
+  if (!list.length && !db.cardio.length) return '<div class="empty">עוד לא נשמרו אימונים.<br>אחרי שתסיים אימון הוא יופיע כאן.</div>';
+  // Workouts and cardio together, newest first.
+  const items = [...list.map((w) => ({ t: w.start, w })), ...db.cardio.map((c) => ({ t: c.t, c }))].sort((a, b) => b.t - a.t);
   // Month dividers, then one card per workout: a date block, the name and three stats; tap to see every set.
   let month = '';
-  return photoViewer() + `<input type="file" id="photo-file" accept="image/*" multiple hidden>` + list.map((w) => {
-    const d = new Date(w.start);
+  return photoViewer() + `<input type="file" id="photo-file" accept="image/*" multiple hidden>` + items.map(({ t, w, c }) => {
+    const d = new Date(t);
     const m = d.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' });
     const head = m !== month ? `<h3 class="hist-month">${m}</h3>` : '';
     month = m;
+    if (c) return head + cardioCard(c);
     const runs = areaRuns(w.exercises, (e) => groupOf(e.name));
     const mine = photosOf(w, list);
     const inten = intensity(w);
@@ -1037,10 +1215,15 @@ function viewProgress() {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
   const thisMonth = db.workouts.filter((w) => w.start >= monthStart).length;
+  const cMonth = db.cardio.filter((c) => c.t >= monthStart);
+  const sum = (k) => cMonth.reduce((a, c) => a + (c[k] || 0), 0);
   const top = `
     <div class="stats">
       <div class="stat"><div class="v">${thisMonth}</div><div class="l">אימונים החודש</div></div>
       <div class="stat"><div class="v">${db.workouts.length}</div><div class="l">אימונים בסה״כ</div></div>
+      ${db.cardio.length ? `
+      <div class="stat"><div class="v">${Math.round(sum('kcal')).toLocaleString('he-IL')}</div><div class="l">קלוריות באירובי החודש</div></div>
+      <div class="stat"><div class="v">${r1(sum('km'))}<span class="u"> ק״מ</span></div><div class="l">${cMonth.length} אימוני אירובי · ${Math.round(sum('mins'))} דק׳ החודש</div></div>` : ''}
     </div>`;
 
   const names = [];
@@ -2220,7 +2403,8 @@ function render() {
       break;
     // Templates live inside the workout tab: the editor opens over the start screen or the active workout and returns to it.
     default:
-      if (ui.draft) { title = ui.draft.isNew ? 'תבנית חדשה' : 'עריכת תבנית'; html = viewEditor(); }
+      if (ui.cdraft) { title = 'אירובי'; html = viewCardioForm(); }
+      else if (ui.draft) { title = ui.draft.isNew ? 'תבנית חדשה' : 'עריכת תבנית'; html = viewEditor(); }
       else { title = db.active ? 'אימון פעיל' : 'אימון'; html = db.active ? viewActive() : viewStart(); }
   }
   $('#title').textContent = title;
@@ -2801,6 +2985,17 @@ document.addEventListener('click', (ev) => {
         save(); render(); renderSheet();
       });
       break;
+    case 'day-rest': toggleRest(el.dataset.d); break;
+    case 'c-new': ui.cdraft = { type: db.settings.lastCardio || 'run', mins: '', dist: '', kcal: '', bw: '', date: isoDay(Date.now()) }; render(); window.scrollTo(0, 0); break;
+    case 'c-type': ui.cdraft.type = db.settings.lastCardio = el.dataset.k; ui.cdraft.dist = ''; render(); break;
+    case 'c-cancel': ui.cdraft = null; render(); window.scrollTo(0, 0); break;
+    case 'c-save': saveCardio(); break;
+    case 'c-del':
+      ask({ title: 'למחוק את האימון?', ok: 'מחק', danger: true }).then((yes) => {
+        if (!yes) return;
+        db.cardio = db.cardio.filter((c) => c.id !== el.dataset.id); save(); render();
+      });
+      break;
     case 'export': exportData(); break;
     case 'import': $('#import-file').click(); break;
   }
@@ -2861,6 +3056,13 @@ document.addEventListener('input', (ev) => {
     case 'apikey': setApiKey(el.value.trim()); break;
     case 'paste-text': ui.pasteText = el.value; break;
     case 'demo-q': ui.demo.q = el.value; break;
+    case 'wgoal': { const v = num(el.value); if (v != null && v >= 0 && v <= 7) { db.settings.weeklyGoal = Math.round(v); save(); } break; }
+    // Update the calorie and pace preview in place, so the field keeps focus while typing.
+    case 'c-mins': case 'c-dist': case 'c-kcal': case 'c-bw':
+      ui.cdraft[f.slice(2)] = el.value;
+      $('#c-sum').innerHTML = cardioSummary(ui.cdraft);
+      break;
+    case 'c-date': ui.cdraft.date = el.value; break;
   }
 });
 
