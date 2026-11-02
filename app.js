@@ -1311,7 +1311,7 @@ function viewHistory() {
 
 // markBest circles the highest point in red — only where higher means a record.
 function chart(points, unit, markBest) {
-  const W = 340, H = 190, L = 40, R = 10, T = 12, B = 26;
+  const W = 340, H = 190, PL = 40, R = 10, T = 12, B = 26;
   if (!points.length) return '';
   const ys = points.map((p) => p.y);
   let min = Math.min(...ys), max = Math.max(...ys);
@@ -1319,18 +1319,18 @@ function chart(points, unit, markBest) {
   if (min === max) { min -= 5; max += 5; }
   const padY = (max - min) * 0.1;
   min = Math.max(0, min - padY); max += padY;
-  const x = (i) => (points.length === 1 ? (L + W - R) / 2 : L + (i * (W - L - R)) / (points.length - 1));
+  const x = (i) => (points.length === 1 ? (PL + W - R) / 2 : PL + (i * (W - PL - R)) / (points.length - 1));
   const y = (v) => T + (H - T - B) * (1 - (v - min) / (max - min));
   const ticks = [0, 0.5, 1].map((f) => min + (max - min) * f);
   const path = points.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.y).toFixed(1)}`).join(' ');
   const area = points.length > 1 ? `${path} L${x(points.length - 1).toFixed(1)},${H - B} L${x(0).toFixed(1)},${H - B} Z` : '';
   return `
     <svg class="chart" viewBox="0 0 ${W} ${H}" style="direction:ltr" role="img" aria-label="${L('גרף התקדמות', 'Progressdiagram')}">
-      ${ticks.map((v) => `<line class="grid-l" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="ax" x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${max - min < 10 ? v.toFixed(1) : Math.round(v)}</text>`).join('')}
+      ${ticks.map((v) => `<line class="grid-l" x1="${PL}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="ax" x="${PL - 6}" y="${y(v) + 4}" text-anchor="end">${max - min < 10 ? v.toFixed(1) : Math.round(v)}</text>`).join('')}
       ${area ? `<path class="ar" d="${area}"/>` : ''}
       <path class="ln" d="${path}"/>
       ${points.map((p, i) => `<circle class="pt ${p.y === best ? 'best' : ''}" cx="${x(i)}" cy="${y(p.y)}" r="${p.y === best ? 6 : 3.5}"><title>${fmtDateShort(p.t)}: ${fmtW(p.y)} ${unit}</title></circle>`).join('')}
-      <text class="ax" x="${L}" y="${H - 6}" text-anchor="start">${fmtDateShort(points[0].t)}</text>
+      <text class="ax" x="${PL}" y="${H - 6}" text-anchor="start">${fmtDateShort(points[0].t)}</text>
       ${points.length > 1 ? `<text class="ax" x="${W - R}" y="${H - 6}" text-anchor="end">${fmtDateShort(points[points.length - 1].t)}</text>` : ''}
     </svg>`;
 }
