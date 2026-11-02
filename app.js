@@ -681,7 +681,6 @@ function viewSwap(e, i) {
         <input type="text" id="swap-name" list="exnames" placeholder="תרגיל חלופי אחר…" class="grow">
         <button class="btn sm" data-act="swap-custom" data-e="${i}">החלף</button>
       </div>
-      <button class="link-btn" data-act="alt-save" data-e="${i}" style="padding-inline:0">+ שמור כחלופה קבועה בלי להחליף עכשיו</button>
     </div>`;
 }
 
@@ -2203,15 +2202,6 @@ function unswapExercise(e) {
   toast(`חזרת ל${origin}`);
 }
 
-function saveAlt(e, name) {
-  name = String(name || '').trim();
-  const ex = db.active.exercises[e];
-  if (!name || name === ex.name) { toast('הקלד שם של תרגיל חלופי'); return; }
-  const origin = rememberAlt(ex, name);
-  save(); render();
-  toast(`נשמר כחלופה ל${origin}`);
-}
-
 async function startWorkout(tpl) {
   if (!await ask({ title: `להתחיל את "${tpl ? tpl.name : 'אימון חופשי'}"?`, msg: 'שעון האימון יתחיל לרוץ.', ok: 'יאללה, מתחילים', cancel: 'לא עכשיו' })) return;
   db.active = {
@@ -2503,7 +2493,6 @@ document.addEventListener('click', (ev) => {
     case 'unswap': unswapExercise(e); break;
     case 'swap-pick':swapExercise(e, el.dataset.n); break;
     case 'swap-custom': swapExercise(e, $('#swap-name').value); break;
-    case 'alt-save': saveAlt(e, $('#swap-name').value); break;
     case 'ex-rest':
       ask({ title: 'זמן מנוחה', msg: `בשניות, ל"${ex.name}"`, ok: 'שמור', input: { type: 'number', value: ex.rest } }).then((t) => {
         const v = num(t);
