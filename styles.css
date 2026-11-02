@@ -627,6 +627,8 @@ html.kp-open #view { padding-bottom: var(--kp-h, 240px); }
 
 /* Note editor: the note is written in place on a strip of ruled logbook paper; the page is locked while it's open. */
 html.note-open, html.note-open body { overflow: hidden; overscroll-behavior: none; }
+html.note-open body { position: fixed; inset-inline: 0; width: 100%; padding-top: var(--tb-h); }
+html.note-open .topbar { position: fixed; top: 0; inset-inline: 0; }
 .note-edit { margin-top: 8px; }
 .note-paper {
   position: relative;
