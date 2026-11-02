@@ -3,7 +3,7 @@
 // ---------- Storage ----------
 const KEY = 'gym-tracker-v1';
 const TIMER_KEY = 'gym-tracker-timer';
-const DEFAULT_SETTINGS = { defaultRest: 90, lastSetFail: true, musicApp: 'spotify' };
+const DEFAULT_SETTINGS = { defaultRest: 90, lastSetFail: true, musicApp: 'spotify', showMusic: true };
 const WEIGHT_STEP = 2.5;
 
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -433,9 +433,10 @@ function musicUrl(app, q) {
 }
 
 function viewMusic() {
+  if (db.settings.showMusic === false) return '';
   const app = db.settings.musicApp;
   return `
-    <h2>מוזיקה לאימון</h2>
+    <div class="row between" style="margin:26px 0 10px"><h2 style="margin:0">מוזיקה לאימון</h2><button class="btn sm ghost" data-act="music-hide">הסתר</button></div>
     <div class="card">
       <div class="seg">${MUSIC_APPS.map(([k, l]) => `<button class="${app === k ? 'on' : ''}" data-act="music-app" data-k="${k}">${l}</button>`).join('')}</div>
       <div class="genres">${GENRES.map(([l, q]) => `<a class="genre" href="${esc(musicUrl(app, q))}" target="_blank" rel="noopener">${l}</a>`).join('')}</div>
@@ -641,6 +642,10 @@ function viewSettings() {
       <label class="check-row">
         <input type="checkbox" data-f="set-lastfail" ${db.settings.lastSetFail ? 'checked' : ''}>
         <span>הסט האחרון בכל תרגיל הוא עד כשל<br><span class="muted small">מסומן אוטומטית בתחילת אימון. אפשר לבטל לסט מסוים בלחיצה על המספר שלו.</span></span>
+      </label>
+      <label class="check-row">
+        <input type="checkbox" data-f="set-music" ${db.settings.showMusic !== false ? 'checked' : ''}>
+        <span>הצג "מוזיקה לאימון"</span>
       </label>
     </div>
 
@@ -2568,6 +2573,7 @@ document.addEventListener('click', (ev) => {
 
     case 'metric': ui.progMetric = el.dataset.k; render(); break;
     case 'music-app': db.settings.musicApp = el.dataset.k; save(); render(); break;
+    case 'music-hide': db.settings.showMusic = false; save(); render(); toast('אפשר להחזיר בהגדרות'); break;
     case 'area-period': ui.areaPeriod = el.dataset.k; render(); break;
 
     case 'body-metric': ui.bodyMetric = el.dataset.k; render(); break;
@@ -2688,6 +2694,7 @@ document.addEventListener('change', (ev) => {
     save(); render(); toast('התאריך עודכן');
   }
   if (el.dataset.f === 'set-lastfail') { db.settings.lastSetFail = el.checked; save(); }
+  if (el.dataset.f === 'set-music') { db.settings.showMusic = el.checked; save(); }
   if (el.id === 'import-file' && el.files[0]) { importData(el.files[0]); el.value = ''; }
   if (el.id === 'm-file' && el.files[0]) { handleReportFile(el.files[0]); el.value = ''; }
   if (el.id === 'photo-file' && el.files.length) { addPhotos([...el.files], ui.photoFor); el.value = ''; }
