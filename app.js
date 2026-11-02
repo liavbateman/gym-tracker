@@ -2561,8 +2561,8 @@ function render() {
     // Templates live inside the workout tab: the editor opens over the start screen or the active workout and returns to it.
     default:
       if (ui.cdraft) { title = L('אירובי', 'Kondition'); html = viewCardioForm(); }
-      else if (ui.draft) { title = ui.draft.isNew ? L('תבנית חדשה', 'Ny mall') : L('עריכת תבנית', 'Redigera mall'); html = viewEditor(); }
-      else { title = db.active ? L('אימון פעיל', 'Pågående pass') : L('אימון', 'Träning'); html = db.active ? viewActive() : viewStart(); }
+      else if (ui.draft) { title = ui.draft.isNew ? L('תבנית חדשה', 'Ny mall') : L('עריכת תבנית', 'Ändra mall'); html = viewEditor(); }
+      else { title = db.active ? L('אימון פעיל', 'Aktivt pass') : L('אימון', 'Träning'); html = db.active ? viewActive() : viewStart(); }
   }
   $('#title').textContent = title;
   $('#view').innerHTML = html;

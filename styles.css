@@ -121,6 +121,11 @@ button { cursor: pointer; touch-action: manipulation; }
   font-size: 44px;
   line-height: 1;
   letter-spacing: .01em;
+  /* One line even beside the workout clock; longer (Swedish) titles end in "…" rather than wrap. */
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 main {
