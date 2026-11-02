@@ -697,27 +697,128 @@ function viewEditor() {
     </div>` : '<button class="btn danger block" data-act="tpl-del">מחק תבנית</button>'}`;
 }
 
+// ---------- Progress photos ----------
+// Photos stay on this device only: they live in IndexedDB (too big for localStorage) and are left out of the JSON backup.
+const PHOTO_DB = 'gym-photos';
+let photos = []; // { id, ts, blob, url }, newest first
+function photoStore(mode) {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(PHOTO_DB, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('photos', { keyPath: 'id' });
+    req.onsuccess = () => res(req.result.transaction('photos', mode).objectStore('photos'));
+    req.onerror = () => rej(req.error);
+  });
+}
+const idb = (req) => new Promise((res, rej) => { req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error); });
+
+async function loadPhotos() {
+  try {
+    const all = await idb((await photoStore('readonly')).getAll());
+    photos.forEach((p) => URL.revokeObjectURL(p.url));
+    photos = all.map((p) => ({ ...p, url: URL.createObjectURL(p.blob) })).sort((a, b) => b.ts - a.ts);
+    if (ui.tab === 'history') render();
+  } catch { /* no IndexedDB (private mode) — the section just stays empty */ }
+}
+
+// Shrink to 1600px JPEG so a phone photo takes ~300KB instead of several MB.
+async function shrinkPhoto(file) {
+  const img = await createImageBitmap(file).catch(() => null);
+  if (!img) return file;
+  const k = Math.min(1, 1600 / Math.max(img.width, img.height));
+  const c = document.createElement('canvas');
+  c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  return new Promise((res) => c.toBlob((b) => res(b || file), 'image/jpeg', 0.85));
+}
+
+async function addPhotos(files) {
+  try {
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+    for (const f of files) {
+      const blob = await shrinkPhoto(f);
+      await idb((await photoStore('readwrite')).put({ id: uid(), ts: Date.now(), blob }));
+    }
+    await loadPhotos();
+    toast(files.length > 1 ? `${files.length} תמונות נשמרו` : 'התמונה נשמרה');
+  } catch { toast('שגיאה בשמירת התמונה'); }
+}
+
+async function deletePhoto(id) {
+  try {
+    await idb((await photoStore('readwrite')).delete(id));
+    ui.photo = null;
+    await loadPhotos();
+  } catch { toast('שגיאה במחיקת התמונה'); }
+}
+
+function viewPhotos() {
+  const open = photos.find((p) => p.id === ui.photo);
+  return `
+    <div class="card">
+      <div class="row between">
+        <b>תמונות מעקב</b>
+        <button class="btn sm" data-act="photo-add">+ הוסף תמונה</button>
+        <input type="file" id="photo-file" accept="image/*" multiple hidden>
+      </div>
+      ${photos.length
+        ? `<div class="photo-grid">${photos.map((p) => `
+            <button class="photo-thumb" data-act="photo-open" data-id="${p.id}" aria-label="תמונה מ-${fmtDateFull(p.ts)}">
+              <img src="${p.url}" alt="" loading="lazy"><span>${fmtDateFull(p.ts)}</span>
+            </button>`).join('')}</div>`
+        : '<p class="muted small" style="margin-bottom:0">התמונות נשמרות רק במכשיר הזה ולא נכללות בגיבוי.</p>'}
+    </div>
+    ${open ? `
+      <div class="photo-view" data-act="photo-close" role="dialog" aria-modal="true" aria-label="תמונת מעקב">
+        <img src="${open.url}" alt="">
+        <div class="row between" data-act="none">
+          <span>${fmtDateFull(open.ts)}</span>
+          <div class="row">
+            <button class="btn sm danger" data-act="photo-del" data-id="${open.id}">מחק</button>
+            <button class="btn sm" data-act="photo-close">סגור</button>
+          </div>
+        </div>
+      </div>` : ''}`;
+}
+
 function viewHistory() {
   const list = sortedWorkouts();
-  if (!list.length) return '<div class="empty">עוד לא נשמרו אימונים.<br>אחרי שתסיים אימון הוא יופיע כאן.</div>';
-  return list.map((w) => `
+  if (!list.length) return viewPhotos() + '<div class="empty">עוד לא נשמרו אימונים.<br>אחרי שתסיים אימון הוא יופיע כאן.</div>';
+  // Month dividers, then one card per workout: a date block, the name and three stats; tap to see every set.
+  let month = '';
+  return viewPhotos() + list.map((w) => {
+    const d = new Date(w.start);
+    const m = d.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' });
+    const head = m !== month ? `<div class="area-div"><b>${m}</b></div>` : '';
+    month = m;
+    const groups = [...new Set(w.exercises.map((e) => groupOf(e.name)))];
+    return `${head}
     <details class="card hist">
       <summary>
-        <div class="row between"><b>${esc(w.name)}</b><span class="muted small">${fmtDate(w.start)} · ${fmtTime(w.start)}</span></div>
-        <div class="muted small" style="margin-top:4px">${w.exercises.length} תרגילים · ${fmtDur(w.end - w.start)}${w.stretch ? ` (כולל ${Math.ceil(w.stretch / 60)} דק׳ מתיחות)` : ''} · נפח ${Math.round(volume(w)).toLocaleString('he-IL')} ק״ג</div>
+        <div class="hist-date"><b>${d.getDate()}</b><span>${d.toLocaleDateString('he-IL', { weekday: 'short' })}</span></div>
+        <div class="grow">
+          <div class="hist-name">${esc(w.name)}</div>
+          <div class="muted small">${groups.map(esc).join(' · ')}</div>
+          <div class="hist-stats">
+            <span><b>${w.exercises.length}</b> תרגילים</span>
+            <span><b>${fmtDur(w.end - w.start)}</b></span>
+            <span><b>${Math.round(volume(w)).toLocaleString('he-IL')}</b> ק״ג</span>
+          </div>
+        </div>
+        <svg class="hist-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
       </summary>
+      <div class="muted small hist-meta">התחלה ${fmtTime(w.start)}${w.stretch ? ` · כולל ${Math.ceil(w.stretch / 60)} דק׳ מתיחות` : ''}</div>
       ${w.exercises.map((e) => `
         <div class="hist-ex">
-          <div class="area">${groupOf(e.name)}</div>
-          <b>${esc(e.name)}</b>
+          <div class="row between"><b>${esc(e.name)}</b><span class="area inline">${groupOf(e.name)}</span></div>
           <div class="chips">${e.sets.map((s) => chip(s)).join('')}</div>
         </div>`).join('')}
-      <div class="row" style="margin-top:12px">
+      <div class="hist-actions">
         <input type="date" class="pill-in" data-f="hist-date" data-id="${w.id}" value="${isoDay(w.start)}" max="${isoDay(Date.now())}" aria-label="תאריך האימון">
         <button class="btn sm" data-act="hist-tpl" data-id="${w.id}">שמור כתבנית</button>
         <button class="btn sm danger" data-act="hist-del" data-id="${w.id}">מחק</button>
       </div>
-    </details>`).join('');
+    </details>`;
+  }).join('');
 }
 
 // markBest circles the highest point in red — only where higher means a record.
@@ -2421,6 +2522,10 @@ document.addEventListener('click', (ev) => {
     case 'hist-del':
       if (confirm('למחוק את האימון מההיסטוריה?')) { db.workouts = db.workouts.filter((w) => w.id !== el.dataset.id); save(); render(); }
       break;
+    case 'photo-add': $('#photo-file').click(); break;
+    case 'photo-open': ui.photo = el.dataset.id; render(); break;
+    case 'photo-close': ui.photo = null; render(); break;
+    case 'photo-del': if (confirm('למחוק את התמונה?')) deletePhoto(el.dataset.id); break;
     case 'hist-tpl': {
       const w = db.workouts.find((x) => x.id === el.dataset.id);
       const name = prompt('שם לתבנית החדשה:', w.name);
@@ -2552,6 +2657,7 @@ document.addEventListener('change', (ev) => {
   if (el.dataset.f === 'set-lastfail') { db.settings.lastSetFail = el.checked; save(); }
   if (el.id === 'import-file' && el.files[0]) { importData(el.files[0]); el.value = ''; }
   if (el.id === 'm-file' && el.files[0]) { handleReportFile(el.files[0]); el.value = ''; }
+  if (el.id === 'photo-file' && el.files.length) { addPhotos([...el.files]); el.value = ''; }
   if (el.dataset.f === 'm-hist') ui.mdraft.history[+el.dataset.i].add = el.checked;
   if (el.dataset.f === 'apikey') render(); // refresh the "saved" mark
 });
@@ -2680,6 +2786,7 @@ document.addEventListener('click', (ev) => {
 // ---------- Boot ----------
 if (db.active) requestWakeLock();
 render();
+loadPhotos();
 // Demos picked before muscles were stored get them from the exercise database.
 if (Object.values(db.demos).some((d) => !d.pm)) {
   loadExercises().then((list) => {
