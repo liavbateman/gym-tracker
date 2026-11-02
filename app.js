@@ -644,7 +644,7 @@ function viewStretch(w, phase) {
   const leftSecs = left.reduce((a, x) => a + stretchSecs(x), 0);
   const rows = list.map((x) => `
     <div class="stretch ${done.has(x.id) ? 'done' : ''}">
-      ${demoAnim(stretchImages(x))}
+      <button class="stretch-zoom" data-act="stretch-view" data-ph="${phase}" data-id="${x.id}" aria-label="הגדל הדגמה: ${esc(x.name)}">${demoAnim(stretchImages(x))}</button>
       <div class="stretch-body">
         <div class="stretch-name">${esc(x.name)}</div>
         <div class="muted small">${esc(x.how)}</div>
@@ -654,7 +654,7 @@ function viewStretch(w, phase) {
         </div>
       </div>
     </div>`).join('');
-  return `
+  return stretchViewer(phase, list) + `
     <div class="row between" style="margin:${phase === 'pre' ? '0' : '26px'} 0 10px">
       <h2 style="margin:0">${STRETCH_TITLE[phase]}</h2>
       <button class="btn sm" data-act="stretch-fold" data-ph="${phase}">${left.length ? 'דלג' : 'סגור'}</button>
@@ -667,6 +667,23 @@ function viewStretch(w, phase) {
       ${rows}
       <p class="muted small" style="margin:8px 0 0">נכלל בזמן הכולל של האימון. ▶ מפעיל טיימר שמחליף צד באמצע ומסמן ✓ בסוף.</p>
     </div>`;
+}
+
+// Tapping a stretch's demo opens it larger in a small window over the workout.
+function stretchViewer(phase, list) {
+  const x = ui.stretchView?.ph === phase && list.find((s) => s.id === ui.stretchView.id);
+  return x ? `
+    <div class="stretch-view" data-act="stretch-view-close" role="dialog" aria-modal="true" aria-label="${esc(x.name)}">
+      <div class="stretch-view-box" data-act="none">
+        <div class="row between">
+          <b>${esc(x.name)}</b>
+          <button class="icon-btn" data-act="stretch-view-close" aria-label="סגור">✕</button>
+        </div>
+        ${demoAnim(stretchImages(x), true)}
+        <div class="muted small" style="margin-top:8px">${esc(x.how)}</div>
+        <div class="muted small" style="margin-top:4px">${x.hold} ש׳${x.sides ? ' לכל צד' : ''}</div>
+      </div>
+    </div>` : '';
 }
 
 function viewSwap(e, i) {
@@ -2604,6 +2621,8 @@ document.addEventListener('click', (ev) => {
     case 'photo-add': ui.photoFor = el.dataset.id; $('#photo-file').click(); break;
     case 'photo-open': ui.photo = el.dataset.id; render(); break;
     case 'photo-close': ui.photo = null; render(); break;
+    case 'stretch-view': ui.stretchView = { ph: el.dataset.ph, id: el.dataset.id }; render(); break;
+    case 'stretch-view-close': ui.stretchView = null; render(); break;
     case 'photo-del': ask({ title: 'למחוק את התמונה?', ok: 'מחק', danger: true }).then((yes) => yes && deletePhoto(el.dataset.id)); break;
     case 'hist-tpl': {
       const w = db.workouts.find((x) => x.id === el.dataset.id);
@@ -2759,6 +2778,7 @@ document.addEventListener('keydown', (ev) => {
   if (ev.key === 'Enter' && ev.target.id === 'swap-name') $('[data-act="swap-custom"]').click();
   if (ev.key === 'Enter' && ev.target.id === 'demo-q') { ev.target.blur(); runDemoSearch(); }
   if (ev.key === 'Escape' && ui.demo) { ui.demo = null; renderSheet(); }
+  if (ev.key === 'Escape' && ui.stretchView) { ui.stretchView = null; render(); }
   if (ev.key === 'Escape') closeBateman();
 });
 
