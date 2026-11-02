@@ -843,6 +843,91 @@ async function deletePhoto(...ids) {
   } catch { toast('שגיאה במחיקת התמונה'); }
 }
 
+// In-app camera: up to 3 shots in one session (front / side / back), saved together at the end.
+// Lives outside render() so a re-render can't kill the live video. No camera access → the system picker.
+const CAM_MAX = 3;
+async function openCamera(wid) {
+  const pick = () => { ui.photoFor = wid; $('#photo-file').click(); };
+  if (!navigator.mediaDevices?.getUserMedia) return pick();
+  let facing = 'environment', stream = null;
+  const shots = []; // { blob, url }
+  const box = document.createElement('div');
+  box.className = 'cam';
+  box.setAttribute('role', 'dialog');
+  box.setAttribute('aria-modal', 'true');
+  box.setAttribute('aria-label', 'צילום תמונות מעקב');
+  box.innerHTML = `
+    <video playsinline muted autoplay></video>
+    <div class="cam-top">
+      <button class="btn sm" data-k="close">ביטול</button>
+      <span class="cam-count"></span>
+      <button class="btn sm" data-k="flip" aria-label="החלף מצלמה">⟲</button>
+    </div>
+    <div class="cam-bottom">
+      <div class="cam-shots"></div>
+      <div class="cam-row">
+        <button class="btn sm" data-k="gallery">מהגלריה</button>
+        <button class="cam-shutter" data-k="shoot" aria-label="צלם"></button>
+        <button class="btn sm primary" data-k="save">שמור</button>
+      </div>
+    </div>`;
+  const video = box.querySelector('video');
+  const start = async () => {
+    stream?.getTracks().forEach((t) => t.stop());
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing, width: { ideal: 1920 }, height: { ideal: 1920 } }, audio: false });
+    video.srcObject = stream;
+    video.classList.toggle('mirror', facing === 'user');
+    await video.play().catch(() => {});
+  };
+  const paint = () => {
+    box.querySelector('.cam-count').textContent = `${shots.length}/${CAM_MAX}`;
+    box.querySelector('.cam-shots').innerHTML = shots.map((s, i) => `
+      <button class="cam-shot" data-k="drop" data-i="${i}" aria-label="הסר תמונה ${i + 1}"><img src="${s.url}" alt=""><span>✕</span></button>`).join('');
+    box.querySelector('[data-k="shoot"]').disabled = shots.length >= CAM_MAX;
+    box.querySelector('[data-k="save"]').disabled = !shots.length;
+  };
+  const close = () => {
+    stream?.getTracks().forEach((t) => t.stop());
+    shots.forEach((s) => URL.revokeObjectURL(s.url));
+    box.remove();
+    document.body.classList.remove('dlg-open');
+  };
+  const shoot = () => {
+    if (shots.length >= CAM_MAX || !video.videoWidth) return;
+    const c = document.createElement('canvas');
+    c.width = video.videoWidth; c.height = video.videoHeight;
+    const g = c.getContext('2d');
+    if (facing === 'user') { g.translate(c.width, 0); g.scale(-1, 1); } // keep the selfie as it looked on screen
+    g.drawImage(video, 0, 0);
+    box.classList.add('flash');
+    setTimeout(() => box.classList.remove('flash'), 120);
+    c.toBlob((b) => { if (b) { shots.push({ blob: b, url: URL.createObjectURL(b) }); paint(); } }, 'image/jpeg', 0.92);
+  };
+  box.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    const btn = ev.target.closest('[data-k]');
+    if (!btn) return;
+    const k = btn.dataset.k;
+    if (k === 'shoot') shoot();
+    else if (k === 'drop') { URL.revokeObjectURL(shots[+btn.dataset.i].url); shots.splice(+btn.dataset.i, 1); paint(); }
+    else if (k === 'flip') { facing = facing === 'user' ? 'environment' : 'user'; start().catch(() => toast('לא ניתן להחליף מצלמה')); }
+    else if (k === 'save') { const files = shots.map((s) => s.blob); close(); addPhotos(files, wid); }
+    else if (k === 'gallery') { close(); pick(); }
+    else if (k === 'close') {
+      if (!shots.length) return close();
+      ask({ title: 'לבטל את הצילום?', msg: 'התמונות שצולמו לא יישמרו.', ok: 'בטל', danger: true }).then((yes) => yes && close());
+    }
+  });
+  box.addEventListener('keydown', (ev) => {
+    ev.stopPropagation();
+    if (ev.key === 'Escape') box.querySelector('[data-k="close"]').click();
+  });
+  try { await start(); } catch { toast('אין גישה למצלמה'); return pick(); }
+  paint();
+  document.body.append(box);
+  document.body.classList.add('dlg-open');
+}
+
 // Photos without a workout (or whose workout is gone) show under the workout closest in time.
 function photosOf(w, list) {
   const ids = new Set(list.map((x) => x.id));
@@ -853,7 +938,7 @@ function photosOf(w, list) {
 function photoStrip(w, mine) {
   return `
     <div class="hist-photos">
-      <div class="row between"><b class="small">תמונות מעקב</b><button class="btn sm" data-act="photo-add" data-id="${w.id}">+ הוסף תמונה</button></div>
+      <div class="row between"><b class="small">תמונות מעקב</b><button class="btn sm" data-act="photo-add" data-id="${w.id}">+ צלם תמונות</button></div>
       ${mine.length ? `<div class="photo-grid">${mine.map((p) => `
         <button class="photo-thumb" data-act="photo-open" data-id="${p.id}" aria-label="תמונה מ-${fmtDateFull(p.ts)}"><img src="${p.url}" alt="" loading="lazy"></button>`).join('')}</div>`
         : '<p class="muted small" style="margin:4px 0 0">נשמרות רק במכשיר הזה ולא נכללות בגיבוי.</p>'}
@@ -2630,7 +2715,7 @@ document.addEventListener('click', (ev) => {
         if (gone.length) deletePhoto(...gone);
       });
       break;
-    case 'photo-add': ui.photoFor = el.dataset.id; $('#photo-file').click(); break;
+    case 'photo-add': openCamera(el.dataset.id); break;
     case 'photo-open': ui.photo = el.dataset.id; render(); break;
     case 'photo-close': ui.photo = null; render(); break;
     case 'stretch-view': ui.stretchView = { ph: el.dataset.ph, id: el.dataset.id }; render(); break;
