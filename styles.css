@@ -625,52 +625,29 @@ html.kp-open #view { padding-bottom: var(--kp-h, 240px); }
 .ex-note span { font-size: 12px; opacity: .6; }
 .note-add { display: block; padding: 6px 0 0; font-size: 12px; }
 
-/* Note editor: a sheet of logbook paper that drops from the top (the phone's keyboard comes up from below),
-   with the note written on its ruled lines. */
-html.tk-open, html.tk-open body { overflow: hidden; overscroll-behavior: none; }
-.tkb {
-  position: fixed; inset: 0; z-index: 30;
-  display: flex; align-items: flex-start;
-  background: rgba(10, 14, 22, .38);
-  animation: tk-fade .18s ease-out;
-}
-.tkb.hidden { display: none; }
-.tk-panel {
-  width: 100%;
-  padding: calc(10px + var(--safe-t)) 12px 14px;
-  background: var(--sheet);
-  border-bottom: 1px solid var(--rule);
-  border-radius: 0 0 16px 16px;
-  box-shadow: 0 14px 30px -16px rgba(15, 20, 28, .55);
-  animation: tk-drop .22s cubic-bezier(.2, .9, .3, 1.1);
-}
-.tk-head, .tk-paper { max-width: 616px; margin-inline: auto; }
-.tk-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 2px 10px; }
-.tk-head b { flex: 1; text-align: center; font: 700 22px/1 var(--display); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tk-link { min-width: 64px; background: none; border: 0; padding: 8px 2px; color: var(--ink-soft); font: 500 15px var(--body); text-align: start; }
-.tk-save { min-width: 64px; padding: 8px 14px; border: 0; border-radius: 8px; background: var(--ink); color: var(--paper); font: 600 15px var(--body); }
-.tk-save:active { background: var(--hl); color: var(--hl-ink); }
-.tk-paper {
+/* Note editor: the note is written in place on a strip of ruled logbook paper; the page is locked while it's open. */
+html.note-open, html.note-open body { overflow: hidden; overscroll-behavior: none; }
+.note-edit { margin-top: 8px; }
+.note-paper {
   position: relative;
-  padding: 6px 14px 18px 14px; padding-inline-start: 20px;
-  border-radius: 10px;
+  padding: 3px 12px 14px; padding-inline-start: 18px;
+  border-radius: 8px;
   background-color: var(--field);
-  background-image: repeating-linear-gradient(to bottom, transparent 0 27px, color-mix(in srgb, var(--ink) 13%, transparent) 27px 28px);
-  background-position: 0 6px;
-  box-shadow: inset 0 0 0 1px var(--rule);
+  background-image: repeating-linear-gradient(to bottom, transparent 0 25px, color-mix(in srgb, var(--ink) 13%, transparent) 25px 26px);
+  background-position: 0 3px;
+  box-shadow: inset 0 0 0 1.5px var(--ink);
 }
-.tk-paper::before { content: ''; position: absolute; inset-block: 0; inset-inline-start: 10px; width: 1px; background: color-mix(in srgb, var(--red) 45%, transparent); }
-.tk-text {
-  display: block; width: 100%; height: 84px; padding: 0; margin: 0;
+.note-paper::before { content: ''; position: absolute; inset-block: 0; inset-inline-start: 9px; width: 1px; background: color-mix(in srgb, var(--red) 45%, transparent); }
+#note-in {
+  display: block; width: 100%; height: 52px; padding: 0; margin: 0;
   border: 0; outline: 0; resize: none; background: transparent;
   color: var(--ink); caret-color: var(--red);
-  font: 500 17px/28px var(--body);
+  font: 500 16px/26px var(--body);
 }
-.tk-text::placeholder { color: var(--ink-soft); opacity: .7; }
-.tk-count { position: absolute; bottom: 4px; inset-inline-end: 10px; font: 500 10px var(--body); color: var(--ink-soft); direction: ltr; }
-@keyframes tk-drop { from { transform: translateY(-100%); } }
-@keyframes tk-fade { from { background: transparent; } }
-@media (prefers-reduced-motion: reduce) { .tkb, .tk-panel { animation: none; } }
+#note-in::placeholder { color: var(--ink-soft); opacity: .7; }
+.note-count { position: absolute; bottom: 2px; inset-inline-end: 8px; font: 500 10px var(--body); color: var(--ink-soft); direction: ltr; }
+.note-btns { display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-top: 6px; }
+.note-save { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 
 .toast {
   position: fixed;

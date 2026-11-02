@@ -699,6 +699,19 @@ const stepper = (e, s, f, value, placeholder, mode) => `
 
 // An exercise's standing note, kept by name so it follows the exercise into every workout and template.
 function noteChip(name, attrs) {
+  const ed = ui.noteEdit;
+  if (ed && ed.name === name && ed.attrs === attrs) {
+    return `<div class="note-edit">
+      <div class="note-paper">
+        <textarea id="note-in" rows="2" maxlength="${NOTE_MAX}" enterkeyhint="done" autocomplete="off" placeholder="למשל: מושב בגובה 4, אחיזה רחבה" aria-label="הערה ל${esc(name)}">${esc(ed.text)}</textarea>
+        <span id="note-count" class="note-count">${ed.text.length}/${NOTE_MAX}</span>
+      </div>
+      <div class="note-btns">
+        <button class="link-btn" data-act="note-cancel">ביטול</button>
+        <button class="btn sm note-save" data-act="note-save">שמור</button>
+      </div>
+    </div>`;
+  }
   const n = db.notes?.[name];
   return n
     ? `<button class="ex-note" data-act="note" ${attrs} aria-label="ערוך הערה"><span aria-hidden="true">✎</span>${esc(n)}</button>`
@@ -2813,52 +2826,70 @@ document.addEventListener('pointerdown', (ev) => {
 }, true);
 
 // ---------- Note editor ----------
-// Notes are typed with the phone's own keyboard into a strip of ruled logbook paper that drops down from the top,
-// so the keyboard never covers it. Tapping outside saves, like "שמור"; Enter saves too.
+// A note is edited in place, on a strip of ruled paper inside its exercise's card, with the phone's own keyboard.
+// Like the set keypad, the exercise is brought to the top and the page stays put until the note is saved:
+// "שמור", Enter, the keyboard's done key or a tap anywhere else all save; "ביטול" drops the change.
 const NOTE_MAX = 120;
-const tk = { name: null };
-const tkBox = $('#tkb');
-const tkText = $('#tk-text');
 
-function tkCount() { $('#tk-count').textContent = `${tkText.value.length}/${NOTE_MAX}`; }
-
-function tkOpen(name) {
+function noteOpen(name, attrs) {
   kpClose();
-  tk.name = name;
-  $('#tk-ex').textContent = name;
-  tkText.value = db.notes[name] || '';
-  tkCount();
-  tkBox.classList.remove('hidden');
-  document.documentElement.classList.add('tk-open');
+  ui.noteEdit = { name, attrs, text: db.notes[name] || '' };
+  render();
+  const ta = $('#note-in');
+  if (!ta) { ui.noteEdit = null; return; }
+  const box = ta.closest('.card, .tex') || ta;
+  const r = box.getBoundingClientRect(), top = $('.topbar').getBoundingClientRect().bottom;
+  window.scrollBy(0, r.top - top - 8);
+  document.documentElement.classList.add('note-open');
   // Focus inside the tap itself, or iOS won't bring up the keyboard.
-  tkText.focus();
-  tkText.setSelectionRange(tkText.value.length, tkText.value.length);
+  ta.focus({ preventScroll: true });
+  ta.setSelectionRange(ta.value.length, ta.value.length);
 }
 
-function tkClose(keep) {
-  if (!tk.name) return;
+function noteClose(keep) {
+  const n = ui.noteEdit;
+  if (!n) return;
+  ui.noteEdit = null;
   if (keep) {
-    const t = tkText.value.trim().replace(/\s+/g, ' ');
-    if (t) db.notes[tk.name] = t; else delete db.notes[tk.name];
+    const t = n.text.trim().replace(/\s+/g, ' ');
+    if (t) db.notes[n.name] = t; else delete db.notes[n.name];
     save();
   }
-  tk.name = null;
-  tkText.blur();
-  tkBox.classList.add('hidden');
-  document.documentElement.classList.remove('tk-open');
+  document.documentElement.classList.remove('note-open');
+  document.activeElement?.blur();
   render();
 }
 
-tkText.addEventListener('input', tkCount);
-tkText.addEventListener('keydown', (ev) => {
-  if (ev.key === 'Enter') { ev.preventDefault(); tkClose(true); }
-  if (ev.key === 'Escape') { ev.preventDefault(); tkClose(false); }
+let noteSwallow = 0, noteBtnDown = false;
+document.addEventListener('pointerdown', (ev) => {
+  if (!ui.noteEdit) return;
+  // Pressing שמור/ביטול blurs the field first; don't let that blur save before ביטול gets its say.
+  if (ev.target.closest('.note-btns')) { noteBtnDown = true; return; }
+  if (ev.target.closest('.note-edit')) return;
+  // A tap elsewhere only saves the note; it doesn't also press whatever was under the finger.
+  noteSwallow = Date.now();
+  noteClose(true);
+}, true);
+document.addEventListener('click', (ev) => {
+  noteBtnDown = false;
+  if (Date.now() - noteSwallow > 700) return;
+  noteSwallow = 0;
+  ev.preventDefault();
+  ev.stopPropagation();
+}, true);
+document.addEventListener('input', (ev) => {
+  if (ev.target.id !== 'note-in' || !ui.noteEdit) return;
+  ui.noteEdit.text = ev.target.value;
+  $('#note-count').textContent = `${ev.target.value.length}/${NOTE_MAX}`;
 });
-// Closing waits for the click, so the tap that closes the editor can't land on a button underneath it.
-tkBox.addEventListener('click', (ev) => {
-  const b = ev.target.closest('[data-tk]');
-  if (ev.target === tkBox) tkClose(true);
-  else if (b) tkClose(b.dataset.tk === 'save');
+document.addEventListener('keydown', (ev) => {
+  if (ev.target.id !== 'note-in') return;
+  if (ev.key === 'Enter') { ev.preventDefault(); noteClose(true); }
+  if (ev.key === 'Escape') { ev.preventDefault(); noteClose(false); }
+}, true);
+// The keyboard's own done key just blurs the field: save then too.
+document.addEventListener('focusout', (ev) => {
+  if (ev.target.id === 'note-in' && ui.noteEdit && !noteBtnDown) setTimeout(() => { if (ui.noteEdit && document.activeElement?.id !== 'note-in') noteClose(true); }, 0);
 });
 
 // ---------- Events ----------
@@ -2887,9 +2918,11 @@ document.addEventListener('click', (ev) => {
     case 'finish': finishWorkout(); break;
     case 'note': {
       const name = el.dataset.e != null ? ex?.name : ui.draft?.exercises[i]?.name.trim();
-      if (name) tkOpen(name);
+      if (name) noteOpen(name, el.dataset.e != null ? `data-e="${e}"` : `data-i="${i}"`);
       break;
     }
+    case 'note-save': noteClose(true); break;
+    case 'note-cancel': noteClose(false); break;
     case 'discard': discardWorkout(); break;
 
     case 'set-done': {
@@ -3177,7 +3210,8 @@ for (const t of ['gesturestart', 'gesturechange', 'gestureend']) {
   document.addEventListener(t, (ev) => ev.preventDefault(), { passive: false });
 }
 document.addEventListener('touchmove', (ev) => {
-  if (ev.touches.length > 1 || kp.el) ev.preventDefault(); // the page also stays put while the set keypad is up
+  // The page also stays put while the set keypad is up or a note is being written.
+  if (ev.touches.length > 1 || kp.el || (ui.noteEdit && ev.target.id !== 'note-in')) ev.preventDefault();
 }, { passive: false });
 document.addEventListener('wheel', (ev) => {
   if (ev.ctrlKey || kp.el) ev.preventDefault();
@@ -3270,7 +3304,6 @@ document.addEventListener('change', (ev) => {
 });
 
 document.addEventListener('keydown', (ev) => {
-  if (tk.name) return; // the note editor handles its own keys
   if (kp.el) {
     const k = /^[0-9.]$/.test(ev.key) ? ev.key : { Backspace: 'back', Enter: 'next', Tab: 'next', Escape: 'done' }[ev.key];
     if (k) { ev.preventDefault(); kpKey(k); return; }
