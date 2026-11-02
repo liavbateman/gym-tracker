@@ -2513,24 +2513,20 @@ async function startWorkout(tpl) {
 // A workout logged after the fact: the user picked a day other than the one it was opened on.
 const backdated = (w) => !!w.date && w.date !== isoDay(w.start);
 
-// Workout clock time, minus any paused stretches. w.held is the moment it was paused / stopped.
+// Workout clock time, minus any paused stretches. w.held is the moment it was paused.
 const elapsedMs = (w) => (w.held ?? Date.now()) - w.start - (w.pausedMs || 0);
 
-// Tapping the clock in the top bar offers to pause or stop it; it keeps running until one is picked.
+// Tapping the clock in the top bar offers to pause it or stop and finish the workout; it keeps running until one is picked.
 async function clockMenu() {
   const w = db.active;
   if (!w || backdated(w)) return;
-  if (w.held) {
-    const msg = w.clock === 'stopped' ? 'השעון עצור.' : 'השעון מושהה.';
-    if (!await ask({ title: 'שעון האימון', msg, ok: 'המשך', cancel: 'סגור' })) return;
-    w.pausedMs = (w.pausedMs || 0) + (Date.now() - w.held);
-    delete w.held; delete w.clock;
-  } else {
-    const pick = await ask({ title: 'שעון האימון', msg: 'להשהות או לעצור את השעון?', ok: 'עצור', extra: 'השהה', cancel: 'ביטול' });
-    if (!pick || db.active !== w) return;
-    w.held = Date.now();
-    w.clock = pick === 'extra' ? 'paused' : 'stopped';
-  }
+  const pick = w.held
+    ? await ask({ title: 'השעון מושהה', ok: 'המשך', extra: 'עצור וסיים', cancel: 'סגור' })
+    : await ask({ title: 'שעון האימון', msg: 'להשהות את השעון או לעצור ולסיים את האימון?', ok: 'השהה', extra: 'עצור וסיים', cancel: 'ביטול' });
+  if (!pick || db.active !== w) return;
+  if (pick === 'extra') { finishWorkout(); return; }
+  if (w.held) { w.pausedMs = (w.pausedMs || 0) + (Date.now() - w.held); delete w.held; }
+  else w.held = Date.now();
   save();
   tick();
 }
