@@ -3,7 +3,7 @@
 // ---------- Storage ----------
 const KEY = 'gym-tracker-v1';
 const TIMER_KEY = 'gym-tracker-timer';
-const DEFAULT_SETTINGS = { defaultRest: 90, lastSetFail: true, musicApp: 'spotify', showMusic: true };
+const DEFAULT_SETTINGS = { defaultRest: 90, exRest: 150, lastSetFail: true, musicApp: 'spotify', showMusic: true };
 const WEIGHT_STEP = 2.5;
 
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -708,6 +708,10 @@ function viewSettings() {
     <div class="card">
       <label class="field">זמן מנוחה ברירת מחדל (שניות)
         <input type="number" inputmode="numeric" data-f="defrest" value="${db.settings.defaultRest}">
+      </label>
+      <label class="field">זמן מנוחה בין תרגילים (שניות)
+        <input type="number" inputmode="numeric" data-f="exrest" value="${db.settings.exRest}">
+        <span class="muted small">מופעל אוטומטית כשמסיימים את הסט האחרון בתרגיל. 0 = בלי טיימר.</span>
       </label>
       <label class="check-row">
         <input type="checkbox" data-f="set-lastfail" ${db.settings.lastSetFail ? 'checked' : ''}>
@@ -2460,7 +2464,14 @@ document.addEventListener('click', (ev) => {
         if (set.r === '') set.r = set.pr;
         if (num(set.r) == null) { toast('הזן מספר חזרות'); return; }
         set.done = true;
-        if (!backdated(db.active)) startTimer(ex.rest);
+        if (!backdated(db.active)) {
+          // Final set of the exercise: rest before the next exercise instead of between sets (none after the workout's last set).
+          const exDone = ex.sets.every((x) => x.done);
+          const allDone = db.active.exercises.every((x) => x.sets.every((y) => y.done));
+          const exRest = num(db.settings.exRest) ?? DEFAULT_SETTINGS.exRest;
+          if (!exDone) startTimer(ex.rest);
+          else if (!allDone && exRest > 0) startTimer(exRest, { label: 'מנוחה בין תרגילים' });
+        }
       } else {
         set.done = false;
       }
@@ -2740,6 +2751,7 @@ document.addEventListener('input', (ev) => {
     case 'wname': db.active.name = el.value; save(); break;
     case 'wmins': db.active.mins = el.value; save(); break;
     case 'defrest': { const v = num(el.value); if (v && v > 0) { db.settings.defaultRest = Math.round(v); save(); } break; }
+    case 'exrest': { const v = num(el.value); if (v != null && v >= 0) { db.settings.exRest = Math.round(v); save(); } break; }
     case 'tname': ui.draft.name = el.value; break;
     case 'tex-name': ui.draft.exercises[i].name = el.value; break;
     case 'tex-sets': ui.draft.exercises[i].sets = el.value; break;
