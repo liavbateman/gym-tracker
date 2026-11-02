@@ -71,6 +71,7 @@ function seed() {
     metrics: [],
     cardio: [],
     rest: [],
+    notes: {},
     active: null,
   };
 }
@@ -93,6 +94,7 @@ if (!Array.isArray(db.rest)) db.rest = []; // days marked as rest days, as YYYY-
 if (!db.muscles || typeof db.muscles !== 'object') db.muscles = {}; // exercise name -> body area, when set by hand
 if (!db.demos || typeof db.demos !== 'object') db.demos = {}; // exercise name -> chosen technique demo
 if (!db.alts || typeof db.alts !== 'object') db.alts = {}; // exercise name -> alternatives used when it's taken
+if (!db.notes || typeof db.notes !== 'object') db.notes = {}; // exercise name -> standing note ("seat on 4"), shown every workout
 
 // ---------- Body areas ----------
 const GROUPS = ['חזה', 'גב', 'כתפיים', 'רגליים', 'יד קדמית', 'יד אחורית', 'בטן', 'אחר'];
@@ -783,6 +785,27 @@ const stepper = (e, s, f, value, placeholder, mode) => `
     <button data-act="step" data-f="${f}" data-d="-1" data-e="${e}" data-s="${s}" aria-label="${L('הפחת', 'Minska')}">−</button>
   </div>`;
 
+// An exercise's standing note, kept by name so it follows the exercise into every workout and template.
+function noteChip(name, attrs) {
+  const ed = ui.noteEdit;
+  if (ed && ed.name === name && ed.attrs === attrs) {
+    return `<div class="note-edit">
+      <div class="note-paper">
+        <textarea id="note-in" rows="2" maxlength="${NOTE_MAX}" enterkeyhint="done" autocomplete="off" placeholder="${L('למשל: מושב בגובה 4, אחיזה רחבה', 't.ex. sätet på 4, brett grepp')}" aria-label="${L('הערה ל', 'Anteckning för ')}${esc(exName(name))}">${esc(ed.text)}</textarea>
+        <span id="note-count" class="note-count">${ed.text.length}/${NOTE_MAX}</span>
+      </div>
+      <div class="note-btns">
+        <button class="link-btn" data-act="note-cancel">${L('ביטול', 'Avbryt')}</button>
+        <button class="btn sm note-save" data-act="note-save">${L('שמור', 'Spara')}</button>
+      </div>
+    </div>`;
+  }
+  const n = db.notes?.[name];
+  return n
+    ? `<button class="ex-note" data-act="note" ${attrs} aria-label="${L('ערוך הערה', 'Redigera anteckning')}"><span aria-hidden="true">✎</span>${esc(n)}</button>`
+    : `<button class="link-btn note-add" data-act="note" ${attrs}>${L('+ הערה', '+ Anteckning')}</button>`;
+}
+
 function viewActive() {
   const w = db.active;
   const tpl = db.templates.find((t) => t.id === w.templateId);
@@ -813,6 +836,7 @@ function viewActive() {
             ${e.swapOf ? `<div class="muted small">${L('במקום', 'I stället för')} ${esc(exName(e.swapOf))} · <button class="link-btn" data-act="unswap" data-e="${i}" style="padding:0">${L('התפנה? חזור', 'Ledig nu? Byt tillbaka')}</button></div>` : ''}
             <button class="link-btn demo-link" data-act="demo" data-e="${i}">▶ ${db.demos[e.name] ? L('הדגמה', 'Demo') : L('חפש הדגמה', 'Hitta demo')}</button>
             <div class="prev">${prev ? L('פעם קודמת: ', 'Förra gången: ') + prev.map(prevLabel).join(' · ') : L('תרגיל חדש', 'Ny övning')}</div>
+            ${noteChip(e.name, `data-e="${i}"`)}
           </div>
           <button class="rest-pill" data-act="ex-rest" data-e="${i}" aria-label="${L('שנה זמן מנוחה', 'Ändra vilotid')}">${L('מנוחה', 'Vila')} ${e.rest} ${L('ש׳', 's')}</button>
         </div>
@@ -1007,7 +1031,7 @@ function viewEditor() {
         <button class="icon-btn" data-act="tex-down" data-i="${i}" aria-label="${L('הזז למטה', 'Flytta ner')}">▼</button>
         <button class="icon-btn" data-act="tex-del" data-i="${i}" aria-label="${L('הסר', 'Ta bort')}">✕</button>
       </div>
-      ${e.name.trim() ? muscleMap(e.name, draftGroup(e)) : ''}
+      ${e.name.trim() ? muscleMap(e.name, draftGroup(e)) + noteChip(e.name.trim(), `data-i="${i}"`) : ''}
       <div class="grid">
         <label class="field">${L('סטים', 'Set')}<input type="number" inputmode="numeric" data-f="tex-sets" data-i="${i}" value="${esc(e.sets)}"></label>
         <label class="field">${L('חזרות', 'Reps')}<input type="number" inputmode="numeric" data-f="tex-reps" data-i="${i}" value="${esc(e.reps)}"></label>
@@ -2933,6 +2957,73 @@ document.addEventListener('pointerdown', (ev) => {
   kpClose();
 }, true);
 
+// ---------- Note editor ----------
+// A note is edited in place, on a strip of ruled paper inside its exercise's card, with the phone's own keyboard.
+// Like the set keypad, the exercise is brought to the top and the page stays put until the note is saved:
+// Save, Enter, the keyboard's done key or a tap anywhere else all save; Cancel drops the change.
+const NOTE_MAX = 120;
+
+function noteOpen(name, attrs) {
+  kpClose();
+  ui.noteEdit = { name, attrs, text: db.notes[name] || '' };
+  render();
+  const ta = $('#note-in');
+  if (!ta) { ui.noteEdit = null; return; }
+  const box = ta.closest('.card, .tex') || ta;
+  const r = box.getBoundingClientRect(), top = $('.topbar').getBoundingClientRect().bottom;
+  window.scrollBy(0, r.top - top - 8);
+  document.documentElement.classList.add('note-open');
+  // Focus inside the tap itself, or iOS won't bring up the keyboard.
+  ta.focus({ preventScroll: true });
+  ta.setSelectionRange(ta.value.length, ta.value.length);
+}
+
+function noteClose(keep) {
+  const n = ui.noteEdit;
+  if (!n) return;
+  ui.noteEdit = null;
+  if (keep) {
+    const t = n.text.trim().replace(/\s+/g, ' ');
+    if (t) db.notes[n.name] = t; else delete db.notes[n.name];
+    save();
+  }
+  document.documentElement.classList.remove('note-open');
+  document.activeElement?.blur();
+  render();
+}
+
+let noteSwallow = 0, noteBtnDown = false;
+document.addEventListener('pointerdown', (ev) => {
+  if (!ui.noteEdit) return;
+  // Pressing Save/Cancel blurs the field first; don't let that blur save before Cancel gets its say.
+  if (ev.target.closest('.note-btns')) { noteBtnDown = true; return; }
+  if (ev.target.closest('.note-edit')) return;
+  // A tap elsewhere only saves the note; it doesn't also press whatever was under the finger.
+  noteSwallow = Date.now();
+  noteClose(true);
+}, true);
+document.addEventListener('click', (ev) => {
+  noteBtnDown = false;
+  if (Date.now() - noteSwallow > 700) return;
+  noteSwallow = 0;
+  ev.preventDefault();
+  ev.stopPropagation();
+}, true);
+document.addEventListener('input', (ev) => {
+  if (ev.target.id !== 'note-in' || !ui.noteEdit) return;
+  ui.noteEdit.text = ev.target.value;
+  $('#note-count').textContent = `${ev.target.value.length}/${NOTE_MAX}`;
+});
+document.addEventListener('keydown', (ev) => {
+  if (ev.target.id !== 'note-in') return;
+  if (ev.key === 'Enter') { ev.preventDefault(); noteClose(true); }
+  if (ev.key === 'Escape') { ev.preventDefault(); noteClose(false); }
+}, true);
+// The keyboard's own done key just blurs the field: save then too.
+document.addEventListener('focusout', (ev) => {
+  if (ev.target.id === 'note-in' && ui.noteEdit && !noteBtnDown) setTimeout(() => { if (ui.noteEdit && document.activeElement?.id !== 'note-in') noteClose(true); }, 0);
+});
+
 // ---------- Events ----------
 document.addEventListener('click', (ev) => {
   unlockAudio();
@@ -2957,6 +3048,13 @@ document.addEventListener('click', (ev) => {
     case 'start': startWorkout(db.templates.find((t) => t.id === el.dataset.id)); break;
     case 'start-empty': startWorkout(null); break;
     case 'finish': finishWorkout(); break;
+    case 'note': {
+      const name = el.dataset.e != null ? ex?.name : ui.draft?.exercises[i]?.name.trim();
+      if (name) noteOpen(name, el.dataset.e != null ? `data-e="${e}"` : `data-i="${i}"`);
+      break;
+    }
+    case 'note-save': noteClose(true); break;
+    case 'note-cancel': noteClose(false); break;
     case 'discard': discardWorkout(); break;
 
     case 'set-done': {
@@ -3250,7 +3348,8 @@ for (const t of ['gesturestart', 'gesturechange', 'gestureend']) {
   document.addEventListener(t, (ev) => ev.preventDefault(), { passive: false });
 }
 document.addEventListener('touchmove', (ev) => {
-  if (ev.touches.length > 1 || kp.el) ev.preventDefault(); // the page also stays put while the set keypad is up
+  // The page also stays put while the set keypad is up or a note is being written.
+  if (ev.touches.length > 1 || kp.el || (ui.noteEdit && ev.target.id !== 'note-in')) ev.preventDefault();
 }, { passive: false });
 document.addEventListener('wheel', (ev) => {
   if (ev.ctrlKey || kp.el) ev.preventDefault();

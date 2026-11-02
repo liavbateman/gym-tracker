@@ -612,6 +612,44 @@ html.kp-open #view { padding-bottom: var(--kp-h, 240px); }
 .kp-grid .kp-zero { grid-column: span 2; }
 .kp-grid .kp-done { grid-row: span 2; height: auto; background: var(--ink); color: var(--paper); box-shadow: none; font-family: var(--body); font-size: 16px; }
 
+/* Exercise notes: a strip of highlighter tape under the exercise name. */
+.ex-note {
+  display: inline-flex; align-items: baseline; gap: 6px; max-width: 100%;
+  margin-top: 6px; padding: 4px 9px 5px;
+  border: 0; border-radius: 3px;
+  background: color-mix(in srgb, var(--hl) 60%, transparent);
+  color: var(--hl-ink);
+  font: 500 13px/1.35 var(--body); text-align: start;
+  transform: rotate(-.6deg);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--ink) 18%, transparent);
+}
+.ex-note span { font-size: 12px; opacity: .6; }
+.note-add { display: block; padding: 6px 0 0; font-size: 12px; }
+
+/* Note editor: the note is written in place on a strip of ruled logbook paper; the page is locked while it's open. */
+html.note-open, html.note-open body { overflow: hidden; overscroll-behavior: none; }
+.note-edit { margin-top: 8px; }
+.note-paper {
+  position: relative;
+  padding: 3px 12px 14px; padding-inline-start: 18px;
+  border-radius: 8px;
+  background-color: var(--field);
+  background-image: repeating-linear-gradient(to bottom, transparent 0 25px, color-mix(in srgb, var(--ink) 13%, transparent) 25px 26px);
+  background-position: 0 3px;
+  box-shadow: inset 0 0 0 1.5px var(--ink);
+}
+.note-paper::before { content: ''; position: absolute; inset-block: 0; inset-inline-start: 9px; width: 1px; background: color-mix(in srgb, var(--red) 45%, transparent); }
+#note-in {
+  display: block; width: 100%; height: 52px; padding: 0; margin: 0;
+  border: 0; outline: 0; resize: none; background: transparent;
+  color: var(--ink); caret-color: var(--red);
+  font: 500 16px/26px var(--body);
+}
+#note-in::placeholder { color: var(--ink-soft); opacity: .7; }
+.note-count { position: absolute; bottom: 2px; inset-inline-end: 8px; font: 500 10px var(--body); color: var(--ink-soft); direction: ltr; }
+.note-btns { display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-top: 6px; }
+.note-save { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
 .toast {
   position: fixed;
   z-index: 20;
