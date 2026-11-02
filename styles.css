@@ -105,8 +105,14 @@ button { cursor: pointer; touch-action: manipulation; }
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   direction: ltr;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
 }
 .top-elapsed.hidden { display: none; }
+.top-elapsed.held, .elapsed.held { opacity: .45; }
 .top-elapsed:not(.hidden) + .gear { margin-inline-start: 0; }
 .topbar h1 {
   margin: 0;
