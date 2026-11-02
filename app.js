@@ -2969,14 +2969,29 @@ function noteOpen(name, attrs) {
   render();
   const ta = $('#note-in');
   if (!ta) { ui.noteEdit = null; return; }
+  // Pin the page with the exercise's card right under the top bar. The body itself is fixed in place, so neither
+  // a finger nor iOS bringing up its keyboard can scroll it; any shift iOS makes anyway is undone (notePin).
   const box = ta.closest('.card, .tex') || ta;
-  const r = box.getBoundingClientRect(), top = $('.topbar').getBoundingClientRect().bottom;
-  window.scrollBy(0, r.top - top - 8);
+  const bar = $('.topbar').offsetHeight;
+  noteLockY = Math.max(0, box.getBoundingClientRect().top + window.scrollY - bar - 8);
+  document.documentElement.style.setProperty('--tb-h', `${bar}px`);
+  document.body.style.top = `-${noteLockY}px`;
   document.documentElement.classList.add('note-open');
+  window.scrollTo(0, 0);
   // Focus inside the tap itself, or iOS won't bring up the keyboard.
   ta.focus({ preventScroll: true });
   ta.setSelectionRange(ta.value.length, ta.value.length);
+  const until = Date.now() + 900; // ride out the keyboard's slide-up
+  (function hold() { notePin(); if (ui.noteEdit && Date.now() < until) requestAnimationFrame(hold); })();
 }
+
+let noteLockY = 0;
+function notePin() {
+  if (ui.noteEdit && (window.scrollY || visualViewport?.offsetTop)) window.scrollTo(0, 0);
+}
+window.addEventListener('scroll', notePin);
+visualViewport?.addEventListener('scroll', notePin);
+visualViewport?.addEventListener('resize', notePin);
 
 function noteClose(keep) {
   const n = ui.noteEdit;
@@ -2988,8 +3003,10 @@ function noteClose(keep) {
     save();
   }
   document.documentElement.classList.remove('note-open');
+  document.body.style.top = '';
   document.activeElement?.blur();
   render();
+  window.scrollTo(0, noteLockY);
 }
 
 let noteSwallow = 0, noteBtnDown = false;
