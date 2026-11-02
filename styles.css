@@ -59,6 +59,7 @@ body {
   background-attachment: fixed;
 }
 
+html { touch-action: manipulation; }
 button, input, select { font: inherit; color: inherit; }
 button { cursor: pointer; touch-action: manipulation; }
 :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }

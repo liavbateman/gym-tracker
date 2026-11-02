@@ -2806,6 +2806,18 @@ document.addEventListener('click', (ev) => {
   }
 });
 
+// No page zoom: this is an app, not a web page. iOS Safari ignores user-scalable=no,
+// so also swallow its pinch gestures, two-finger moves and ctrl+wheel/trackpad pinch.
+for (const t of ['gesturestart', 'gesturechange', 'gestureend']) {
+  document.addEventListener(t, (ev) => ev.preventDefault(), { passive: false });
+}
+document.addEventListener('touchmove', (ev) => {
+  if (ev.touches.length > 1) ev.preventDefault();
+}, { passive: false });
+document.addEventListener('wheel', (ev) => {
+  if (ev.ctrlKey) ev.preventDefault();
+}, { passive: false });
+
 // iOS shake-to-undo: a phone dropped on the gym floor counts as a shake and wipes what was typed.
 // Block the undo/redo itself, and clear a field's undo history once it's left so there's nothing to offer.
 document.addEventListener('beforeinput', (ev) => {
