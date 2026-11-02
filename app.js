@@ -300,7 +300,7 @@ function save() {
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 
 // ---------- Helpers ----------
-const ui = { tab: 'workout', draft: null, progEx: null, progMetric: 'e1rm', mdraft: null, bodyMetric: 'pbf', reading: false, pasteOpen: false, pasteText: '', recsOpen: false, recLoading: false };
+const ui = { tab: 'workout', draft: null, progEx: null, progMetric: 'e1rm', mdraft: null, bodyMetric: 'pbf', reading: false, pasteOpen: false, pasteText: '', recsOpen: false, recLoading: false, histOpen: new Set() };
 
 const num = (v) => {
   if (v === '' || v == null) return null;
@@ -700,7 +700,7 @@ function viewEditor() {
 // ---------- Progress photos ----------
 // Photos stay on this device only: they live in IndexedDB (too big for localStorage) and are left out of the JSON backup.
 const PHOTO_DB = 'gym-photos';
-let photos = []; // { id, ts, blob, url }, newest first
+let photos = []; // { id, ts, wid, blob, url }, oldest first; wid is the workout the photo belongs to
 function photoStore(mode) {
   return new Promise((res, rej) => {
     const req = indexedDB.open(PHOTO_DB, 1);
@@ -715,7 +715,7 @@ async function loadPhotos() {
   try {
     const all = await idb((await photoStore('readonly')).getAll());
     photos.forEach((p) => URL.revokeObjectURL(p.url));
-    photos = all.map((p) => ({ ...p, url: URL.createObjectURL(p.blob) })).sort((a, b) => b.ts - a.ts);
+    photos = all.map((p) => ({ ...p, url: URL.createObjectURL(p.blob) })).sort((a, b) => a.ts - b.ts);
     if (ui.tab === 'history') render();
   } catch { /* no IndexedDB (private mode) — the section just stays empty */ }
 }
@@ -731,87 +731,94 @@ async function shrinkPhoto(file) {
   return new Promise((res) => c.toBlob((b) => res(b || file), 'image/jpeg', 0.85));
 }
 
-async function addPhotos(files) {
+async function addPhotos(files, wid) {
   try {
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
     for (const f of files) {
       const blob = await shrinkPhoto(f);
-      await idb((await photoStore('readwrite')).put({ id: uid(), ts: Date.now(), blob }));
+      await idb((await photoStore('readwrite')).put({ id: uid(), ts: Date.now(), wid, blob }));
     }
     await loadPhotos();
     toast(files.length > 1 ? `${files.length} תמונות נשמרו` : 'התמונה נשמרה');
   } catch { toast('שגיאה בשמירת התמונה'); }
 }
 
-async function deletePhoto(id) {
+async function deletePhoto(...ids) {
   try {
-    await idb((await photoStore('readwrite')).delete(id));
+    const store = await photoStore('readwrite');
+    await Promise.all(ids.map((id) => idb(store.delete(id))));
     ui.photo = null;
     await loadPhotos();
   } catch { toast('שגיאה במחיקת התמונה'); }
 }
 
-function viewPhotos() {
-  const open = photos.find((p) => p.id === ui.photo);
+// Photos without a workout (or whose workout is gone) show under the workout closest in time.
+function photosOf(w, list) {
+  const ids = new Set(list.map((x) => x.id));
+  const near = (p) => list.reduce((best, x) => (Math.abs(x.start - p.ts) < Math.abs(best.start - p.ts) ? x : best)).id;
+  return photos.filter((p) => (ids.has(p.wid) ? p.wid : near(p)) === w.id);
+}
+
+function photoStrip(w, mine) {
   return `
-    <div class="card">
-      <div class="row between">
-        <b>תמונות מעקב</b>
-        <button class="btn sm" data-act="photo-add">+ הוסף תמונה</button>
-        <input type="file" id="photo-file" accept="image/*" multiple hidden>
-      </div>
-      ${photos.length
-        ? `<div class="photo-grid">${photos.map((p) => `
-            <button class="photo-thumb" data-act="photo-open" data-id="${p.id}" aria-label="תמונה מ-${fmtDateFull(p.ts)}">
-              <img src="${p.url}" alt="" loading="lazy"><span>${fmtDateFull(p.ts)}</span>
-            </button>`).join('')}</div>`
-        : '<p class="muted small" style="margin-bottom:0">התמונות נשמרות רק במכשיר הזה ולא נכללות בגיבוי.</p>'}
-    </div>
-    ${open ? `
-      <div class="photo-view" data-act="photo-close" role="dialog" aria-modal="true" aria-label="תמונת מעקב">
-        <img src="${open.url}" alt="">
-        <div class="row between" data-act="none">
-          <span>${fmtDateFull(open.ts)}</span>
-          <div class="row">
-            <button class="btn sm danger" data-act="photo-del" data-id="${open.id}">מחק</button>
-            <button class="btn sm" data-act="photo-close">סגור</button>
-          </div>
+    <div class="hist-photos">
+      <div class="row between"><b class="small">תמונות מעקב</b><button class="btn sm" data-act="photo-add" data-id="${w.id}">+ הוסף תמונה</button></div>
+      ${mine.length ? `<div class="photo-grid">${mine.map((p) => `
+        <button class="photo-thumb" data-act="photo-open" data-id="${p.id}" aria-label="תמונה מ-${fmtDateFull(p.ts)}"><img src="${p.url}" alt="" loading="lazy"></button>`).join('')}</div>`
+        : '<p class="muted small" style="margin:4px 0 0">נשמרות רק במכשיר הזה ולא נכללות בגיבוי.</p>'}
+    </div>`;
+}
+
+function photoViewer() {
+  const open = photos.find((p) => p.id === ui.photo);
+  return open ? `
+    <div class="photo-view" data-act="photo-close" role="dialog" aria-modal="true" aria-label="תמונת מעקב">
+      <img src="${open.url}" alt="">
+      <div class="row between" data-act="none">
+        <span>${fmtDateFull(open.ts)}</span>
+        <div class="row">
+          <button class="btn sm danger" data-act="photo-del" data-id="${open.id}">מחק</button>
+          <button class="btn sm" data-act="photo-close">סגור</button>
         </div>
-      </div>` : ''}`;
+      </div>
+    </div>` : '';
 }
 
 function viewHistory() {
   const list = sortedWorkouts();
-  if (!list.length) return viewPhotos() + '<div class="empty">עוד לא נשמרו אימונים.<br>אחרי שתסיים אימון הוא יופיע כאן.</div>';
+  if (!list.length) return '<div class="empty">עוד לא נשמרו אימונים.<br>אחרי שתסיים אימון הוא יופיע כאן.</div>';
   // Month dividers, then one card per workout: a date block, the name and three stats; tap to see every set.
   let month = '';
-  return viewPhotos() + list.map((w) => {
+  return photoViewer() + `<input type="file" id="photo-file" accept="image/*" multiple hidden>` + list.map((w) => {
     const d = new Date(w.start);
     const m = d.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' });
-    const head = m !== month ? `<div class="area-div"><b>${m}</b></div>` : '';
+    const head = m !== month ? `<h3 class="hist-month">${m}</h3>` : '';
     month = m;
-    const groups = [...new Set(w.exercises.map((e) => groupOf(e.name)))];
+    const runs = areaRuns(w.exercises, (e) => groupOf(e.name));
+    const mine = photosOf(w, list);
     return `${head}
-    <details class="card hist">
+    <details class="card hist" data-id="${w.id}" ${ui.histOpen.has(w.id) ? 'open' : ''}>
       <summary>
         <div class="hist-date"><b>${d.getDate()}</b><span>${d.toLocaleDateString('he-IL', { weekday: 'short' })}</span></div>
         <div class="grow">
           <div class="hist-name">${esc(w.name)}</div>
-          <div class="muted small">${groups.map(esc).join(' · ')}</div>
+          <div class="muted small">${runs.map(([a]) => esc(a)).join(' · ')}</div>
           <div class="hist-stats">
             <span><b>${w.exercises.length}</b> תרגילים</span>
             <span><b>${fmtDur(w.end - w.start)}</b></span>
-            <span><b>${Math.round(volume(w)).toLocaleString('he-IL')}</b> ק״ג</span>
+            <span title="סכום משקל × חזרות בכל הסטים">נפח <b>${Math.round(volume(w)).toLocaleString('he-IL')}</b> ק״ג</span>
+            ${mine.length ? `<span><b>${mine.length}</b> תמונות</span>` : ''}
           </div>
         </div>
         <svg class="hist-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
       </summary>
       <div class="muted small hist-meta">התחלה ${fmtTime(w.start)}${w.stretch ? ` · כולל ${Math.ceil(w.stretch / 60)} דק׳ מתיחות` : ''}</div>
-      ${w.exercises.map((e) => `
+      ${runs.map(([area, idx]) => areaDivider(area, idx.length) + idx.map((i) => `
         <div class="hist-ex">
-          <div class="row between"><b>${esc(e.name)}</b><span class="area inline">${groupOf(e.name)}</span></div>
-          <div class="chips">${e.sets.map((s) => chip(s)).join('')}</div>
-        </div>`).join('')}
+          <b>${esc(w.exercises[i].name)}</b>
+          <div class="chips">${w.exercises[i].sets.map((s) => chip(s)).join('')}</div>
+        </div>`).join('')).join('')}
+      ${photoStrip(w, mine)}
       <div class="hist-actions">
         <input type="date" class="pill-in" data-f="hist-date" data-id="${w.id}" value="${isoDay(w.start)}" max="${isoDay(Date.now())}" aria-label="תאריך האימון">
         <button class="btn sm" data-act="hist-tpl" data-id="${w.id}">שמור כתבנית</button>
@@ -2520,9 +2527,13 @@ document.addEventListener('click', (ev) => {
     }
 
     case 'hist-del':
-      if (confirm('למחוק את האימון מההיסטוריה?')) { db.workouts = db.workouts.filter((w) => w.id !== el.dataset.id); save(); render(); }
+      if (confirm('למחוק את האימון מההיסטוריה? גם תמונות המעקב שלו יימחקו.')) {
+        const gone = photos.filter((p) => p.wid === el.dataset.id).map((p) => p.id);
+        db.workouts = db.workouts.filter((w) => w.id !== el.dataset.id); save(); render();
+        if (gone.length) deletePhoto(...gone);
+      }
       break;
-    case 'photo-add': $('#photo-file').click(); break;
+    case 'photo-add': ui.photoFor = el.dataset.id; $('#photo-file').click(); break;
     case 'photo-open': ui.photo = el.dataset.id; render(); break;
     case 'photo-close': ui.photo = null; render(); break;
     case 'photo-del': if (confirm('למחוק את התמונה?')) deletePhoto(el.dataset.id); break;
@@ -2637,6 +2648,13 @@ document.addEventListener('input', (ev) => {
   }
 });
 
+// Remember which history cards are open so a re-render (a new photo, a date change) keeps them open.
+document.addEventListener('toggle', (ev) => {
+  const d = ev.target;
+  if (!d.matches || !d.matches('details.hist[data-id]')) return;
+  if (d.open) ui.histOpen.add(d.dataset.id); else ui.histOpen.delete(d.dataset.id);
+}, true);
+
 document.addEventListener('change', (ev) => {
   const el = ev.target;
   if (el.dataset.f === 'prog-ex') { ui.progEx = el.value; render(); }
@@ -2657,7 +2675,7 @@ document.addEventListener('change', (ev) => {
   if (el.dataset.f === 'set-lastfail') { db.settings.lastSetFail = el.checked; save(); }
   if (el.id === 'import-file' && el.files[0]) { importData(el.files[0]); el.value = ''; }
   if (el.id === 'm-file' && el.files[0]) { handleReportFile(el.files[0]); el.value = ''; }
-  if (el.id === 'photo-file' && el.files.length) { addPhotos([...el.files]); el.value = ''; }
+  if (el.id === 'photo-file' && el.files.length) { addPhotos([...el.files], ui.photoFor); el.value = ''; }
   if (el.dataset.f === 'm-hist') ui.mdraft.history[+el.dataset.i].add = el.checked;
   if (el.dataset.f === 'apikey') render(); // refresh the "saved" mark
 });
