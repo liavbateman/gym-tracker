@@ -367,6 +367,18 @@ function allExerciseNames() {
 const datalist = () => `<datalist id="exnames">${allExerciseNames().map((n) => `<option value="${esc(n)}">`).join('')}</datalist>`;
 
 const volume = (w) => w.exercises.reduce((sum, e) => sum + work(e.sets).reduce((a, s) => a + s.w * s.r, 0), 0);
+// Intensity: the average working-set weight as a % of the exercise's best estimated 1RM up to that workout.
+// Bodyweight sets (no weight) are left out; null when nothing in the workout was weighted.
+function intensity(w) {
+  const best = (name) => Math.max(0, ...db.workouts.filter((x) => x.start <= w.start)
+    .flatMap((x) => x.exercises.filter((e) => e.name === name).flatMap((e) => work(e.sets)))
+    .filter((s) => s.w > 0).map((s) => e1rm(s.w, s.r)));
+  const pct = w.exercises.flatMap((e) => {
+    const b = best(e.name);
+    return b ? work(e.sets).filter((s) => s.w > 0).map((s) => s.w / b) : [];
+  });
+  return pct.length ? Math.round(100 * pct.reduce((a, x) => a + x, 0) / pct.length) : null;
+}
 const chip = (s, cls = '') => (s.wu
   ? `<span class="chip wu"><span dir="rtl">חימום</span> ${setLabel(s)}</span>`
   : `<span class="chip ${cls} ${s.fail ? 'fail' : ''}">${setLabel(s)}${s.fail ? ' <span dir="rtl">כשל</span>' : ''}</span>`);
@@ -796,6 +808,7 @@ function viewHistory() {
     month = m;
     const runs = areaRuns(w.exercises, (e) => groupOf(e.name));
     const mine = photosOf(w, list);
+    const inten = intensity(w);
     return `${head}
     <details class="card hist" data-id="${w.id}" ${ui.histOpen.has(w.id) ? 'open' : ''}>
       <summary>
@@ -807,12 +820,14 @@ function viewHistory() {
             <span><b>${w.exercises.length}</b> תרגילים</span>
             <span><b>${fmtDur(w.end - w.start)}</b></span>
             <span title="סכום משקל × חזרות בכל הסטים">נפח <b>${Math.round(volume(w)).toLocaleString('he-IL')}</b> ק״ג</span>
+            ${inten != null ? `<span title="ממוצע המשקל בסטים כאחוז מה-1RM המשוער שלך בכל תרגיל">עצימות <b>${inten}%</b></span>` : ''}
             ${mine.length ? `<span><b>${mine.length}</b> תמונות</span>` : ''}
           </div>
         </div>
         <svg class="hist-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
       </summary>
       <div class="muted small hist-meta">התחלה ${fmtTime(w.start)}${w.stretch ? ` · כולל ${Math.ceil(w.stretch / 60)} דק׳ מתיחות` : ''}</div>
+      <p class="muted small hist-meta">נפח = משקל × חזרות בכל הסטים (בלי חימום). עצימות = כמה כבד הרמת בממוצע, באחוזים מה-1RM המשוער שלך בכל תרגיל.</p>
       ${runs.map(([area, idx]) => areaDivider(area, idx.length) + idx.map((i) => `
         <div class="hist-ex">
           <b>${esc(w.exercises[i].name)}</b>
