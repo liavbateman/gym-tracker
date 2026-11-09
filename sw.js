@@ -1,5 +1,5 @@
 // Offline support: always try the network first so updates show up right away; fall back to the cache when offline.
-const CACHE = 'gym-tracker-v61';
+const CACHE = 'gym-tracker-v62';
 // Exercise demo data and photos never change, so they're served cache-first and kept across app updates.
 const MEDIA = 'gym-tracker-media';
 const MEDIA_URL = 'https://cdn.jsdelivr.net/gh/yuhonas/free-exercise-db@';

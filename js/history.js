@@ -73,9 +73,12 @@ async function openCamera(wid) {
   box.setAttribute('aria-label', L('צילום תמונות מעקב', 'Ta progressbilder'));
   box.innerHTML = `
     <video playsinline muted autoplay></video>
+    <div class="cam-tap" data-k="tap"></div>
+    <div class="cam-countdown" aria-live="assertive"></div>
     <div class="cam-top">
       <button class="btn sm" data-k="close">${L('ביטול', 'Avbryt')}</button>
       <span class="cam-count"></span>
+      <button class="btn sm" data-k="timer"></button>
       <button class="btn sm" data-k="flip" aria-label="${L('החלף מצלמה', 'Byt kamera')}">⟲</button>
     </div>
     <div class="cam-bottom">
@@ -87,6 +90,42 @@ async function openCamera(wid) {
       </div>
     </div>`;
   const video = box.querySelector('video');
+  // Self-timer: off / 3s / 10s, remembered. With a timer on, one press shoots every remaining shot in a row,
+  // a countdown before each, so you can step back and turn (front / side / back) without touching the phone.
+  const TIMERS = [0, 3, 10];
+  let timer = 0, tick = null, beepCtx = null;
+  try { timer = TIMERS.includes(+localStorage.getItem('camTimer')) ? +localStorage.getItem('camTimer') : 0; } catch {}
+  const countEl = box.querySelector('.cam-countdown');
+  const beep = (hi) => {
+    try {
+      beepCtx ||= new (window.AudioContext || window.webkitAudioContext)();
+      const o = beepCtx.createOscillator(), v = beepCtx.createGain(), t = beepCtx.currentTime;
+      o.frequency.value = hi ? 1320 : 880;
+      v.gain.setValueAtTime(0.25, t); v.gain.exponentialRampToValueAtTime(0.001, t + (hi ? 0.35 : 0.12));
+      o.connect(v).connect(beepCtx.destination); o.start(t); o.stop(t + 0.4);
+    } catch {}
+  };
+  const stopCountdown = () => { clearInterval(tick); tick = null; countEl.textContent = ''; box.classList.remove('counting'); };
+  const countdown = () => {
+    if (shots.length >= CAM_MAX) return stopCountdown();
+    let left = timer;
+    box.classList.add('counting');
+    countEl.textContent = left; beep(false);
+    tick = setInterval(() => {
+      left -= 1;
+      if (left > 0) { countEl.textContent = left; beep(false); return; }
+      clearInterval(tick); tick = null; countEl.textContent = '';
+      beep(true); shoot();
+      // Next shot in the series after a short breath, unless that was the last one.
+      if (shots.length + 1 < CAM_MAX) setTimeout(() => { if (box.isConnected && box.classList.contains('counting')) countdown(); }, 700);
+      else box.classList.remove('counting');
+    }, 1000);
+  };
+  // Shutter, volume button or a tap on the picture: shoot now, start the timer, or cancel a running countdown.
+  const trigger = () => {
+    if (box.classList.contains('counting')) return stopCountdown();
+    if (timer) countdown(); else shoot();
+  };
   const start = async () => {
     stream?.getTracks().forEach((t) => t.stop());
     // No square/size request: that makes phones crop the sensor, which looks zoomed in. Let the camera use its full frame.
@@ -101,6 +140,9 @@ async function openCamera(wid) {
   };
   const paint = () => {
     box.querySelector('.cam-count').textContent = `${shots.length}/${CAM_MAX}`;
+    const tb = box.querySelector('[data-k="timer"]');
+    tb.textContent = timer ? `⏱ ${timer}${L('ש׳', 's')}` : `⏱ ${L('כבוי', 'Av')}`;
+    tb.setAttribute('aria-label', timer ? L(`טיימר ${timer} שניות`, `Självutlösare ${timer} sekunder`) : L('טיימר כבוי', 'Självutlösare av'));
     box.querySelector('.cam-shots').innerHTML = shots.map((s, i) => `
       <button class="cam-shot" data-k="drop" data-i="${i}" aria-label="${L('הסר תמונה', 'Ta bort bild')} ${i + 1}"><img src="${s.url}" alt=""><span>✕</span></button>`).join('');
     box.querySelector('[data-k="shoot"]').disabled = shots.length >= CAM_MAX;
@@ -112,9 +154,11 @@ async function openCamera(wid) {
     if (!VOL_KEYS.has(ev.key) && ![24, 25, 174, 175].includes(ev.keyCode)) return;
     ev.preventDefault();
     ev.stopPropagation();
-    if (!ev.repeat) shoot();
+    if (!ev.repeat) trigger();
   };
   const close = () => {
+    stopCountdown();
+    beepCtx?.close().catch(() => {});
     window.removeEventListener('keydown', onVol, true);
     stream?.getTracks().forEach((t) => t.stop());
     shots.forEach((s) => URL.revokeObjectURL(s.url));
@@ -137,8 +181,16 @@ async function openCamera(wid) {
     const btn = ev.target.closest('[data-k]');
     if (!btn) return;
     const k = btn.dataset.k;
-    if (k === 'shoot') shoot();
-    else if (k === 'drop') { URL.revokeObjectURL(shots[+btn.dataset.i].url); shots.splice(+btn.dataset.i, 1); paint(); }
+    if (k === 'shoot' || k === 'tap') trigger();
+    else if (k === 'timer') {
+      stopCountdown();
+      timer = TIMERS[(TIMERS.indexOf(timer) + 1) % TIMERS.length];
+      try { localStorage.setItem('camTimer', timer); } catch {}
+      paint();
+    }
+    else if (k === 'drop') {
+      stopCountdown();
+      URL.revokeObjectURL(shots[+btn.dataset.i].url); shots.splice(+btn.dataset.i, 1); paint(); }
     else if (k === 'flip') { facing = facing === 'user' ? 'environment' : 'user'; start().catch(() => toast(L('לא ניתן להחליף מצלמה', 'Kunde inte byta kamera'))); }
     else if (k === 'save') { const files = shots.map((s) => s.blob); close(); addPhotos(files, wid); }
     else if (k === 'gallery') { close(); pick(); }
