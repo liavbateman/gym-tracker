@@ -34,10 +34,16 @@ const HE_EN = [
   ['פרפר הפוך', 'reverse fly'], ['פרפר', 'fly'], ['פק דק', 'pec deck'], ['בטרפליי', 'butterfly'],['קרוס אובר', 'crossover'], ['פול אובר', 'pullover'], ['מקבילים', 'dips'],
   ['שכיבות סמיכה', 'pushups'], ['פלאנק', 'plank'], ['כפיפות בטן', 'crunch'], ['קראנץ', 'crunch'], ['כפיפות גו', 'crunch'],
   ['בשיפוע', 'incline'], ['מוט', 'barbell'], ['משקולות', 'dumbbell'], ['משקולת', 'dumbbell'], ['דאמבל', 'dumbbell'],
-  ['כבל', 'cable'], ['מכונה', 'machine'], ['מכונת', 'machine'], ['סמית', 'smith'], ['קטלבל', 'kettlebell'],
+  ['כבלים', 'cable'], ['כבל', 'cable'], ['מכונה', 'machine'], ['מכונת', 'machine'], ['סמית', 'smith'], ['קטלבל', 'kettlebell'],
   ['עליות על ספסל', 'step up'], ['עליות על קופסה', 'step up'], ['אחיזה רחבה', 'wide grip'], ['אחיזה צרה', 'close grip'],
   ['רחבה', 'wide'], ['רחב', 'wide'], ['צרה', 'narrow close'], ['צר', 'narrow close'],
   ['גומי', 'bands'], ['ישיבה', 'seated'], ['עמידה', 'standing'], ['שכיבה', 'lying'], ['יד אחת', 'one arm'],
+  // Body parts last, so the exercise phrases above that contain them ("לחיצת חזה", "פשיטת גב") win.
+  ['יד קדמית', 'biceps'], ['יד אחורית', 'triceps'], ['ביספס', 'biceps'], ['טרייספס', 'triceps'], ['טריספס', 'triceps'],
+  ['ארבע ראשי', 'quads'], ['ארבעה ראשי', 'quads'], ['המסטרינג', 'hamstrings'], ['מסטרינג', 'hamstrings'], ['ירך אחורית', 'hamstrings'],
+  ['גב תחתון', 'lower back'], ['גב עליון', 'upper back'], ['גב', 'back'], ['חזה', 'chest'], ['כתפיים', 'shoulders'], ['כתף', 'shoulders'],
+  ['רגליים', 'legs'], ['רגל', 'legs'], ['ישבן', 'glutes'], ['עכוז', 'glutes'], ['תאומים', 'calves'], ['שוקיים', 'calves'],
+  ['בטן', 'abs'], ['זרועות', 'arms'], ['ידיים', 'arms'], ['אמות', 'forearms'], ['טרפז', 'traps'], ['צוואר', 'neck'], ['מתיחה', 'stretch'], ['מתיחות', 'stretch'],
 ];
 // Swedish → English for names typed by hand in Swedish (the app's own Swedish names go through the Hebrew list).
 const SV_EN = [
@@ -51,12 +57,16 @@ const SV_EN = [
   ['kabel', 'cable'], ['maskin', 'machine'], ['sittande', 'seated'], ['stående', 'standing'], ['liggande', 'lying'], ['omvända', 'reverse'],
 ];
 const hasHebrew = (s) => /[֐-׿]/.test(s);
-const HE_STOP = ['עם', 'של', 'על', 'את', 'או', 'ו', 'ב', 'ל', 'ה'];
+const HE_STOP = ['עם', 'של', 'על', 'את', 'או', 'ו', 'ב', 'ל', 'ה', 'תרגיל', 'תרגילים', 'אימון'];
 // Dictionary translation, plus the Hebrew words it didn't know (left for the automatic translator).
 function splitHebrew(q) {
   q = String(q || '');
   const out = [];
-  for (const [he, en] of HE_EN) if (q.includes(he)) { out.push(en); q = q.split(he).join(' '); }
+  for (const [he, en] of HE_EN) {
+    // Short words only match as whole words (with an optional ו/ב/ל/ה prefix), so גב doesn't match inside גבוה.
+    const re = he.length <= 3 ? new RegExp(`(^|[^א-ת])[ובלה]?${he}(?![א-ת])`, 'g') : null;
+    if (re ? re.test(q) : q.includes(he)) { out.push(en); q = re ? q.replace(re, '$1 ') : q.split(he).join(' '); }
+  }
   const rest = (q.match(/[֐-׿]+/g) || []).filter((w) => !HE_STOP.includes(w));
   // Keep any Latin words the name already had (e.g. "לחיצת חזה Smith").
   return { dict: [...out, ...(q.match(/[a-z0-9]+/gi) || [])].join(' '), rest: rest.join(' ') };
@@ -119,24 +129,65 @@ const GROUP_MUSCLES = {
   'יד קדמית': ['biceps', 'forearms'], 'יד אחורית': ['triceps'], 'בטן': ['abdominals'],
 };
 const PLAIN_WORDS = ['medium', 'grip', 'version']; // describe the standard form, so no penalty
-// Words in the name count most, then equipment and aliases; exercises for the app's body area of the exercise
-// get a boost, and every name word the search didn't ask for costs a little ("Reverse Flyes" for "fly").
+// Body-part words (after exTokens) → the database's muscles. These match what the exercise works, not its name,
+// so "back" finds rows and pulldowns rather than "Elbows Back" or "Behind the Back Shrug".
+const BACK = ['lats', 'middle back'];
+const LEGS = ['quadriceps', 'hamstrings', 'glutes'];
+const BODY_WORDS = {
+  back: BACK, upper: ['lats', 'middle back', 'traps'], lower: ['lower back'], lat: ['lats'], trap: ['traps'],
+  chest: ['chest'], pec: ['chest'], shoulder: ['shoulders'], delt: ['shoulders'], deltoid: ['shoulders'],
+  leg: LEGS, quad: ['quadriceps'], quadricep: ['quadriceps'], thigh: ['quadriceps', 'hamstrings', 'adductors', 'abductors'],
+  hamstring: ['hamstrings'], glute: ['glutes'], butt: ['glutes'], calf: ['calves'], calve: ['calves'],
+  arm: ['biceps', 'triceps', 'forearms'], bicep: ['biceps'], tricep: ['triceps'], forearm: ['forearms'],
+  ab: ['abdominals'], core: ['abdominals'], neck: ['neck'],
+};
+// Also worked by the body part, but not what people usually mean by it ("back" means rows and pulldowns, not shrugs).
+const BODY_NEAR = { back: ['traps', 'lower back'], leg: ['calves', 'adductors', 'abductors'], arm: ['forearms'] };
+// "back machine" should also show cable stations like lat pulldowns and seated rows.
+const NEAR_EQUIP = { machine: ['cable'], cable: ['machine'], ez: ['barbell'], barbell: ['e-z curl bar'] };
+const STRETCH_WORDS = ['stretch', 'smr', 'foam', 'roll', 'mobility'];
+const CARDIO_WORDS = ['cardio', 'bike', 'bicycling', 'treadmill', 'elliptical', 'stairmaster', 'rowing', 'run', 'running', 'jog', 'jogging', 'walk', 'walking'];
+// Every word typed should be explained by the exercise: its name, what it works, its equipment or a known alias.
+// Results that cover all the words come first; each word left unexplained costs a lot. Without a body-part word
+// in the search, exercises for the app's body area of the exercise get a boost. Every name word the search didn't
+// ask for costs a little ("Reverse Flyes" for "fly"), and stretches and cardio only show up when asked for.
 function searchExercises(list, q, group) {
   const words = exTokens(q);
   if (!words.length) return [];
   const qt = [...new Set(words)];
   const pairs = words.slice(1).map((w, i) => words[i] + w); // "pull up" also finds "Pullups"
-  const muscles = GROUP_MUSCLES[group] || [];
+  const asked = qt.filter((t) => BODY_WORDS[t]).flatMap((t) => BODY_WORDS[t]);
+  const muscles = asked.length ? asked : GROUP_MUSCLES[group] || [];
+  const wantStretch = qt.some((t) => STRETCH_WORDS.includes(t));
+  const wantCardio = qt.some((t) => CARDIO_WORDS.includes(t));
   return list.map((x) => {
     const nt = exTokens(x.name);
     const extra = exTokens([EQUIP[x.equipment] || '', ...EX_ALIASES.filter(([re]) => re.test(x.name)).map(([, a]) => a)].join(' '));
-    let score = 0;
+    const prim = x.primaryMuscles || [], sec = x.secondaryMuscles || [];
+    let score = 0, missed = 0;
     for (const t of qt) {
-      score += nt.includes(t) ? 3 : extra.includes(t) ? 2 : t.length > 2 && nt.some((n) => n.startsWith(t) || (n.length > 2 && t.startsWith(n))) ? 1 : 0;
+      const pairHit = pairs.some((p) => nt.includes(p) && p.includes(t));
+      let s;
+      if (BODY_WORDS[t]) {
+        // "lower" / "upper" only count as body parts next to "back"; on their own they're ordinary name words.
+        const body = (t === 'lower' || t === 'upper') && !qt.includes('back') ? null : BODY_WORDS[t];
+        const near = body ? BODY_NEAR[t] || [] : [];
+        s = body && prim.some((m) => body.includes(m)) ? 4 : prim.some((m) => near.includes(m)) ? 2.5
+          : body && sec.some((m) => body.includes(m)) ? 1.5
+          : nt.includes(t) ? (body ? 1 : 3) : 0;
+      } else {
+        s = nt.includes(t) || pairHit || EQUIP[x.equipment] === t ? 3 : extra.includes(t) ? 2.5
+          : (NEAR_EQUIP[t] || []).includes(x.equipment) ? 1.5
+          : t.length > 2 && nt.some((n) => n.startsWith(t) || (n.length > 2 && t.startsWith(n))) ? 1 : 0;
+      }
+      if (s) score += s; else missed++;
     }
-    for (const p of pairs) if (nt.includes(p)) score += 3;
+    for (const p of pairs) if (nt.includes(p)) score += 1;
     if (!score) return null;
-    if ((x.primaryMuscles || []).some((m) => muscles.includes(m))) score += 3;
+    score -= missed * 5;
+    if (!asked.length && prim.some((m) => muscles.includes(m))) score += 2;
+    if (!wantStretch && (x.category === 'stretching' || x.equipment === 'foam roll')) score -= 4;
+    if (!wantCardio && x.category === 'cardio') score -= 4;
     score -= nt.filter((n) => !qt.includes(n) && !pairs.includes(n) && !PLAIN_WORDS.includes(n)).length * 0.3;
     return { x, score };
   }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 20).map((r) => r.x);
