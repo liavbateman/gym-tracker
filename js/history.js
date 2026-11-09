@@ -89,7 +89,12 @@ async function openCamera(wid) {
   const video = box.querySelector('video');
   const start = async () => {
     stream?.getTracks().forEach((t) => t.stop());
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing, width: { ideal: 1920 }, height: { ideal: 1920 } }, audio: false });
+    // No square/size request: that makes phones crop the sensor, which looks zoomed in. Let the camera use its full frame.
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing }, audio: false });
+    // Some phones open at a zoom level above 1x; reset it to the widest view the camera allows.
+    const track = stream.getVideoTracks()[0];
+    const zoom = track?.getCapabilities?.().zoom;
+    if (zoom) await track.applyConstraints({ advanced: [{ zoom: Math.max(zoom.min, Math.min(1, zoom.max)) }] }).catch(() => {});
     video.srcObject = stream;
     video.classList.toggle('mirror', facing === 'user');
     await video.play().catch(() => {});
@@ -101,7 +106,16 @@ async function openCamera(wid) {
     box.querySelector('[data-k="shoot"]').disabled = shots.length >= CAM_MAX;
     box.querySelector('[data-k="save"]').disabled = !shots.length;
   };
+  // Volume buttons (and Bluetooth selfie remotes, which send volume-up) take a photo too, where the browser passes them on.
+  const VOL_KEYS = new Set(['AudioVolumeUp', 'AudioVolumeDown', 'VolumeUp', 'VolumeDown']);
+  const onVol = (ev) => {
+    if (!VOL_KEYS.has(ev.key) && ![24, 25, 174, 175].includes(ev.keyCode)) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    if (!ev.repeat) shoot();
+  };
   const close = () => {
+    window.removeEventListener('keydown', onVol, true);
     stream?.getTracks().forEach((t) => t.stop());
     shots.forEach((s) => URL.revokeObjectURL(s.url));
     box.remove();
@@ -139,6 +153,7 @@ async function openCamera(wid) {
   });
   try { await start(); } catch { toast(L('אין גישה למצלמה', 'Ingen åtkomst till kameran')); return pick(); }
   paint();
+  window.addEventListener('keydown', onVol, true);
   document.body.append(box);
   document.body.classList.add('dlg-open');
 }
