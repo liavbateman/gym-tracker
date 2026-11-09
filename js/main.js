@@ -289,17 +289,16 @@ document.addEventListener('click', (ev) => {
     }
     case 'ex-del':
       ask({ title: L('להסיר את התרגיל?', 'Ta bort övningen?'), msg: L(`"${ex.name}" יוסר מהאימון הזה.`, `"${exName(ex.name)}" tas bort från det här passet.`), ok: L('הסר', 'Ta bort'), danger: true })
-        .then((yes) => { if (yes) { db.active.exercises.splice(e, 1); ui.swap = null; ui.order = null; save(); render(); } });
+        .then((yes) => { if (yes) { db.active.exercises.splice(e, 1); ui.swap = null; save(); render(); } });
       break;
-    case 'swap-open': ui.swap = ui.swap === e ? null : e; ui.order = null; render(); break;
-    case 'order-open': ui.order = ui.order === e ? null : e; ui.swap = null; render(); break;
-    case 'order-pick': {
-      const arr = db.active.exercises, j = +el.dataset.j;
-      if (!arr[j]) return;
+    case 'swap-open': ui.swap = ui.swap === e ? null : e; render(); break;
+    case 'ex-up':
+    case 'ex-down': {
+      const arr = db.active.exercises, j = act === 'ex-up' ? e - 1 : e + 1;
+      if (j < 0 || j >= arr.length) return;
       [arr[e], arr[j]] = [arr[j], arr[e]];
-      ui.order = null; ui.swap = null;
+      if (ui.swap === e || ui.swap === j) ui.swap = ui.swap === e ? j : e;
       save(); render();
-      toast(L(`${exName(arr[j].name)} הוחלף עם ${exName(arr[e].name)}`, `${exName(arr[j].name)} bytte plats med ${exName(arr[e].name)}`));
       break;
     }
     case 'unswap': unswapExercise(e); break;

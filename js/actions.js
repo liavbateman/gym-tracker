@@ -55,7 +55,7 @@ function swapExercise(e, name) {
   } else {
     db.active.exercises[e] = alt;
   }
-  ui.swap = null; ui.order = null;
+  ui.swap = null;
   save(); render();
   toast(L(`הוחלף ל${name}`, `Bytt till ${exName(name)}`));
 }
@@ -78,7 +78,7 @@ function unswapExercise(e) {
   }
   if (alt.sets.some((s) => s.done)) alt.sets = alt.sets.filter((s) => s.done);
   else db.active.exercises.splice(db.active.exercises.indexOf(alt), 1);
-  ui.swap = null; ui.order = null;
+  ui.swap = null;
   save(); render();
   toast(L(`חזרת ל${origin}`, `Tillbaka till ${exName(origin)}`));
 }
