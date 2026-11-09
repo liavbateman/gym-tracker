@@ -262,7 +262,13 @@ const groupOf = (name) => db.muscles[name] || guessGroup(name);
 // Template-editor exercises can carry an area picked in the editor before it's saved.
 const draftGroup = (e) => e.group || groupOf(e.name);
 // Indices grouped by body area, areas in order of first appearance, exercise order kept within each area.
-function areaRuns(list, areaOf) {
+// contiguous: group only neighbors, so an area can show up more than once (the live workout, where order is the user's).
+function areaRuns(list, areaOf, contiguous) {
+  if (contiguous) {
+    const runs = [];
+    list.forEach((x, i) => { const a = areaOf(x), last = runs[runs.length - 1]; if (last && last[0] === a) last[1].push(i); else runs.push([a, [i]]); });
+    return runs;
+  }
   const runs = new Map();
   list.forEach((x, i) => { const a = areaOf(x); if (!runs.has(a)) runs.set(a, []); runs.get(a).push(i); });
   return [...runs];
@@ -390,7 +396,7 @@ function save() {
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 
 // ---------- Helpers ----------
-const ui = { tab: 'workout', draft: null, progEx: null, progMetric: 'e1rm', mdraft: null, bodyMetric: 'pbf', reading: false, pasteOpen: false, pasteText: '', recsOpen: false, recLoading: false, histOpen: new Set() };
+const ui = { tab: 'workout', order: null, draft: null, progEx: null, progMetric: 'e1rm', mdraft: null, bodyMetric: 'pbf', reading: false, pasteOpen: false, pasteText: '', recsOpen: false, recLoading: false, histOpen: new Set() };
 
 const num = (v) => {
   if (v === '' || v == null) return null;

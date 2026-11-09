@@ -311,16 +311,19 @@ function viewActive() {
             ${e.sets.some((s) => s.wu) ? '' : `<button class="btn sm" data-act="wu-add" data-e="${i}">${L('+ חימום', '+ Uppvärmning')}</button>`}
           </div>
           <div class="row">
+            ${w.exercises.length > 1 ? `<button class="link-btn" data-act="order-open" data-e="${i}">${ui.order === i ? L('סגור', 'Stäng') : L('שנה סדר', 'Ändra ordning')}</button>` : ''}
             <button class="link-btn" data-act="swap-open" data-e="${i}">${ui.swap === i ? L('סגור', 'Stäng') : L('תפוס? החלף', 'Upptagen? Byt')}</button>
             <button class="link-btn" data-act="ex-del" data-e="${i}">${L('הסר תרגיל', 'Ta bort övning')}</button>
           </div>
         </div>
         ${muscleMap(e.name, groupOf(e.swapOf || e.name))}
         ${ui.swap === i ? viewSwap(e, i) : ''}
+        ${ui.order === i ? viewOrder(w, i) : ''}
       </div>`;
   };
-  // Shown grouped by body area; data-e indices still point at the exercise's place in the workout.
-  const exs = areaRuns(w.exercises, (e) => groupOf(e.name))
+  // Shown grouped by body area, in workout order (neighbors only, so a reordered workout shows as done);
+  // data-e indices point at the exercise's place in the workout.
+  const exs = areaRuns(w.exercises, (e) => groupOf(e.name), true)
     .map(([area, idx]) => areaDivider(area, idx.length) + idx.map((i) => card(w.exercises[i], i)).join('')).join('');
 
   return `
@@ -407,6 +410,15 @@ function stretchViewer(phase, list) {
         <div class="muted small" style="margin-top:4px">${x.hold} ${L('ש׳', 's')}${x.sides ? L(' לכל צד', ' per sida') : ''}</div>
       </div>
     </div>` : '';
+}
+
+// Swap places with another exercise already in the workout, keeping everything logged on both.
+function viewOrder(w, i) {
+  return `
+    <div class="swap">
+      <div class="muted small">${L('תחליף מקום עם תרגיל אחר באימון. כל מה שכבר רשום נשאר כמו שהוא.', 'Byt plats med en annan övning i passet. Allt du redan loggat stannar kvar.')}</div>
+      <div class="demo-variants">${w.exercises.map((x, j) => j === i ? '' : `<button class="chip" data-act="order-pick" data-e="${i}" data-j="${j}">${j + 1}. ${esc(exName(x.name))}</button>`).join('')}</div>
+    </div>`;
 }
 
 function viewSwap(e, i) {

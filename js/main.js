@@ -289,9 +289,19 @@ document.addEventListener('click', (ev) => {
     }
     case 'ex-del':
       ask({ title: L('להסיר את התרגיל?', 'Ta bort övningen?'), msg: L(`"${ex.name}" יוסר מהאימון הזה.`, `"${exName(ex.name)}" tas bort från det här passet.`), ok: L('הסר', 'Ta bort'), danger: true })
-        .then((yes) => { if (yes) { db.active.exercises.splice(e, 1); ui.swap = null; save(); render(); } });
+        .then((yes) => { if (yes) { db.active.exercises.splice(e, 1); ui.swap = null; ui.order = null; save(); render(); } });
       break;
-    case 'swap-open': ui.swap = ui.swap === e ? null : e; render(); break;
+    case 'swap-open': ui.swap = ui.swap === e ? null : e; ui.order = null; render(); break;
+    case 'order-open': ui.order = ui.order === e ? null : e; ui.swap = null; render(); break;
+    case 'order-pick': {
+      const arr = db.active.exercises, j = +el.dataset.j;
+      if (!arr[j]) return;
+      [arr[e], arr[j]] = [arr[j], arr[e]];
+      ui.order = null; ui.swap = null;
+      save(); render();
+      toast(L(`${exName(arr[j].name)} הוחלף עם ${exName(arr[e].name)}`, `${exName(arr[j].name)} bytte plats med ${exName(arr[e].name)}`));
+      break;
+    }
     case 'unswap': unswapExercise(e); break;
     case 'swap-pick':swapExercise(e, el.dataset.n); break;
     case 'swap-custom': swapExercise(e, $('#swap-name').value); break;
@@ -304,7 +314,10 @@ document.addEventListener('click', (ev) => {
     case 'ex-add': {
       const name = $('#new-ex').value.trim();
       if (!name) return;
-      db.active.exercises.push(makeExercise({ name }, db.active.exercises.length === 0));
+      // Goes right after the last exercise of its body area, so it joins that area's group.
+      const list = db.active.exercises, area = groupOf(name);
+      const at = list.map((x) => groupOf(x.name)).lastIndexOf(area);
+      list.splice(at < 0 ? list.length : at + 1, 0, makeExercise({ name }, list.length === 0));
       save(); render();
       break;
     }
