@@ -1,6 +1,6 @@
 // Offline support: try the network first so updates show up right away; fall back to the cache when offline
 // or when the network takes too long.
-const CACHE = 'gym-tracker-v67';
+const CACHE = 'gym-tracker-v68';
 const SLOW_MS = 2500;
 let slowUntil = 0;
 // Exercise demo data and photos never change, so they're served cache-first and kept across app updates.
