@@ -200,6 +200,8 @@ h3 { font-size: 16px; font-weight: 700; margin: 0; }
 .btn.danger { border-color: transparent; color: var(--red); }
 .btn.danger-fill { background: var(--red); border-color: var(--red); color: #fff; }
 .btn.danger-fill:active { opacity: .85; }
+/* The dark theme's red is light, so white text on it is hard to read (3:1): dark text there instead. */
+@media (prefers-color-scheme: dark) { .btn.danger-fill, .set-actions button { color: #0F141C; } }
 .confirm-del { margin-top: 10px; border-color: var(--red); }
 .btn.ghost { border-style: dashed; border-color: var(--ink-soft); color: var(--ink-soft); }
 .btn.block { width: 100%; display: block; margin-top: 10px; }
@@ -212,7 +214,8 @@ h3 { font-size: 16px; font-weight: 700; margin: 0; }
   padding: 6px 8px;
 }
 
-input[type=text], input[type=number], input[type=date], input[type=password], select, textarea {
+input[type=search] { -webkit-appearance: none; appearance: none; }
+input[type=text], input[type=search], input[type=number], input[type=date], input[type=password], select, textarea {
   width: 100%;
   background: var(--field);
   border: 1px solid var(--rule);
@@ -689,6 +692,9 @@ html.note-open .topbar { position: fixed; top: 0; inset-inline: 0; }
   text-align: center;
   box-shadow: 0 6px 24px rgba(20, 35, 75, .25);
 }
+.chart-val { text-align: center; margin-top: 4px; min-height: 18px; font-weight: 600; }
+.chart .pt.on { stroke: var(--ink); stroke-width: 3; }
+.chart .pt-hit { cursor: pointer; }
 /* Editing the sets of a saved workout: one row per set in place of its chips. */
 .hist-edit { display: flex; align-items: center; gap: 6px; margin: 5px 0; }
 .hist-edit > span:first-child { flex: none; width: 46px; }

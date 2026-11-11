@@ -153,7 +153,7 @@ async function openCamera(wid) {
   const paint = () => {
     box.querySelector('.cam-count').textContent = `${shots.length}/${CAM_MAX}`;
     const tb = box.querySelector('[data-k="timer"]');
-    tb.textContent = timer ? `⏱ ${timer}${L('ש׳', 's')}` : `⏱ ${L('כבוי', 'Av')}`;
+    tb.textContent = timer ? `⏱ ${timer}${L('שנ׳', 's')}` : `⏱ ${L('כבוי', 'Av')}`;
     tb.setAttribute('aria-label', timer ? L(`טיימר ${timer} שניות`, `Självutlösare ${timer} sekunder`) : L('טיימר כבוי', 'Självutlösare av'));
     box.querySelector('.cam-shots').innerHTML = shots.map((s, i) => `
       <button class="cam-shot" data-k="drop" data-i="${i}" aria-label="${L('הסר תמונה', 'Ta bort bild')} ${i + 1}"><img src="${s.url}" alt=""><span>✕</span></button>`).join('');
@@ -372,7 +372,9 @@ function chart(points, unit, markBest) {
   if (min === max) { min -= 5; max += 5; }
   const padY = (max - min) * 0.1;
   min = Math.max(0, min - padY); max += padY;
-  const x = (i) => (points.length === 1 ? (PL + W - R) / 2 : PL + (i * (W - PL - R)) / (points.length - 1));
+  // Points sit by date, so a three-month break looks like a break and not like one session to the next.
+  const t0 = points[0].t, span = points[points.length - 1].t - t0;
+  const x = (i) => (points.length === 1 || !span ? (PL + W - R) / 2 : PL + ((points[i].t - t0) / span) * (W - PL - R));
   const y = (v) => T + (H - T - B) * (1 - (v - min) / (max - min));
   const ticks = [0, 0.5, 1].map((f) => min + (max - min) * f);
   const path = points.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.y).toFixed(1)}`).join(' ');
@@ -385,7 +387,9 @@ function chart(points, unit, markBest) {
       ${points.map((p, i) => `<circle class="pt ${p.y === best ? 'best' : ''}" cx="${x(i)}" cy="${y(p.y)}" r="${p.y === best ? 6 : 3.5}"><title>${fmtDateShort(p.t)}: ${fmtW(p.y)} ${unit}</title></circle>`).join('')}
       <text class="ax" x="${PL}" y="${H - 6}" text-anchor="start">${fmtDateShort(points[0].t)}</text>
       ${points.length > 1 ? `<text class="ax" x="${W - R}" y="${H - 6}" text-anchor="end">${fmtDateShort(points[points.length - 1].t)}</text>` : ''}
-    </svg>`;
+      ${points.map((p, i) => `<circle class="pt-hit" data-act="chart-pt" data-l="${fmtDateShort(p.t)}: ${fmtW(p.y)} ${unit}" cx="${x(i)}" cy="${y(p.y)}" r="13" fill="transparent"/>`).join('')}
+    </svg>
+    <div class="chart-val muted small" dir="auto">${L('הקש על נקודה בגרף כדי לראות את הערך שלה', 'Tryck på en punkt i diagrammet för att se dess värde')}</div>`;
 }
 
 function viewProgress() {
@@ -442,8 +446,10 @@ function viewProgress() {
     max: (e) => Math.max(...e.sets.map((s) => s.w)),
     vol: (e) => e.sets.reduce((a, s) => a + s.w * s.r, 0),
   };
-  const points = sessions.map((s) => ({ t: s.t, y: metricOf[ui.progMetric](s.e) }));
   const { maxW, maxE } = bestFor(ui.progEx);
+  // A bodyweight exercise (no weight logged) is charted by its best set's reps; the weight metrics would all read 0.
+  const bw = !(maxE > 0);
+  const points = sessions.map((s) => ({ t: s.t, y: bw ? Math.max(...s.e.sets.map((x) => x.r)) : metricOf[ui.progMetric](s.e) }));
   const metrics = [['e1rm', L('כוח משוער', 'Uppskattad styrka')], ['max', L('משקל מקס׳', 'Maxvikt')], ['vol', L('נפח', 'Volym')]];
 
   return `
@@ -458,9 +464,9 @@ function viewProgress() {
       <div class="stat"><div class="v">${maxE ? fmtW(Math.round(maxE * 2) / 2) : '–'}</div><div class="l">${L('1RM משוער (ק״ג)', 'Uppskattad 1RM (kg)')}</div></div>
     </div>
     <div class="card">
-      <div class="seg">${metrics.map(([k, l]) => `<button class="${ui.progMetric === k ? 'on' : ''}" data-act="metric" data-k="${k}">${l}</button>`).join('')}</div>
-      ${chart(points, L('ק״ג', 'kg'), true)}
-      <p class="muted small" style="margin:6px 0 0">${ui.progMetric === 'e1rm' ? L('כוח משוער = המשקל המקסימלי שהיית מרים לחזרה אחת, מחושב מהסט הטוב ביותר.', 'Uppskattad styrka = den tyngsta vikt du skulle klara en repetition med, beräknad från ditt bästa set.') : ui.progMetric === 'vol' ? L('נפח = משקל × חזרות, מסוכם על כל הסטים.', 'Volym = vikt × reps, summerat över alla set.') : L('המשקל הכבד ביותר באימון.', 'Den tyngsta vikten under passet.')}</p>
+      ${bw ? '' : `<div class="seg">${metrics.map(([k, l]) => `<button class="${ui.progMetric === k ? 'on' : ''}" data-act="metric" data-k="${k}">${l}</button>`).join('')}</div>`}
+      ${chart(points, bw ? L('חזרות', 'reps') : L('ק״ג', 'kg'), true)}
+      <p class="muted small" style="margin:6px 0 0">${bw ? L('תרגיל במשקל גוף: מספר החזרות בסט הטוב ביותר בכל אימון.', 'Kroppsviktsövning: antal reps i det bästa setet varje pass.') : ui.progMetric === 'e1rm' ? L('כוח משוער = המשקל המקסימלי שהיית מרים לחזרה אחת, מחושב מהסט הטוב ביותר.', 'Uppskattad styrka = den tyngsta vikt du skulle klara en repetition med, beräknad från ditt bästa set.') : ui.progMetric === 'vol' ? L('נפח = משקל × חזרות, מסוכם על כל הסטים.', 'Volym = vikt × reps, summerat över alla set.') : L('המשקל הכבד ביותר באימון.', 'Den tyngsta vikten under passet.')}</p>
     </div>
     ${viewExerciseDash(sessions, maxE)}`;
 }

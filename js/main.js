@@ -221,7 +221,7 @@ document.addEventListener('click', (ev) => {
   const ex = db.active && db.active.exercises[e];
 
   switch (act) {
-    case 'start': startWorkout(db.templates.find((t) => t.id === el.dataset.id)); break;
+    case 'start': startWorkout(db.templates.find((t) => t.id === el.dataset.id), el.classList.contains('next')); break;
     case 'start-empty': startWorkout(null); break;
     case 'finish': finishWorkout(); break;
     case 'note': {
@@ -499,6 +499,16 @@ document.addEventListener('click', (ev) => {
     }
 
     case 'metric': ui.progMetric = el.dataset.k; render(); break;
+    // A touch screen has no hover: tapping a point writes its date and value under the chart.
+    case 'chart-pt': {
+      const box = el.closest('.card') || $('#view');
+      box.querySelectorAll('.pt.on').forEach((p) => p.classList.remove('on'));
+      const dot = [...el.closest('svg').querySelectorAll('.pt')][[...el.closest('svg').querySelectorAll('.pt-hit')].indexOf(el)];
+      dot?.classList.add('on');
+      const out = el.closest('svg').nextElementSibling;
+      if (out?.classList.contains('chart-val')) { out.textContent = el.dataset.l; out.classList.remove('muted'); }
+      break;
+    }
     case 'music-app': db.settings.musicApp = el.dataset.k; save(); render(); break;
     case 'music-hide': db.settings.showMusic = false; save(); render(); toast(L('אפשר להחזיר בהגדרות', 'Kan visas igen i inställningarna')); break;
     case 'area-period': ui.areaPeriod = el.dataset.k; render(); break;

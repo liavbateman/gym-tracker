@@ -91,9 +91,10 @@ function unswapExercise(e) {
   toast(L(`חזרת ל${origin}`, `Tillbaka till ${exName(origin)}`));
 }
 
-async function startWorkout(tpl) {
+// quick: the highlighted "next in line" template starts on the first tap; a slip is taken back from the toast.
+async function startWorkout(tpl, quick) {
   const free = L('אימון חופשי', 'Fritt pass');
-  if (!await ask({ title: L(`להתחיל את "${tpl ? tpl.name : free}"?`, `Starta "${tpl ? tpl.name : free}"?`), msg: L('שעון האימון יתחיל לרוץ.', 'Passets klocka börjar gå.'), ok: L('יאללה, מתחילים', 'Kör igång!'), cancel: L('לא עכשיו', 'Inte nu') })) return;
+  if (!quick && !await ask({ title: L(`להתחיל את "${tpl ? tpl.name : free}"?`, `Starta "${tpl ? tpl.name : free}"?`), msg: L('שעון האימון יתחיל לרוץ.', 'Passets klocka börjar gå.'), ok: L('יאללה, מתחילים', 'Kör igång!'), cancel: L('לא עכשיו', 'Inte nu') })) return;
   db.active = {
     id: uid(),
     templateId: tpl ? tpl.id : null,
@@ -105,6 +106,10 @@ async function startWorkout(tpl) {
   requestWakeLock();
   render();
   window.scrollTo(0, 0);
+  if (quick) {
+    const w = db.active;
+    toast(L(`"${w.name}" התחיל`, `"${w.name}" har startat`), 5000, { label: L('בטל', 'Ångra'), run: () => { if (db.active === w) discardWorkout(true); } });
+  }
 }
 
 // A workout logged after the fact: the user picked a day other than the one it was opened on.
@@ -334,7 +339,6 @@ async function exportData() {
 
 // Everything lives on this phone only, so once there's something to lose the start screen reminds to back it up:
 // after 5 workouts, when the last backup is over a month old (and not more often than every two weeks).
-const DAY_MS = 86400000;
 const backupDue = () => db.workouts.length >= 5 && Date.now() - (db.settings.lastBackup || 0) > 30 * DAY_MS && Date.now() - (db.settings.backupLater || 0) > 14 * DAY_MS;
 
 function importData(file) {
