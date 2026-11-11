@@ -318,15 +318,24 @@ async function exportData() {
   const json = JSON.stringify(db, null, 2);
   const name = `gym-backup-${new Date().toISOString().slice(0, 10)}.json`;
   const file = new File([json], name, { type: 'application/json' });
+  // Remembered so the settings can show when the last backup was made, and the start screen can remind.
+  const backedUp = () => { db.settings.lastBackup = Date.now(); save(); if (!db.active || ui.tab === 'settings') render(); };
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
-    try { await navigator.share({ files: [file], title: L('גיבוי אימונים', 'Säkerhetskopia av träningen') }); return; } catch (e) { if (e.name === 'AbortError') return; }
+    try { await navigator.share({ files: [file], title: L('גיבוי אימונים', 'Säkerhetskopia av träningen') }); backedUp(); return; } catch (e) { if (e.name === 'AbortError') return; }
   }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(file);
   a.download = name;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  backedUp();
+  toast(L(`הגיבוי נשמר בהורדות: ${name}`, `Säkerhetskopian sparades i hämtade filer: ${name}`), 4000);
 }
+
+// Everything lives on this phone only, so once there's something to lose the start screen reminds to back it up:
+// after 5 workouts, when the last backup is over a month old (and not more often than every two weeks).
+const DAY_MS = 86400000;
+const backupDue = () => db.workouts.length >= 5 && Date.now() - (db.settings.lastBackup || 0) > 30 * DAY_MS && Date.now() - (db.settings.backupLater || 0) > 14 * DAY_MS;
 
 function importData(file) {
   const reader = new FileReader();

@@ -583,6 +583,7 @@ document.addEventListener('click', (ev) => {
       }
       break;
     case 'export': exportData(); break;
+    case 'backup-later': db.settings.backupLater = Date.now(); save(); render(); break;
     case 'import': $('#import-file').click(); break;
   }
 });

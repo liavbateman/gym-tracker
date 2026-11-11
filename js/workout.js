@@ -228,9 +228,20 @@ function viewStart() {
       <div class="muted small" style="margin-top:4px">${last.exercises.length} ${L('תרגילים', 'övningar')} · ${fmtDur(last.end - last.start)} · ${L('נפח', 'volym')} ${Math.round(volume(last)).toLocaleString(LOC)} ${L('ק״ג', 'kg')}</div>
     </div>` : '';
 
+  const backup = backupDue() ? `
+    <div class="card note">
+      <b>${db.settings.lastBackup ? L('עבר יותר מחודש מהגיבוי האחרון', 'Det har gått över en månad sedan senaste säkerhetskopian') : L('עוד לא גיבית את האימונים', 'Du har inte säkerhetskopierat din träning än')}</b>
+      <div class="muted small" style="margin-top:4px">${L(`${db.workouts.length} אימונים שמורים רק בטלפון הזה. גיבוי לוקח כמה שניות.`, `${db.workouts.length} pass finns bara på den här telefonen. En säkerhetskopia tar några sekunder.`)}</div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn sm primary" data-act="export">${L('גבה עכשיו', 'Säkerhetskopiera nu')}</button>
+        <button class="btn sm" data-act="backup-later">${L('לא עכשיו', 'Inte nu')}</button>
+      </div>
+    </div>` : '';
+
   return `
     ${viewWeek()}
     ${viewToday()}
+    ${backup}
     <h2>${L('התחל אימון', 'Starta pass')}</h2>
     ${tpls || `<p class="muted">${L('אין עדיין תבניות. צור תבנית כדי להתחיל אימון ממנה.', 'Inga mallar än. Skapa en mall för att starta ett pass från den.')}</p>`}
     <div class="row">
@@ -472,7 +483,8 @@ function viewSettings() {
       <button class="btn block" data-act="export" style="margin-top:0">${L('ייצוא גיבוי (קובץ JSON)', 'Exportera säkerhetskopia (JSON-fil)')}</button>
       <button class="btn block" data-act="import">${L('שחזור מגיבוי', 'Återställ från säkerhetskopia')}</button>
       <input type="file" id="import-file" accept="application/json,.json" hidden>
-      <p class="muted small" style="margin-bottom:0">${L('הנתונים נשמרים רק בטלפון הזה. מומלץ לייצא גיבוי מדי פעם.', 'Datan sparas bara på den här telefonen. Exportera en säkerhetskopia då och då.')}</p>
+      <p class="small" style="margin-bottom:0"><b>${db.settings.lastBackup ? L(`גיבוי אחרון: ${fmtDateFull(db.settings.lastBackup)}`, `Senaste säkerhetskopian: ${fmtDateFull(db.settings.lastBackup)}`) : L('עוד לא נעשה גיבוי', 'Ingen säkerhetskopia har gjorts än')}</b></p>
+      <p class="muted small" style="margin-bottom:0">${L('הנתונים נשמרים רק בטלפון הזה. מומלץ לייצא גיבוי מדי פעם. תמונות המעקב ומפתח ה-API לא נכללים בגיבוי.', 'Datan sparas bara på den här telefonen. Exportera en säkerhetskopia då och då. Progressbilderna och API-nyckeln ingår inte i säkerhetskopian.')}</p>
     </div>
 
     <h2>${L('קריאה אוטומטית עם Claude', 'Automatisk avläsning med Claude')}</h2>
