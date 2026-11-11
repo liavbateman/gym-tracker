@@ -520,6 +520,7 @@ document.addEventListener('click', (ev) => {
     case 'clock': clockMenu(); break;
     case 'bateman': openBateman(); break;
     case 'bateman-close': closeBateman(); break;
+    case 'bateman-pick': pickBateman(el.dataset.id); break;
     case 'demo-search': runDemoSearch(); break;
     case 'demo-variant': runDemoSearch(+el.dataset.k); break;
     case 'demo-change': ui.demo.picking = true; renderSheet(); if (!ui.demo.results) runDemoSearch(); break;

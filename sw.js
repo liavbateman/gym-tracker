@@ -1,12 +1,12 @@
 // Offline support: try the network first so updates show up right away; fall back to the cache when offline
 // or when the network takes too long.
-const CACHE = 'gym-tracker-v66';
+const CACHE = 'gym-tracker-v67';
 const SLOW_MS = 2500;
 let slowUntil = 0;
 // Exercise demo data and photos never change, so they're served cache-first and kept across app updates.
 const MEDIA = 'gym-tracker-media';
 const MEDIA_URL = 'https://cdn.jsdelivr.net/gh/yuhonas/free-exercise-db@';
-const FILES = ['./', 'index.html', 'styles.css', 'js/core.js', 'js/workout.js', 'js/history.js', 'js/body.js', 'js/recs.js', 'js/demos.js', 'js/bateman.js', 'js/actions.js', 'js/main.js', 'manifest.json', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/logo.svg', 'icons/bateman.jpg', 'audio/bateman.mp3',
+const FILES = ['./', 'index.html', 'styles.css', 'js/core.js', 'js/workout.js', 'js/history.js', 'js/body.js', 'js/recs.js', 'js/demos.js', 'js/bateman.js', 'js/bateman-decks.js', 'js/bateman-decks-worklet.js', 'js/actions.js', 'js/main.js', 'manifest.json', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/logo.svg', 'icons/bateman.jpg', 'audio/bateman.mp3',
   'fonts/fonts.css', 'fonts/ibm-400-hebrew.woff2', 'fonts/ibm-400-latin.woff2', 'fonts/ibm-500-hebrew.woff2', 'fonts/ibm-500-latin.woff2',
   'fonts/ibm-700-hebrew.woff2', 'fonts/ibm-700-latin.woff2', 'fonts/karantina-400-hebrew.woff2', 'fonts/karantina-400-latin.woff2',
   'fonts/karantina-700-hebrew.woff2', 'fonts/karantina-700-latin.woff2'];

@@ -55,11 +55,16 @@
 
   <div id="sheet" class="sheet hidden" data-act="demo-close"></div>
 
-  <div id="bateman" class="bateman hidden" data-act="bateman-close" role="dialog" aria-modal="true" aria-label="Bateman Arc">
+  <div id="bateman" class="bateman hidden" role="dialog" aria-modal="true" aria-label="Bateman Arc">
     <canvas id="boom" aria-hidden="true"></canvas>
     <div class="bateman-card">
       <img src="icons/bateman.jpg?v=2" alt="Bateman" width="720" height="720">
       <h2 dir="ltr">BATEMAN ARC</h2>
+    </div>
+    <div id="arc-stage" class="arc-stage"></div>
+    <div class="arc-bar" dir="ltr">
+      <div id="arc-picks" class="arc-picks"></div>
+      <button class="arc-x" data-act="bateman-close" aria-label="סגור"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
   </div>
 
@@ -80,6 +85,7 @@
   <script src="js/recs.js"></script>
   <script src="js/demos.js"></script>
   <script src="js/bateman.js"></script>
+  <script src="js/bateman-decks.js"></script>
   <script src="js/actions.js"></script>
   <script src="js/main.js"></script>
 </body>
