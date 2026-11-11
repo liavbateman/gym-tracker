@@ -202,9 +202,9 @@ function loadExercises() {
 
 // Big demos open in overlays, where Safari can leave lazy images unloaded – so those load right away.
 const demoAnim = (images, big) => `
-  <div class="demo-anim ${big ? 'big' : ''}" dir="ltr">
-    <img src="${esc(exImg(images[0]))}" alt="" loading="${big ? 'eager' : 'lazy'}" crossorigin="anonymous">
-    ${images[1] ? `<img src="${esc(exImg(images[1]))}" alt="" loading="${big ? 'eager' : 'lazy'}" crossorigin="anonymous">` : ''}
+  <div class="demo-anim ${big ? 'big' : ''}" dir="ltr" data-off="${L('אין חיבור – ההדגמה תיטען כשתהיה רשת', 'Ingen anslutning – demon laddas när nätet är tillbaka')}">
+    <img src="${esc(exImg(images[0]))}" alt="" loading="${big ? 'eager' : 'lazy'}" crossorigin="anonymous" onerror="this.parentElement.classList.add('demo-off')">
+    ${images[1] ? `<img src="${esc(exImg(images[1]))}" alt="" loading="${big ? 'eager' : 'lazy'}" crossorigin="anonymous" onerror="this.parentElement.classList.add('demo-off')">` : ''}
   </div>`;
 
 function openDemo(name) {
@@ -218,6 +218,12 @@ function openDemo(name) {
 async function runDemoSearch(vi = 0) {
   const d = ui.demo;
   d.picking = true;
+  if (!d.q.trim()) {
+    d.loading = false; d.results = null; d.variants = []; d.vq = null;
+    d.error = L('הקלד שם של תרגיל כדי לחפש.', 'Skriv ett övningsnamn för att söka.');
+    renderSheet();
+    return;
+  }
   d.loading = true; d.error = ''; d.results = null; d.vi = vi;
   renderSheet();
   try {
@@ -226,7 +232,7 @@ async function runDemoSearch(vi = 0) {
     // Drop translations that find nothing ("voltage" for מתח), unless none of them find anything.
     const useful = fresh ? variants.filter((v) => searchExercises(list, v, groupOf(d.name)).length) : variants;
     d.variants = useful.length ? useful : variants; d.vq = d.q;
-    const q = variants[d.vi] || '';
+    const q = d.variants[d.vi] || ''; // the filtered list: the one the chips on screen show
     d.results = q ? searchExercises(list, q, groupOf(d.name)) : [];
     if (!d.results.length) d.error = q ? L('לא נמצאו תרגילים. נסה תרגום אחר או מילים אחרות.', 'Inga övningar hittades. Prova en annan översättning eller andra ord.') : L('לא הצלחתי לתרגם. בדוק את החיבור לאינטרנט או כתוב באנגלית.', 'Kunde inte översätta. Kontrollera internetanslutningen eller skriv på engelska.');
   } catch {

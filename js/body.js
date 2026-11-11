@@ -125,7 +125,9 @@ function viewMetrics() {
       </details>`).join('');
   }
 
+  // The recommendations are built from body weight, so without one there's nothing to open.
   const recs = !list.length ? ''
+    : !bodyProfile() ? `<p class="muted small">${L('כדי לקבל המלצות לשיפור האימון, הוסף מדידה שיש בה משקל.', 'Lägg till en mätning med vikt för att få råd för bättre träning.')}</p>`
     : ui.recsOpen ? viewRecs()
       : `<button class="btn primary block" data-act="recs-open">${L('המלצות לשיפור האימון', 'Råd för bättre träning')}</button>`;
 

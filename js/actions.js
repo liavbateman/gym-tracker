@@ -11,13 +11,18 @@ function makeExercise(src, warmup) {
   const target = num(src.reps);
   const cur = num(src.w);
   const n = num(src.sets) || (prev ? prev.length : 3);
+  // The template weight is the heaviest set from last time, so it only wins over last time's own per-set
+  // weights (a pyramid stays a pyramid) when it was changed by hand in the template editor.
+  const top = prev ? Math.max(...prev.map((s) => s.w)) : 0;
+  const manual = cur && cur !== top;
   const sets = Array.from({ length: n }, (_, j) => {
     const p = prev && (prev[j] || prev[prev.length - 1]);
-    const pw = cur ? fmtW(cur) : p ? fmtW(p.w) : '';
+    const pw = manual ? fmtW(cur) : p ? fmtW(p.w) : cur ? fmtW(cur) : '';
     const pr = target ? String(target) : p ? String(p.r) : '';
     return { w: '', r: '', pw, pr, done: false };
   });
-  if (db.settings.lastSetFail && sets.length) sets[sets.length - 1].fail = true;
+  // af: the "to failure" mark was put there automatically, so it follows the last set when sets are added or removed.
+  if (db.settings.lastSetFail && sets.length) Object.assign(sets[sets.length - 1], { fail: true, af: true });
   if (warmup) sets.unshift(makeWarmup(name, cur || (prev && prev[0].w)));
   return { id: uid(), name, rest: num(src.rest) || db.settings.defaultRest, target: target || '', sets };
 }
@@ -69,7 +74,10 @@ function unswapExercise(e) {
   const orig = db.active.exercises.find((x) => x.name === origin);
   if (orig) {
     const sets = makeExercise({ name: origin, sets: Math.max(1, left), reps: orig.target, rest: orig.rest }).sets;
-    if (left || !alt.sets.some((s) => s.done)) orig.sets.push(...sets);
+    if (left || !alt.sets.some((s) => s.done)) {
+      for (const x of orig.sets) if (x.af && !x.done) { delete x.fail; delete x.af; }
+      orig.sets.push(...sets);
+    }
   } else {
     const back = makeExercise({ name: origin, sets: Math.max(1, left), reps: alt.target, rest: alt.rest }, alt.sets.some((s) => s.wu && !s.done));
     back.planned = alt.planned;
@@ -120,7 +128,8 @@ async function clockMenu() {
   tick();
 }
 
-async function finishWorkout() {
+// marked: the filled-in sets were just ticked on the way here, so don't ask about them again.
+async function finishWorkout(marked) {
   const w = db.active;
   const exercises = w.exercises
     .map((e) => ({
@@ -132,11 +141,32 @@ async function finishWorkout() {
     .filter((e) => e.sets.length);
   const undone = w.exercises.reduce((a, e) => a + e.sets.filter((s) => !s.done && (s.w !== '' || s.r !== '')).length, 0);
 
+  // Sets that were typed in but never ticked: offer to tick them and save, instead of silently dropping them.
+  if (undone && !marked) {
+    const pick = await ask({
+      title: L('לסיים את האימון?', 'Avsluta passet?'),
+      msg: L(`${undone} סטים מולאו אבל לא סומנו ב-✓.`, `${undone} set är ifyllda men inte markerade med ✓.`),
+      ok: L('סמן אותם ושמור', 'Markera dem och spara'),
+      extra: exercises.length ? L('סיים בלעדיהם', 'Avsluta utan dem') : L('בטל אימון', 'Avbryt pass'),
+      cancel: L('חזרה לאימון', 'Tillbaka till passet'),
+    });
+    if (!pick || db.active !== w) return;
+    if (pick !== 'extra') {
+      for (const e of w.exercises) for (const s of e.sets) {
+        if (s.done || (s.w === '' && s.r === '')) continue;
+        if (s.w === '') s.w = s.pw;
+        if (s.r === '') s.r = s.pr;
+        if (num(s.r) != null) s.done = true;
+      }
+      save();
+      return finishWorkout(true);
+    }
+    if (!exercises.length) { discardWorkout(true); return; }
+  }
   if (!exercises.length) {
     if (await ask({ title: L('לבטל את האימון?', 'Avbryta passet?'), msg: L('לא סומן אף סט כבוצע (✓), אז אין מה לשמור.', 'Inget set är markerat som klart (✓), så det finns inget att spara.'), ok: L('בטל אימון', 'Avbryt pass'), cancel: L('חזרה לאימון', 'Tillbaka till passet'), danger: true })) discardWorkout(true);
     return;
   }
-  if (undone && !await ask({ title: L('לסיים את האימון?', 'Avsluta passet?'), msg: L(`${undone} סטים מולאו אבל לא סומנו ב-✓, והם לא יישמרו.`, `${undone} set är ifyllda men inte markerade med ✓, och de sparas inte.`), ok: L('סיים בכל זאת', 'Avsluta ändå'), cancel: L('חזרה לאימון', 'Tillbaka till passet') })) return;
 
   const prs = exercises.filter((e) => {
     const { maxE } = bestFor(e.name);
@@ -295,12 +325,18 @@ async function exportData() {
 
 function importData(file) {
   const reader = new FileReader();
+  reader.onerror = () => toast(L('לא הצלחתי לקרוא את הקובץ', 'Kunde inte läsa filen'));
   reader.onload = async () => {
     try {
       const d = JSON.parse(reader.result);
       if (!Array.isArray(d.templates) || !Array.isArray(d.workouts)) throw new Error('bad');
-      if (!await ask({ title: L('לשחזר את הגיבוי?', 'Återställa säkerhetskopian?'), msg: L(`${d.workouts.length} אימונים ו-${d.templates.length} תבניות. הנתונים הנוכחיים יוחלפו.`, `${d.workouts.length} pass och ${d.templates.length} mallar. Nuvarande data ersätts.`), ok: L('שחזר', 'Återställ'), danger: true })) return;
-      db = { ...seed(), ...d, settings: { ...seed().settings, ...(d.settings || {}) } };
+      const live = db.active ? L(' האימון שבאמצע יימחק.', ' Det pågående passet tas bort.') : '';
+      if (!await ask({ title: L('לשחזר את הגיבוי?', 'Återställa säkerhetskopian?'), msg: L(`${d.workouts.length} אימונים ו-${d.templates.length} תבניות. הנתונים הנוכחיים יוחלפו.`, `${d.workouts.length} pass och ${d.templates.length} mallar. Nuvarande data ersätts.`) + live, ok: L('שחזר', 'Återställ'), danger: true })) return;
+      // A workout that was in progress when the backup was made is long over: don't bring it back.
+      db = { ...seed(), ...d, active: null, settings: { ...seed().settings, ...(d.settings || {}) } };
+      ui.draft = ui.cdraft = ui.mdraft = null;
+      stopTimer();
+      releaseWakeLock();
       save();
       render();
       toast(L('הגיבוי שוחזר', 'Säkerhetskopian återställd'));

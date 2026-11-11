@@ -235,6 +235,11 @@ document.addEventListener('click', (ev) => {
         if (set.r === '') set.r = set.pr;
         if (num(set.r) == null) { toast(L('הזן מספר חזרות', 'Ange antal reps')); return; }
         set.done = true;
+        // A weight other than the suggested one carries to the sets after it that still show that suggestion.
+        const old = set.pw, now = num(set.w) != null ? fmtW(num(set.w)) : '';
+        if (!set.wu && now && now !== old) {
+          for (const x of ex.sets.slice(s + 1)) if (!x.wu && !x.done && x.w === '' && x.pw === old) x.pw = now;
+        }
         if (!backdated(db.active)) {
           // Final set of the exercise: rest before the next exercise instead of between sets (none after the workout's last set).
           const exDone = ex.sets.every((x) => x.done);
@@ -252,6 +257,7 @@ document.addEventListener('click', (ev) => {
     case 'fail': {
       const set = ex.sets[s];
       set.fail = !set.fail;
+      delete set.af; // chosen by hand from here on
       save(); render();
       if (set.fail) {
         toast(L('הסט סומן כ"עד כשל" – הזן כמה חזרות עשית', 'Setet är markerat "till failure" – ange hur många reps du gjorde'), 2000);
@@ -273,14 +279,27 @@ document.addEventListener('click', (ev) => {
     }
     case 'set-add': {
       const last = ex.sets[ex.sets.length - 1];
-      ex.sets.push({ w: '', r: '', pw: last ? (last.w || last.pw) : '', pr: last ? (last.r || last.pr) : '', done: false });
+      // An automatic "to failure" mark moves on to the new last set.
+      const move = last && !last.wu && last.af && !last.done;
+      if (move) { delete last.fail; delete last.af; }
+      ex.sets.push({ w: '', r: '', pw: last ? (last.w || last.pw) : '', pr: last ? (last.r || last.pr) : '', done: false, ...(move ? { fail: true, af: true } : {}) });
       save(); render();
       break;
     }
-    case 'set-del':
-      ask({ title: L(`למחוק את סט ${s + 1}?`, `Ta bort set ${s + 1}?`), msg: exName(ex.name), ok: L('מחק', 'Ta bort'), danger: true })
-        .then((yes) => { if (yes) { ex.sets.splice(s, 1); save(); render(); } });
+    case 'set-del': {
+      // Numbered as on screen, where warm-up sets don't count.
+      const gone = ex.sets[s], n = work(ex.sets).indexOf(gone) + 1;
+      const title = gone.wu ? L('למחוק את סט החימום?', 'Ta bort uppvärmningssetet?') : L(`למחוק את סט ${n}?`, `Ta bort set ${n}?`);
+      ask({ title, msg: exName(ex.name), ok: L('מחק', 'Ta bort'), danger: true }).then((yes) => {
+        const at = ex.sets.indexOf(gone);
+        if (!yes || at < 0) return;
+        ex.sets.splice(at, 1);
+        const lw = work(ex.sets).at(-1);
+        if (gone.af && lw && !lw.done && !lw.fail) Object.assign(lw, { fail: true, af: true });
+        save(); render();
+      });
       break;
+    }
     case 'wu-add': {
       const first = ex.sets.find((x) => !x.wu);
       ex.sets.unshift(makeWarmup(ex.name, first && (num(first.w) ?? num(first.pw))));
@@ -410,7 +429,9 @@ document.addEventListener('click', (ev) => {
     case 'hist-del':
       ask({ title: L('למחוק את האימון?', 'Ta bort passet?'), msg: L('הוא יימחק מההיסטוריה, יחד עם תמונות המעקב שלו.', 'Det tas bort från historiken, tillsammans med dess progressbilder.'), ok: L('מחק', 'Ta bort'), danger: true }).then((yes) => {
         if (!yes) return;
-        const gone = photos.filter((p) => p.wid === el.dataset.id).map((p) => p.id);
+        // Everything shown under this card, including photos left over from a workout deleted earlier.
+        const w = db.workouts.find((x) => x.id === el.dataset.id);
+        const gone = w ? photosOf(w, sortedWorkouts()).map((p) => p.id) : [];
         db.workouts = db.workouts.filter((w) => w.id !== el.dataset.id); save(); render();
         if (gone.length) deletePhoto(...gone);
       });
