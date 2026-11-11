@@ -124,11 +124,15 @@ function noteOpen(name, attrs) {
   render();
   const ta = $('#note-in');
   if (!ta) { ui.noteEdit = null; return; }
-  // Pin the page with the exercise's card right under the top bar. The body itself is fixed in place, so neither
-  // a finger nor iOS bringing up its keyboard can scroll it; any shift iOS makes anyway is undone (notePin).
+  // Pin the page where it is. The body itself is fixed in place, so neither a finger nor iOS bringing up its
+  // keyboard can scroll it; any shift iOS makes anyway is undone (notePin). Only when the note sits low enough
+  // for the keyboard to cover it is the exercise's card brought up under the top bar.
   const box = ta.closest('.card, .tex') || ta;
   const bar = $('.topbar').offsetHeight;
-  noteLockY = Math.max(0, box.getBoundingClientRect().top + window.scrollY - bar - 8);
+  noteBackY = window.scrollY;
+  const edBottom = (ta.closest('.note-edit') || ta).getBoundingClientRect().bottom;
+  noteLockY = edBottom <= window.innerHeight * 0.5 ? noteBackY
+    : Math.max(0, box.getBoundingClientRect().top + window.scrollY - bar - 8);
   document.documentElement.style.setProperty('--tb-h', `${bar}px`);
   document.body.style.top = `-${noteLockY}px`;
   document.documentElement.classList.add('note-open');
@@ -140,8 +144,10 @@ function noteOpen(name, attrs) {
   (function hold() { notePin(); if (ui.noteEdit && Date.now() < until) requestAnimationFrame(hold); })();
 }
 
-let noteLockY = 0;
+let noteLockY = 0, noteBackY = 0, noteBackUntil = 0;
 function notePin() {
+  // Just after a note closes, keep the page where it was while iOS slides its keyboard away.
+  if (!ui.noteEdit && Date.now() < noteBackUntil && Math.abs(window.scrollY - noteBackY) > 1) window.scrollTo(0, noteBackY);
   if (ui.noteEdit && (window.scrollY || visualViewport?.offsetTop)) window.scrollTo(0, 0);
 }
 window.addEventListener('scroll', notePin);
@@ -161,8 +167,13 @@ function noteClose(keep) {
   document.body.style.top = '';
   document.activeElement?.blur();
   render();
-  window.scrollTo(0, noteLockY);
+  // Back to exactly where the page was before the note was opened.
+  window.scrollTo(0, noteBackY);
+  noteBackUntil = Date.now() + 800;
+  (function hold() { notePin(); if (!ui.noteEdit && Date.now() < noteBackUntil) requestAnimationFrame(hold); })();
 }
+// A finger on the page ends that hold at once, so it never fights a real scroll.
+document.addEventListener('touchmove', () => { noteBackUntil = 0; }, { capture: true, passive: true });
 
 let noteSwallow = 0, noteBtnDown = false;
 document.addEventListener('pointerdown', (ev) => {
