@@ -470,8 +470,16 @@ document.addEventListener('click', (ev) => {
       break;
     }
     case 'photo-add': openCamera(el.dataset.id); break;
-    case 'photo-open': ui.photo = el.dataset.id; render(); break;
+    case 'photo-open': ui.photo = el.dataset.id; ui.photoZoom = false; render(); break;
     case 'photo-close': ui.photo = null; render(); break;
+    case 'photo-zoom': {
+      ui.photoZoom = !ui.photoZoom; render();
+      // Zoomed in on the middle of the photo.
+      const st = $('.photo-stage.zoom');
+      if (st) { st.scrollLeft = (st.scrollWidth - st.clientWidth) / 2; st.scrollTop = (st.scrollHeight - st.clientHeight) / 2; }
+      break;
+    }
+    case 'photo-nav': photoNav(+el.dataset.d); break;
     case 'stretch-view': ui.stretchView = { ph: el.dataset.ph, id: el.dataset.id }; render(); break;
     case 'stretch-view-close': ui.stretchView = null; render(); break;
     case 'photo-del': ask({ title: L('למחוק את התמונה?', 'Ta bort bilden?'), ok: L('מחק', 'Ta bort'), danger: true }).then((yes) => yes && deletePhoto(el.dataset.id)); break;
@@ -807,6 +815,26 @@ document.addEventListener('pointercancel', () => {
 document.addEventListener('click', (ev) => {
   if (swallowClick) { ev.stopPropagation(); ev.preventDefault(); }
 }, true);
+
+// ---------- Photo viewer: previous / next ----------
+function photoNav(d) {
+  const p = photos[photos.findIndex((x) => x.id === ui.photo) + d];
+  if (!p) return;
+  ui.photo = p.id; ui.photoZoom = false; render();
+}
+// A sideways swipe on the photo (not while zoomed in, where a drag moves around it).
+let photoSwipe = null;
+document.addEventListener('touchstart', (ev) => {
+  photoSwipe = ev.touches.length === 1 && ev.target.closest('.photo-stage:not(.zoom)') ? { x: ev.touches[0].clientX, y: ev.touches[0].clientY } : null;
+}, { passive: true });
+document.addEventListener('touchend', (ev) => {
+  if (!photoSwipe) return;
+  const t = ev.changedTouches[0], dx = t.clientX - photoSwipe.x, dy = t.clientY - photoSwipe.y;
+  photoSwipe = null;
+  if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+  swallowClick = true; setTimeout(() => { swallowClick = false; }, 50); // the swipe isn't also a tap to zoom
+  photoNav(dx < 0 ? 1 : -1);
+});
 
 // ---------- Back button ----------
 // Android's back button (and the back swipe) closes whatever is open on top instead of leaving the app.

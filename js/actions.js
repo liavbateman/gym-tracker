@@ -221,7 +221,9 @@ async function finishWorkout(marked) {
   releaseWakeLock();
   render();
   window.scrollTo(0, 0);
-  toast(prs.length ? `${L('שיא חדש', 'Nytt rekord')}: ${prs.map(exName).join(', ')}` : L('האימון נשמר', 'Passet sparat'), prs.length ? 4000 : 2600);
+  // The moment for progress photos is right after the workout, so the toast offers the camera.
+  toast(prs.length ? `${L('שיא חדש', 'Nytt rekord')}: ${prs.map(exName).join(', ')}` : L('האימון נשמר', 'Passet sparat'), 7000,
+    { label: L('📷 צלם תמונות מעקב', '📷 Ta progressbilder'), run: () => openCamera(w.id) });
 }
 
 async function discardWorkout(skipConfirm) {

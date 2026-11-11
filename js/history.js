@@ -37,16 +37,22 @@ async function shrinkPhoto(file) {
   return new Promise((res) => c.toBlob((b) => res(b || file), 'image/jpeg', 0.85));
 }
 
+// Resolves true once every photo is saved. They go in together (one transaction), so a failure saves none
+// and the caller can simply try again.
 async function addPhotos(files, wid) {
   try {
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
-    for (const f of files) {
-      const blob = await shrinkPhoto(f);
-      await idb((await photoStore('readwrite')).put({ id: uid(), ts: Date.now(), wid, blob }));
-    }
+    const blobs = [];
+    for (const f of files) blobs.push(await shrinkPhoto(f));
+    const store = await photoStore('readwrite'), now = Date.now();
+    await Promise.all(blobs.map((blob, i) => idb(store.put({ id: uid(), ts: now + i, wid, blob }))));
     await loadPhotos();
     toast(files.length > 1 ? L(`${files.length} תמונות נשמרו`, `${files.length} bilder sparade`) : L('התמונה נשמרה', 'Bilden sparad'));
-  } catch { toast(L('שגיאה בשמירת התמונה', 'Kunde inte spara bilden')); }
+    return true;
+  } catch (e) {
+    toast(e?.name === 'QuotaExceededError' ? L('אין מספיק מקום פנוי במכשיר לשמירת התמונות', 'Inte tillräckligt med ledigt utrymme för att spara bilderna') : L('שגיאה בשמירת התמונה', 'Kunde inte spara bilden'), 4000);
+    return false;
+  }
 }
 
 async function deletePhoto(...ids) {
@@ -62,7 +68,13 @@ async function deletePhoto(...ids) {
 // Lives outside render() so a re-render can't kill the live video. No camera access → the system picker.
 const CAM_MAX = 3;
 async function openCamera(wid) {
-  const pick = () => { ui.photoFor = wid; $('#photo-file').click(); };
+  // The file picker lives in the history view; opened from anywhere else (right after a workout), one is made.
+  const pick = () => {
+    ui.photoFor = wid;
+    let f = $('#photo-file');
+    if (!f) { f = Object.assign(document.createElement('input'), { type: 'file', id: 'photo-file', accept: 'image/*', multiple: true, hidden: true }); document.body.append(f); }
+    f.click();
+  };
   if (!navigator.mediaDevices?.getUserMedia) return pick();
   let facing = 'environment', stream = null;
   const shots = []; // { blob, url }
@@ -191,8 +203,24 @@ async function openCamera(wid) {
     else if (k === 'drop') {
       stopCountdown();
       URL.revokeObjectURL(shots[+btn.dataset.i].url); shots.splice(+btn.dataset.i, 1); paint(); }
-    else if (k === 'flip') { facing = facing === 'user' ? 'environment' : 'user'; start().catch(() => toast(L('לא ניתן להחליף מצלמה', 'Kunde inte byta kamera'))); }
-    else if (k === 'save') { const files = shots.map((s) => s.blob); close(); addPhotos(files, wid); }
+    else if (k === 'flip') {
+      const was = facing;
+      facing = facing === 'user' ? 'environment' : 'user';
+      // No second camera: go back to the one that worked instead of leaving a black picture.
+      start().catch(() => { facing = was; toast(L('לא ניתן להחליף מצלמה', 'Kunde inte byta kamera')); start().catch(() => {}); });
+    }
+    else if (k === 'save') {
+      // Stays open while saving, so a failure (no room left) doesn't lose the shots: they're still here to retry.
+      if (box.classList.contains('saving')) return;
+      stopCountdown();
+      box.classList.add('saving');
+      btn.textContent = L('שומר…', 'Sparar…');
+      addPhotos(shots.map((s) => s.blob), wid).then((ok) => {
+        if (ok) return close();
+        box.classList.remove('saving');
+        btn.textContent = L('שמור', 'Spara');
+      });
+    }
     else if (k === 'gallery') { close(); pick(); }
     else if (k === 'close') {
       if (!shots.length) return close();
@@ -229,13 +257,17 @@ function photoStrip(w, mine) {
 }
 
 function photoViewer() {
-  const open = photos.find((p) => p.id === ui.photo);
+  // Tap the photo to zoom in (then drag to move around) and again to zoom out; the arrows or a sideways
+  // swipe move through all the photos, oldest to newest.
+  const at = photos.findIndex((p) => p.id === ui.photo), open = photos[at];
   return open ? `
     <div class="photo-view" data-act="photo-close" role="dialog" aria-modal="true" aria-label="${L('תמונת מעקב', 'Progressbild')}">
-      <img src="${open.url}" alt="">
+      <div class="photo-stage ${ui.photoZoom ? 'zoom' : ''}" data-act="photo-zoom"><img src="${open.url}" alt=""></div>
       <div class="row between" data-act="none">
-        <span>${fmtDateFull(open.ts)}</span>
-        <div class="row">
+        <span class="small">${fmtDateFull(open.ts)} · <span dir="ltr">${at + 1}/${photos.length}</span></span>
+        <div class="row" dir="ltr">
+          <button class="btn sm" data-act="photo-nav" data-d="-1" ${at ? '' : 'disabled'} aria-label="${L('התמונה הקודמת', 'Föregående bild')}">‹</button>
+          <button class="btn sm" data-act="photo-nav" data-d="1" ${at < photos.length - 1 ? '' : 'disabled'} aria-label="${L('התמונה הבאה', 'Nästa bild')}">›</button>
           <button class="btn sm danger" data-act="photo-del" data-id="${open.id}">${L('מחק', 'Ta bort')}</button>
           <button class="btn sm" data-act="photo-close">${L('סגור', 'Stäng')}</button>
         </div>
