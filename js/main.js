@@ -47,7 +47,7 @@ function kpOpen(input) {
   const ex = db.active?.exercises[+input.dataset.e];
   $('#kp-ex').textContent = ex ? exName(ex.name) : '';
   $('#kp-f').textContent = input.dataset.f === 'w' ? L('משקל (ק״ג)', 'Vikt (kg)') : L('חזרות', 'Reps');
-  kpBox.querySelector('[data-k="."]').disabled = input.dataset.kp !== 'decimal';
+  kpBox.querySelectorAll('[data-k="."], [data-k=".5"]').forEach((b) => { b.disabled = input.dataset.kp !== 'decimal'; });
   kpBox.classList.remove('hidden');
   document.documentElement.classList.add('kp-open');
   const h = kpBox.offsetHeight;
@@ -90,6 +90,8 @@ function kpKey(k) {
   let v = kp.fresh ? '' : el.value;
   if (k === 'back') v = v.slice(0, -1);
   else if (k === '.') { if (el.dataset.kp !== 'decimal' || v.includes('.')) return; v = (v || '0') + '.'; }
+  // Half a kilo in one tap: "12" → "12.5", "12." → "12.5".
+  else if (k === '.5') { if (el.dataset.kp !== 'decimal' || /\.\d/.test(v)) return; v = (v.replace(/\.$/, '') || '0') + '.5'; }
   else if (v.replace('.', '').length >= 5) return;
   else v = v === '0' ? k : v + k;
   kp.fresh = false;
@@ -903,6 +905,7 @@ if (SV) {
   set('#timer [data-act="timer-stop"]', null, 'Stoppa timern');
   set('#keypad', null, 'Sifferknappar');
   set('#keypad [data-k="back"]', null, 'Radera siffra');
+  set('#keypad [data-k=".5"]', null, 'Ett halvt kilo');
   set('#keypad [data-k="next"]', 'Nästa');
   set('#keypad [data-k="done"]', 'Klar');
   const tabs = { workout: 'Träning', history: 'Historik', progress: 'Framsteg', body: 'Kropp' };
