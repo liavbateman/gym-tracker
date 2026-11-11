@@ -91,9 +91,10 @@ function unswapExercise(e) {
   toast(L(`חזרת ל${origin}`, `Tillbaka till ${exName(origin)}`));
 }
 
-async function startWorkout(tpl) {
+// quick: the highlighted "next in line" template starts on the first tap; a slip is taken back from the toast.
+async function startWorkout(tpl, quick) {
   const free = L('אימון חופשי', 'Fritt pass');
-  if (!await ask({ title: L(`להתחיל את "${tpl ? tpl.name : free}"?`, `Starta "${tpl ? tpl.name : free}"?`), msg: L('שעון האימון יתחיל לרוץ.', 'Passets klocka börjar gå.'), ok: L('יאללה, מתחילים', 'Kör igång!'), cancel: L('לא עכשיו', 'Inte nu') })) return;
+  if (!quick && !await ask({ title: L(`להתחיל את "${tpl ? tpl.name : free}"?`, `Starta "${tpl ? tpl.name : free}"?`), msg: L('שעון האימון יתחיל לרוץ.', 'Passets klocka börjar gå.'), ok: L('יאללה, מתחילים', 'Kör igång!'), cancel: L('לא עכשיו', 'Inte nu') })) return;
   db.active = {
     id: uid(),
     templateId: tpl ? tpl.id : null,
@@ -105,6 +106,10 @@ async function startWorkout(tpl) {
   requestWakeLock();
   render();
   window.scrollTo(0, 0);
+  if (quick) {
+    const w = db.active;
+    toast(L(`"${w.name}" התחיל`, `"${w.name}" har startat`), 5000, { label: L('בטל', 'Ångra'), run: () => { if (db.active === w) discardWorkout(true); } });
+  }
 }
 
 // A workout logged after the fact: the user picked a day other than the one it was opened on.
@@ -221,7 +226,9 @@ async function finishWorkout(marked) {
   releaseWakeLock();
   render();
   window.scrollTo(0, 0);
-  toast(prs.length ? `${L('שיא חדש', 'Nytt rekord')}: ${prs.map(exName).join(', ')}` : L('האימון נשמר', 'Passet sparat'), prs.length ? 4000 : 2600);
+  // The moment for progress photos is right after the workout, so the toast offers the camera.
+  toast(prs.length ? `${L('שיא חדש', 'Nytt rekord')}: ${prs.map(exName).join(', ')}` : L('האימון נשמר', 'Passet sparat'), 7000,
+    { label: L('📷 צלם תמונות מעקב', '📷 Ta progressbilder'), run: () => openCamera(w.id) });
 }
 
 async function discardWorkout(skipConfirm) {
@@ -316,15 +323,23 @@ async function exportData() {
   const json = JSON.stringify(db, null, 2);
   const name = `gym-backup-${new Date().toISOString().slice(0, 10)}.json`;
   const file = new File([json], name, { type: 'application/json' });
+  // Remembered so the settings can show when the last backup was made, and the start screen can remind.
+  const backedUp = () => { db.settings.lastBackup = Date.now(); save(); if (!db.active || ui.tab === 'settings') render(); };
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
-    try { await navigator.share({ files: [file], title: L('גיבוי אימונים', 'Säkerhetskopia av träningen') }); return; } catch (e) { if (e.name === 'AbortError') return; }
+    try { await navigator.share({ files: [file], title: L('גיבוי אימונים', 'Säkerhetskopia av träningen') }); backedUp(); return; } catch (e) { if (e.name === 'AbortError') return; }
   }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(file);
   a.download = name;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  backedUp();
+  toast(L(`הגיבוי נשמר בהורדות: ${name}`, `Säkerhetskopian sparades i hämtade filer: ${name}`), 4000);
 }
+
+// Everything lives on this phone only, so once there's something to lose the start screen reminds to back it up:
+// after 5 workouts, when the last backup is over a month old (and not more often than every two weeks).
+const backupDue = () => db.workouts.length >= 5 && Date.now() - (db.settings.lastBackup || 0) > 30 * DAY_MS && Date.now() - (db.settings.backupLater || 0) > 14 * DAY_MS;
 
 function importData(file) {
   const reader = new FileReader();

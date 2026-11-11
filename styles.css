@@ -200,6 +200,8 @@ h3 { font-size: 16px; font-weight: 700; margin: 0; }
 .btn.danger { border-color: transparent; color: var(--red); }
 .btn.danger-fill { background: var(--red); border-color: var(--red); color: #fff; }
 .btn.danger-fill:active { opacity: .85; }
+/* The dark theme's red is light, so white text on it is hard to read (3:1): dark text there instead. */
+@media (prefers-color-scheme: dark) { .btn.danger-fill, .set-actions button { color: #0F141C; } }
 .confirm-del { margin-top: 10px; border-color: var(--red); }
 .btn.ghost { border-style: dashed; border-color: var(--ink-soft); color: var(--ink-soft); }
 .btn.block { width: 100%; display: block; margin-top: 10px; }
@@ -212,7 +214,8 @@ h3 { font-size: 16px; font-weight: 700; margin: 0; }
   padding: 6px 8px;
 }
 
-input[type=text], input[type=number], input[type=date], input[type=password], select, textarea {
+input[type=search] { -webkit-appearance: none; appearance: none; }
+input[type=text], input[type=search], input[type=number], input[type=date], input[type=password], select, textarea {
   width: 100%;
   background: var(--field);
   border: 1px solid var(--rule);
@@ -468,7 +471,13 @@ details.hist .area-div b { font-size: 22px; }
 .photo-thumb { position: relative; padding: 0; border: 0; border-radius: 4px; overflow: hidden; aspect-ratio: 3 / 4; background: var(--field); cursor: pointer; }
 .photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .photo-view { position: fixed; inset: 0; z-index: 50; background: rgba(0, 0, 0, .92); display: flex; flex-direction: column; justify-content: center; gap: 12px; padding: calc(16px + var(--safe-t)) 16px calc(16px + var(--safe-b)); color: #fff; }
-.photo-view img { max-width: 100%; max-height: calc(100% - 60px); object-fit: contain; align-self: center; border-radius: 4px; }
+.photo-stage { direction: ltr; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: zoom-in; }
+.photo-stage img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 4px; }
+/* Zoomed in: the photo at 2.5x inside a box that scrolls both ways. */
+.photo-stage.zoom { display: block; overflow: auto; cursor: zoom-out; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+.photo-stage.zoom img { max-width: none; max-height: none; width: 250%; }
+.photo-view .btn:disabled { opacity: .35; }
+.cam.saving .cam-top, .cam.saving .cam-shots, .cam.saving .cam-row > :not([data-k="save"]) { opacity: .4; pointer-events: none; }
 .photo-view .btn { color: #fff; border-color: #fff; }
 .photo-view .btn.danger { color: #FF5A6A; border-color: #FF5A6A; }
 .cam { position: fixed; inset: 0; z-index: 60; background: #000; color: #fff; display: flex; flex-direction: column; justify-content: space-between; padding: calc(12px + var(--safe-t)) 16px calc(16px + var(--safe-b)); }
@@ -683,6 +692,13 @@ html.note-open .topbar { position: fixed; top: 0; inset-inline: 0; }
   text-align: center;
   box-shadow: 0 6px 24px rgba(20, 35, 75, .25);
 }
+.chart-val { text-align: center; margin-top: 4px; min-height: 18px; font-weight: 600; }
+.chart .pt.on { stroke: var(--ink); stroke-width: 3; }
+.chart .pt-hit { cursor: pointer; }
+/* Editing the sets of a saved workout: one row per set in place of its chips. */
+.hist-edit { display: flex; align-items: center; gap: 6px; margin: 5px 0; }
+.hist-edit > span:first-child { flex: none; width: 46px; }
+.hist-edit input { width: 76px; padding: 6px 4px; font-size: 16px; }
 .toast.hidden { display: none; }
 /* An action inside the toast, e.g. "undo" after a delete. */
 .toast button { margin-inline-start: 12px; padding: 6px 4px; border: 0; background: none; color: var(--hl); font: inherit; font-weight: 700; text-decoration: underline; }

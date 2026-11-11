@@ -221,7 +221,7 @@ document.addEventListener('click', (ev) => {
   const ex = db.active && db.active.exercises[e];
 
   switch (act) {
-    case 'start': startWorkout(db.templates.find((t) => t.id === el.dataset.id)); break;
+    case 'start': startWorkout(db.templates.find((t) => t.id === el.dataset.id), el.classList.contains('next')); break;
     case 'start-empty': startWorkout(null); break;
     case 'finish': finishWorkout(); break;
     case 'note': {
@@ -452,9 +452,34 @@ document.addEventListener('click', (ev) => {
         if (gone.length) deletePhoto(...gone);
       });
       break;
+    // Fix a mistyped weight or rep count in a saved workout, in place of its set chips.
+    case 'hist-edit': {
+      const w = db.workouts.find((x) => x.id === el.dataset.id);
+      ui.hedit = { id: w.id, ex: w.exercises.map((x) => x.sets.map((s) => ({ w: fmtW(s.w), r: String(s.r) }))) };
+      render();
+      break;
+    }
+    case 'hist-edit-cancel': ui.hedit = null; render(); break;
+    case 'hist-edit-save': {
+      const w = db.workouts.find((x) => x.id === ui.hedit.id);
+      if (ui.hedit.ex.some((sets) => sets.some((s) => !(num(s.r) > 0) || num(s.w) < 0))) { toast(L('בכל סט צריך מספר חזרות', 'Varje set behöver ett antal reps')); return; }
+      w.exercises.forEach((x, i) => x.sets.forEach((s, j) => { s.w = num(ui.hedit.ex[i][j].w) || 0; s.r = num(ui.hedit.ex[i][j].r); }));
+      ui.hedit = null;
+      save(); render();
+      toast(L('האימון עודכן', 'Passet uppdaterat'));
+      break;
+    }
     case 'photo-add': openCamera(el.dataset.id); break;
-    case 'photo-open': ui.photo = el.dataset.id; render(); break;
+    case 'photo-open': ui.photo = el.dataset.id; ui.photoZoom = false; render(); break;
     case 'photo-close': ui.photo = null; render(); break;
+    case 'photo-zoom': {
+      ui.photoZoom = !ui.photoZoom; render();
+      // Zoomed in on the middle of the photo.
+      const st = $('.photo-stage.zoom');
+      if (st) { st.scrollLeft = (st.scrollWidth - st.clientWidth) / 2; st.scrollTop = (st.scrollHeight - st.clientHeight) / 2; }
+      break;
+    }
+    case 'photo-nav': photoNav(+el.dataset.d); break;
     case 'stretch-view': ui.stretchView = { ph: el.dataset.ph, id: el.dataset.id }; render(); break;
     case 'stretch-view-close': ui.stretchView = null; render(); break;
     case 'photo-del': ask({ title: L('למחוק את התמונה?', 'Ta bort bilden?'), ok: L('מחק', 'Ta bort'), danger: true }).then((yes) => yes && deletePhoto(el.dataset.id)); break;
@@ -474,6 +499,16 @@ document.addEventListener('click', (ev) => {
     }
 
     case 'metric': ui.progMetric = el.dataset.k; render(); break;
+    // A touch screen has no hover: tapping a point writes its date and value under the chart.
+    case 'chart-pt': {
+      const box = el.closest('.card') || $('#view');
+      box.querySelectorAll('.pt.on').forEach((p) => p.classList.remove('on'));
+      const dot = [...el.closest('svg').querySelectorAll('.pt')][[...el.closest('svg').querySelectorAll('.pt-hit')].indexOf(el)];
+      dot?.classList.add('on');
+      const out = el.closest('svg').nextElementSibling;
+      if (out?.classList.contains('chart-val')) { out.textContent = el.dataset.l; out.classList.remove('muted'); }
+      break;
+    }
     case 'music-app': db.settings.musicApp = el.dataset.k; save(); render(); break;
     case 'music-hide': db.settings.showMusic = false; save(); render(); toast(L('אפשר להחזיר בהגדרות', 'Kan visas igen i inställningarna')); break;
     case 'area-period': ui.areaPeriod = el.dataset.k; render(); break;
@@ -559,6 +594,7 @@ document.addEventListener('click', (ev) => {
       }
       break;
     case 'export': exportData(); break;
+    case 'backup-later': db.settings.backupLater = Date.now(); save(); render(); break;
     case 'import': $('#import-file').click(); break;
   }
 });
@@ -603,6 +639,7 @@ document.addEventListener('input', (ev) => {
       save();
       break;
     }
+    case 'he': ui.hedit.ex[+el.dataset.x][+el.dataset.s][el.dataset.k] = el.value; break;
     case 'wname': db.active.name = el.value; save(); break;
     case 'wmins': db.active.mins = el.value; save(); break;
     case 'defrest': { const v = num(el.value); if (v && v > 0) { db.settings.defaultRest = Math.round(v); save(); } break; }
@@ -791,6 +828,26 @@ document.addEventListener('click', (ev) => {
   if (swallowClick) { ev.stopPropagation(); ev.preventDefault(); }
 }, true);
 
+// ---------- Photo viewer: previous / next ----------
+function photoNav(d) {
+  const p = photos[photos.findIndex((x) => x.id === ui.photo) + d];
+  if (!p) return;
+  ui.photo = p.id; ui.photoZoom = false; render();
+}
+// A sideways swipe on the photo (not while zoomed in, where a drag moves around it).
+let photoSwipe = null;
+document.addEventListener('touchstart', (ev) => {
+  photoSwipe = ev.touches.length === 1 && ev.target.closest('.photo-stage:not(.zoom)') ? { x: ev.touches[0].clientX, y: ev.touches[0].clientY } : null;
+}, { passive: true });
+document.addEventListener('touchend', (ev) => {
+  if (!photoSwipe) return;
+  const t = ev.changedTouches[0], dx = t.clientX - photoSwipe.x, dy = t.clientY - photoSwipe.y;
+  photoSwipe = null;
+  if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+  swallowClick = true; setTimeout(() => { swallowClick = false; }, 50); // the swipe isn't also a tap to zoom
+  photoNav(dx < 0 ? 1 : -1);
+});
+
 // ---------- Back button ----------
 // Android's back button (and the back swipe) closes whatever is open on top instead of leaving the app.
 // While anything is open there's one extra history entry; going back pops it and closes the top layer.
@@ -805,6 +862,7 @@ function topLayer() {
   if (ui.demo) return () => { ui.demo = null; renderSheet(); };
   if (kp.el) return kpClose;
   if (ui.noteEdit) return () => noteClose(false);
+  if (ui.tab === 'history' && ui.hedit) return () => { ui.hedit = null; render(); };
   if (ui.tab === 'body' && ui.mdraft) return () => { ui.mdraft = null; render(); };
   if (ui.tab === 'workout' && ui.cdraft) return () => { ui.cdraft = null; render(); window.scrollTo(0, 0); };
   if (ui.tab === 'workout' && ui.draft) return () => { ui.draft = null; render(); window.scrollTo(0, 0); };
@@ -878,7 +936,7 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   let reloading = false;
   // Not in the middle of something: a reload would drop a draft, a camera session or text being typed.
   // The reload waits until that's over, then comes back to the same tab and scroll position.
-  const busy = () => ui.draft || ui.cdraft || ui.mdraft || ui.demo || ui.noteEdit || ui.photo || ui.pasteOpen || ui.reading || ui.recLoading
+  const busy = () => ui.draft || ui.cdraft || ui.mdraft || ui.hedit || ui.demo || ui.noteEdit || ui.photo || ui.pasteOpen || ui.reading || ui.recLoading
     || kp.el || document.querySelector('.cam, .dlg') || document.activeElement?.matches('input, textarea, select');
   const reloadWhenIdle = () => {
     if (busy()) { setTimeout(reloadWhenIdle, 2000); return; }

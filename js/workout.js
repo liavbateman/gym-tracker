@@ -100,7 +100,7 @@ function cardioPace(type, mins, km) {
   if (type === 'bike') return { v: r1(km / (mins / 60)), u: L('קמ״ש', 'km/h') };
   return { v: fmtPace(mins / km), u: L('לק״מ', '/km') };
 }
-const fmtDist = (type, km) => (CARDIO_BY[type].dist === 'm' ? `${Math.round(km * 1000).toLocaleString(LOC)} m` : `${r1(km)} ${L('ק״מ', 'km')}`);
+const fmtDist = (type, km) => (CARDIO_BY[type].dist === 'm' ? `${Math.round(km * 1000).toLocaleString(LOC)} ${L('מ׳', 'm')}` : `${r1(km)} ${L('ק״מ', 'km')}`);
 
 // The form's numbers, read from the draft: minutes, distance in km, and calories (typed, or worked out).
 function cardioCalc(d) {
@@ -228,9 +228,20 @@ function viewStart() {
       <div class="muted small" style="margin-top:4px">${last.exercises.length} ${L('תרגילים', 'övningar')} · ${fmtDur(last.end - last.start)} · ${L('נפח', 'volym')} ${Math.round(volume(last)).toLocaleString(LOC)} ${L('ק״ג', 'kg')}</div>
     </div>` : '';
 
+  const backup = backupDue() ? `
+    <div class="card note">
+      <b>${db.settings.lastBackup ? L('עבר יותר מחודש מהגיבוי האחרון', 'Det har gått över en månad sedan senaste säkerhetskopian') : L('עוד לא גיבית את האימונים', 'Du har inte säkerhetskopierat din träning än')}</b>
+      <div class="muted small" style="margin-top:4px">${L(`${db.workouts.length} אימונים שמורים רק בטלפון הזה. גיבוי לוקח כמה שניות.`, `${db.workouts.length} pass finns bara på den här telefonen. En säkerhetskopia tar några sekunder.`)}</div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn sm primary" data-act="export">${L('גבה עכשיו', 'Säkerhetskopiera nu')}</button>
+        <button class="btn sm" data-act="backup-later">${L('לא עכשיו', 'Inte nu')}</button>
+      </div>
+    </div>` : '';
+
   return `
     ${viewWeek()}
     ${viewToday()}
+    ${backup}
     <h2>${L('התחל אימון', 'Starta pass')}</h2>
     ${tpls || `<p class="muted">${L('אין עדיין תבניות. צור תבנית כדי להתחיל אימון ממנה.', 'Inga mallar än. Skapa en mall för att starta ett pass från den.')}</p>`}
     <div class="row">
@@ -241,12 +252,15 @@ function viewStart() {
     ${lastCard}`;
 }
 
-const stepper = (e, s, f, value, placeholder, mode) => `
+const stepper = (e, s, f, value, placeholder, mode) => {
+  const what = f === 'w' ? L('משקל (ק״ג)', 'Vikt (kg)') : L('חזרות', 'Reps');
+  return `
   <div class="stepper">
-    <button data-act="step" data-f="${f}" data-d="1" data-e="${e}" data-s="${s}" aria-label="${L('הוסף', 'Öka')}">+</button>
-    <input type="text" inputmode="none" readonly data-kp="${mode}" data-f="${f}" data-e="${e}" data-s="${s}" value="${esc(value)}" placeholder="${esc(placeholder)}">
-    <button data-act="step" data-f="${f}" data-d="-1" data-e="${e}" data-s="${s}" aria-label="${L('הפחת', 'Minska')}">−</button>
+    <button data-act="step" data-f="${f}" data-d="1" data-e="${e}" data-s="${s}" aria-label="${L('הוסף', 'Öka')}: ${what}">+</button>
+    <input type="text" inputmode="none" readonly data-kp="${mode}" data-f="${f}" data-e="${e}" data-s="${s}" value="${esc(value)}" placeholder="${esc(placeholder)}" aria-label="${what}">
+    <button data-act="step" data-f="${f}" data-d="-1" data-e="${e}" data-s="${s}" aria-label="${L('הפחת', 'Minska')}: ${what}">−</button>
   </div>`;
+};
 
 // An exercise's standing note, kept by name so it follows the exercise into every workout and template.
 function noteChip(name, attrs) {
@@ -302,7 +316,7 @@ function viewActive() {
             ${noteChip(e.name, `data-e="${i}"`)}
           </div>
           <div class="col-end">
-            <button class="rest-pill" data-act="ex-rest" data-e="${i}" aria-label="${L('שנה זמן מנוחה', 'Ändra vilotid')}">${L('מנוחה', 'Vila')} ${e.rest} ${L('ש׳', 's')}</button>
+            <button class="rest-pill" data-act="ex-rest" data-e="${i}" aria-label="${L('שנה זמן מנוחה', 'Ändra vilotid')}">${L('מנוחה', 'Vila')} ${e.rest} ${L('שנ׳', 's')}</button>
             <div class="row ex-move">
               <button class="icon-btn" data-act="ex-up" data-e="${i}" ${i === 0 ? 'disabled' : ''} aria-label="${L('הזז למעלה', 'Flytta upp')}">▲</button>
               <button class="icon-btn" data-act="ex-down" data-e="${i}" ${i === w.exercises.length - 1 ? 'disabled' : ''} aria-label="${L('הזז למטה', 'Flytta ner')}">▼</button>
@@ -379,7 +393,7 @@ function viewStretch(w, phase) {
         <div class="stretch-name">${esc(x.name)}</div>
         <div class="muted small">${esc(x.how)}</div>
         <div class="row" style="margin-top:6px">
-          <button class="rest-pill" data-act="stretch-go" data-ph="${phase}" data-id="${x.id}" aria-label="${L('הפעל טיימר מתיחה', 'Starta stretchtimer')}">▶ ${x.hold} ${L('ש׳', 's')}${x.sides ? L(' לכל צד', ' per sida') : ''}</button>
+          <button class="rest-pill" data-act="stretch-go" data-ph="${phase}" data-id="${x.id}" aria-label="${L('הפעל טיימר מתיחה', 'Starta stretchtimer')}">▶ ${x.hold} ${L('שנ׳', 's')}${x.sides ? L(' לכל צד', ' per sida') : ''}</button>
           <button class="check" data-act="stretch-done" data-ph="${phase}" data-id="${x.id}" aria-label="${L('סמן מתיחה כבוצעה', 'Markera stretch som klar')}" aria-pressed="${done.has(x.id)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg></button>
         </div>
       </div>
@@ -411,7 +425,7 @@ function stretchViewer(phase, list) {
         </div>
         ${demoAnim(stretchImages(x), true)}
         <div class="muted small" style="margin-top:8px">${esc(x.how)}</div>
-        <div class="muted small" style="margin-top:4px">${x.hold} ${L('ש׳', 's')}${x.sides ? L(' לכל צד', ' per sida') : ''}</div>
+        <div class="muted small" style="margin-top:4px">${x.hold} ${L('שנ׳', 's')}${x.sides ? L(' לכל צד', ' per sida') : ''}</div>
       </div>
     </div>` : '';
 }
@@ -472,7 +486,8 @@ function viewSettings() {
       <button class="btn block" data-act="export" style="margin-top:0">${L('ייצוא גיבוי (קובץ JSON)', 'Exportera säkerhetskopia (JSON-fil)')}</button>
       <button class="btn block" data-act="import">${L('שחזור מגיבוי', 'Återställ från säkerhetskopia')}</button>
       <input type="file" id="import-file" accept="application/json,.json" hidden>
-      <p class="muted small" style="margin-bottom:0">${L('הנתונים נשמרים רק בטלפון הזה. מומלץ לייצא גיבוי מדי פעם.', 'Datan sparas bara på den här telefonen. Exportera en säkerhetskopia då och då.')}</p>
+      <p class="small" style="margin-bottom:0"><b>${db.settings.lastBackup ? L(`גיבוי אחרון: ${fmtDateFull(db.settings.lastBackup)}`, `Senaste säkerhetskopian: ${fmtDateFull(db.settings.lastBackup)}`) : L('עוד לא נעשה גיבוי', 'Ingen säkerhetskopia har gjorts än')}</b></p>
+      <p class="muted small" style="margin-bottom:0">${L('הנתונים נשמרים רק בטלפון הזה. מומלץ לייצא גיבוי מדי פעם. תמונות המעקב ומפתח ה-API לא נכללים בגיבוי.', 'Datan sparas bara på den här telefonen. Exportera en säkerhetskopia då och då. Progressbilderna och API-nyckeln ingår inte i säkerhetskopian.')}</p>
     </div>
 
     <h2>${L('קריאה אוטומטית עם Claude', 'Automatisk avläsning med Claude')}</h2>
