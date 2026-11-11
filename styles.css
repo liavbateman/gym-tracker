@@ -683,6 +683,10 @@ html.note-open .topbar { position: fixed; top: 0; inset-inline: 0; }
   text-align: center;
   box-shadow: 0 6px 24px rgba(20, 35, 75, .25);
 }
+/* Editing the sets of a saved workout: one row per set in place of its chips. */
+.hist-edit { display: flex; align-items: center; gap: 6px; margin: 5px 0; }
+.hist-edit > span:first-child { flex: none; width: 46px; }
+.hist-edit input { width: 76px; padding: 6px 4px; font-size: 16px; }
 .toast.hidden { display: none; }
 /* An action inside the toast, e.g. "undo" after a delete. */
 .toast button { margin-inline-start: 12px; padding: 6px 4px; border: 0; background: none; color: var(--hl); font: inherit; font-weight: 700; text-decoration: underline; }

@@ -306,11 +306,23 @@ function viewHistory() {
       ${runs.map(([area, idx]) => areaDivider(area, idx.length) + idx.map((i) => `
         <div class="hist-ex">
           <b>${esc(exName(w.exercises[i].name))}</b>
-          <div class="chips">${w.exercises[i].sets.map((s) => chip(s)).join('')}</div>
+          ${ui.hedit?.id === w.id ? ui.hedit.ex[i].map((s, j) => `
+            <div class="hist-edit">
+              <span class="muted small">${w.exercises[i].sets[j].wu ? L('חימום', 'Uppv.') : `${L('סט', 'Set')} ${work(w.exercises[i].sets.slice(0, j + 1)).length}`}</span>
+              <input type="number" inputmode="decimal" step="any" data-f="he" data-k="w" data-x="${i}" data-s="${j}" value="${esc(s.w)}" aria-label="${L('משקל (ק״ג)', 'Vikt (kg)')}">
+              <span class="muted small">${L('ק״ג', 'kg')} ×</span>
+              <input type="number" inputmode="numeric" data-f="he" data-k="r" data-x="${i}" data-s="${j}" value="${esc(s.r)}" aria-label="${L('חזרות', 'Reps')}">
+            </div>`).join('') : `<div class="chips">${w.exercises[i].sets.map((s) => chip(s)).join('')}</div>`}
         </div>`).join('')).join('')}
+      ${ui.hedit?.id === w.id ? `
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary grow" data-act="hist-edit-save">${L('שמור שינויים', 'Spara ändringar')}</button>
+        <button class="btn grow" data-act="hist-edit-cancel">${L('ביטול', 'Avbryt')}</button>
+      </div>` : ''}
       ${photoStrip(w, mine)}
       <div class="hist-actions">
         <input type="date" class="pill-in" data-f="hist-date" data-id="${w.id}" value="${isoDay(w.start)}" max="${isoDay(Date.now())}" aria-label="${L('תאריך האימון', 'Passets datum')}">
+        ${ui.hedit?.id === w.id ? '' : `<button class="btn sm" data-act="hist-edit" data-id="${w.id}">${L('ערוך סטים', 'Ändra set')}</button>`}
         <button class="btn sm" data-act="hist-tpl" data-id="${w.id}">${L('שמור כתבנית', 'Spara som mall')}</button>
         <button class="btn sm danger" data-act="hist-del" data-id="${w.id}">${L('מחק', 'Ta bort')}</button>
       </div>
