@@ -1,5 +1,8 @@
-// Offline support: always try the network first so updates show up right away; fall back to the cache when offline.
-const CACHE = 'gym-tracker-v65';
+// Offline support: try the network first so updates show up right away; fall back to the cache when offline
+// or when the network takes too long.
+const CACHE = 'gym-tracker-v66';
+const SLOW_MS = 2500;
+let slowUntil = 0;
 // Exercise demo data and photos never change, so they're served cache-first and kept across app updates.
 const MEDIA = 'gym-tracker-media';
 const MEDIA_URL = 'https://cdn.jsdelivr.net/gh/yuhonas/free-exercise-db@';
@@ -36,14 +39,24 @@ self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET' || !e.request.url.startsWith(self.location.origin)) return;
   e.respondWith(
     caches.open(CACHE).then(async (cache) => {
-      try {
-        // no-cache: revalidate with the server instead of trusting the browser's HTTP cache.
-        const res = await fetch(e.request, { cache: 'no-cache' });
+      const hit = await cache.match(e.request, { ignoreSearch: true });
+      // no-cache: revalidate with the server instead of trusting the browser's HTTP cache.
+      let settled = false;
+      const net = fetch(e.request, { cache: 'no-cache' }).then((res) => {
+        settled = true;
         if (res.ok) cache.put(e.request, res.clone());
         return res;
-      } catch {
-        return (await cache.match(e.request, { ignoreSearch: true })) || Response.error();
-      }
+      });
+      if (!hit) return net.catch(() => Response.error());
+      // Weak signal (a gym basement): don't hang on the network. After SLOW_MS the cached copy is served and the
+      // fetch carries on in the background to refresh the cache; the rest of that page load comes from the cache
+      // too, so its files stay in step with each other.
+      e.waitUntil(net.catch(() => {}));
+      if (Date.now() < slowUntil) return hit;
+      return Promise.race([
+        net.catch(() => hit),
+        new Promise((r) => setTimeout(() => { if (!settled) slowUntil = Date.now() + 15000; r(hit); }, SLOW_MS)),
+      ]);
     })
   );
 });

@@ -247,7 +247,8 @@ function stretchesFor(w, phase) {
 // Per-phase state on the active workout: which stretches are done, and whether the section is folded away.
 function stretchState(w) {
   if (!w.stretch || Array.isArray(w.stretch)) w.stretch = { pre: [], post: [] };
-  if (!w.fold) w.fold = { pre: false, post: false };
+  // Starts folded the way the sections were last left (someone who always skips the stretches isn't shown them open each time).
+  if (!w.fold) w.fold = { pre: !!db.settings.stretchFold?.pre, post: !!db.settings.stretchFold?.post };
   return w.stretch;
 }
 
@@ -482,9 +483,16 @@ const chip = (s, cls = '') => (s.wu
 const prevLabel = (s) => `<span dir="ltr">${setLabel(s)}</span>${s.fail ? ` <span class="t-fail">${L('כשל', 'Fail')}</span>` : ''}`;
 
 let toastTimer;
-function toast(msg, ms = 2600) {
+// action: { label, run } adds a button to the toast, e.g. "undo" after a delete.
+function toast(msg, ms = 2600, action = null) {
   const t = $('#toast');
   t.textContent = msg;
+  if (action) {
+    const b = document.createElement('button');
+    b.textContent = action.label;
+    b.addEventListener('click', () => { t.classList.add('hidden'); action.run(); });
+    t.append(b);
+  }
   t.classList.remove('hidden');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.add('hidden'), ms);

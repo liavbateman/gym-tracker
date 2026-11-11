@@ -282,11 +282,14 @@ function tick() {
   if (live && !seen) top.textContent = fmtDur(elapsedMs(db.active));
 
   const box = $('#timer');
-  if (!timer) { box.classList.add('hidden'); return; }
+  const kt = $('#kp-timer'); // the keypad covers the timer bar, so the rest time left also shows in its header
+  if (!timer) { box.classList.add('hidden'); kt.textContent = ''; return; }
   box.classList.remove('hidden');
   const leftMs = timer.end - Date.now();
   const left = Math.ceil(leftMs / 1000);
   const over = left <= 0;
+  kt.textContent = over ? (timer.stretch ? '' : L('יאללה!', 'Kör!')) : `⏱ ${fmtDur(left * 1000)}`;
+  kt.classList.toggle('over', over);
   box.classList.toggle('over', over);
   $('#timer-label').textContent = timer.label || L('מנוחה', 'Vila');
   $('#timer-time').textContent = over ? (timer.stretch ? L('כל הכבוד!', 'Snyggt!') : L('יאללה!', 'Kör!')) : fmtDur(left * 1000);

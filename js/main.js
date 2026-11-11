@@ -195,16 +195,22 @@ document.addEventListener('focusout', (ev) => {
 });
 
 // ---------- Events ----------
+const tabScroll = {};
+const UNDO = { label: L('בטל', 'Ångra') };
 document.addEventListener('click', (ev) => {
   unlockAudio();
   const tabBtn = ev.target.closest('[data-tab]');
   if (tabBtn) {
     const t = tabBtn.dataset.tab;
     // The gear toggles: a second tap returns to the tab you came from.
+    // Each tab keeps its place on the page, so a look at History mid-workout comes back to the same exercise.
+    // Tapping the tab you're already on goes to its top.
+    const from = ui.tab;
+    tabScroll[from] = window.scrollY;
     if (t === 'settings' && ui.tab === 'settings') ui.tab = ui.prevTab || 'workout';
     else { if (t === 'settings') ui.prevTab = ui.tab; ui.tab = t; }
     render();
-    window.scrollTo(0, 0);
+    window.scrollTo(0, ui.tab === from ? 0 : tabScroll[ui.tab] || 0);
     return;
   }
   if (ev.target.matches('input[data-kp]')) { kpOpen(ev.target); return; }
@@ -287,17 +293,19 @@ document.addEventListener('click', (ev) => {
       break;
     }
     case 'set-del': {
-      // Numbered as on screen, where warm-up sets don't count.
-      const gone = ex.sets[s], n = work(ex.sets).indexOf(gone) + 1;
-      const title = gone.wu ? L('למחוק את סט החימום?', 'Ta bort uppvärmningssetet?') : L(`למחוק את סט ${n}?`, `Ta bort set ${n}?`);
-      ask({ title, msg: exName(ex.name), ok: L('מחק', 'Ta bort'), danger: true }).then((yes) => {
-        const at = ex.sets.indexOf(gone);
-        if (!yes || at < 0) return;
-        ex.sets.splice(at, 1);
-        const lw = work(ex.sets).at(-1);
-        if (gone.af && lw && !lw.done && !lw.fail) Object.assign(lw, { fail: true, af: true });
+      // The swipe and this tap are the confirmation; a slip is taken back with "undo" in the toast.
+      const gone = ex.sets[s], w = db.active;
+      ex.sets.splice(s, 1);
+      const lw = work(ex.sets).at(-1);
+      const moved = gone.af && lw && !lw.done && !lw.fail;
+      if (moved) Object.assign(lw, { fail: true, af: true });
+      save(); render();
+      toast(gone.wu ? L('סט החימום נמחק', 'Uppvärmningssetet togs bort') : L('הסט נמחק', 'Setet togs bort'), 5000, { ...UNDO, run: () => {
+        if (db.active !== w || !w.exercises.includes(ex)) return;
+        if (moved) { delete lw.fail; delete lw.af; }
+        ex.sets.splice(Math.min(s, ex.sets.length), 0, gone);
         save(); render();
-      });
+      } });
       break;
     }
     case 'wu-add': {
@@ -306,10 +314,16 @@ document.addEventListener('click', (ev) => {
       save(); render();
       break;
     }
-    case 'ex-del':
-      ask({ title: L('להסיר את התרגיל?', 'Ta bort övningen?'), msg: L(`"${ex.name}" יוסר מהאימון הזה.`, `"${exName(ex.name)}" tas bort från det här passet.`), ok: L('הסר', 'Ta bort'), danger: true })
-        .then((yes) => { if (yes) { db.active.exercises.splice(e, 1); ui.swap = null; save(); render(); } });
+    case 'ex-del': {
+      const w = db.active;
+      w.exercises.splice(e, 1); ui.swap = null; save(); render();
+      toast(L(`"${ex.name}" הוסר מהאימון`, `"${exName(ex.name)}" togs bort från passet`), 5000, { ...UNDO, run: () => {
+        if (db.active !== w) return;
+        w.exercises.splice(Math.min(e, w.exercises.length), 0, ex);
+        save(); render();
+      } });
       break;
+    }
     case 'swap-open': ui.swap = ui.swap === e ? null : e; render(); break;
     case 'ex-up':
     case 'ex-down': {
@@ -358,6 +372,8 @@ document.addEventListener('click', (ev) => {
       const phase = el.dataset.ph;
       stretchState(db.active);
       db.active.fold[phase] = !db.active.fold[phase];
+      // Skipping or reopening a section by hand is remembered for the next workout.
+      db.settings.stretchFold = { ...db.settings.stretchFold, [phase]: db.active.fold[phase] };
       save(); render();
       break;
     }
@@ -528,12 +544,13 @@ document.addEventListener('click', (ev) => {
     case 'c-type': ui.cdraft.type = db.settings.lastCardio = el.dataset.k; ui.cdraft.dist = ''; render(); break;
     case 'c-cancel': ui.cdraft = null; render(); window.scrollTo(0, 0); break;
     case 'c-save': saveCardio(); break;
-    case 'c-del':
-      ask({ title: L('למחוק את האימון?', 'Ta bort passet?'), ok: L('מחק', 'Ta bort'), danger: true }).then((yes) => {
-        if (!yes) return;
-        db.cardio = db.cardio.filter((c) => c.id !== el.dataset.id); save(); render();
-      });
+    case 'c-del': {
+      const c = db.cardio.find((x) => x.id === el.dataset.id);
+      if (!c) break;
+      db.cardio = db.cardio.filter((x) => x !== c); save(); render();
+      toast(L('האימון האירובי נמחק', 'Konditionspasset togs bort'), 5000, { ...UNDO, run: () => { db.cardio.push(c); save(); render(); } });
       break;
+    }
     case 'lang':
       if (el.dataset.k !== LANG) {
         try { localStorage.setItem(LANG_KEY, el.dataset.k); } catch { /* ignore */ }
@@ -654,6 +671,7 @@ document.addEventListener('keydown', (ev) => {
   if (ev.key === 'Enter' && ev.target.id === 'demo-q') { ev.target.blur(); runDemoSearch(); }
   if (ev.key === 'Escape' && ui.demo) { ui.demo = null; renderSheet(); }
   if (ev.key === 'Escape' && ui.stretchView) { ui.stretchView = null; render(); }
+  if (ev.key === 'Escape' && ui.photo) { ui.photo = null; render(); }
   if (ev.key === 'Escape') closeBateman();
 });
 
@@ -724,7 +742,7 @@ document.addEventListener('pointerdown', (ev) => {
   const g = ev.target.closest('.swipe');
   if (openRow && g !== openRow && !ev.target.closest('.set-actions')) closeOpenRow();
   if (!g || (ev.pointerType === 'mouse' && ev.button !== 0)) return;
-  swipe = { g, id: ev.pointerId, x: ev.clientX, y: ev.clientY, base: g === openRow ? +g.dataset.off : 0, off: 0, active: false };
+  swipe = { g, id: ev.pointerId, x: ev.clientX, y: ev.clientY, base: g === openRow ? +g.dataset.off : 0, off: 0, active: false, btn: !!ev.target.closest('button') };
 });
 
 document.addEventListener('pointermove', (ev) => {
@@ -732,7 +750,9 @@ document.addEventListener('pointermove', (ev) => {
   const dx = ev.clientX - swipe.x, dy = ev.clientY - swipe.y;
   if (!swipe.active) {
     if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { swipe = null; return; } // vertical scroll
-    if (Math.abs(dx) < 10) return;
+    // A press that starts on a button needs a longer, clearly sideways move, so a thumb sliding a little while
+    // tapping ✓ or +/− still counts as a tap.
+    if (Math.abs(dx) < (swipe.btn ? 22 : 10) || (swipe.btn && Math.abs(dx) < Math.abs(dy) * 2)) return;
     swipe.active = true;
     swipe.g.classList.add('dragging');
   }
@@ -770,9 +790,45 @@ document.addEventListener('click', (ev) => {
   if (swallowClick) { ev.stopPropagation(); ev.preventDefault(); }
 }, true);
 
+// ---------- Back button ----------
+// Android's back button (and the back swipe) closes whatever is open on top instead of leaving the app.
+// While anything is open there's one extra history entry; going back pops it and closes the top layer.
+function topLayer() {
+  const dlg = document.querySelector('.dlg:not(.out)');
+  if (dlg) return () => dlg.querySelector('[data-k="no"]').click();
+  const cam = document.querySelector('.cam');
+  if (cam) return () => cam.querySelector('[data-k="close"]').click();
+  if (!$('#bateman').classList.contains('hidden')) return closeBateman;
+  if (ui.photo) return () => { ui.photo = null; render(); };
+  if (ui.stretchView) return () => { ui.stretchView = null; render(); };
+  if (ui.demo) return () => { ui.demo = null; renderSheet(); };
+  if (kp.el) return kpClose;
+  if (ui.noteEdit) return () => noteClose(false);
+  if (ui.tab === 'body' && ui.mdraft) return () => { ui.mdraft = null; render(); };
+  if (ui.tab === 'workout' && ui.cdraft) return () => { ui.cdraft = null; render(); window.scrollTo(0, 0); };
+  if (ui.tab === 'workout' && ui.draft) return () => { ui.draft = null; render(); window.scrollTo(0, 0); };
+  if (ui.tab === 'settings') return () => { ui.tab = ui.prevTab || 'workout'; render(); window.scrollTo(0, 0); };
+  return null;
+}
+let backEntry = !!history.state?.layer, backSkip = false;
+function syncBack() {
+  const open = !!topLayer();
+  if (open && !backEntry) { history.pushState({ layer: 1 }, ''); backEntry = true; }
+  else if (!open && backEntry && !backSkip) { backSkip = true; history.back(); }
+}
+window.addEventListener('popstate', () => {
+  backEntry = false;
+  if (backSkip) { backSkip = false; return; } // our own history.back() after everything was closed
+  topLayer()?.();
+  syncBack();
+});
+document.addEventListener('click', () => setTimeout(syncBack, 0));
+
+const RESUME_KEY = 'gym-tracker-resume';
+
 // ---------- Boot ----------
 // Started here, once every file has loaded, so they never run against a half-loaded app.
-setInterval(tick, 250);
+setInterval(() => { tick(); syncBack(); }, 250);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { requestWakeLock(); tick(); } });
 // index.html is written in Hebrew; in Swedish its fixed labels are swapped here.
 if (SV) {
@@ -794,7 +850,12 @@ if (SV) {
   document.querySelectorAll('.tabs button').forEach((b) => { b.querySelector('span').textContent = tabs[b.dataset.tab]; });
 }
 if (db.active) requestWakeLock();
+// Back from a reload for a new version: the same tab and place on the page.
+let resume = null;
+try { resume = JSON.parse(sessionStorage.getItem(RESUME_KEY)); sessionStorage.removeItem(RESUME_KEY); } catch { /* ignore */ }
+if (resume && ['workout', 'history', 'progress', 'body', 'settings'].includes(resume.tab)) ui.tab = resume.tab;
 render();
+if (resume) window.scrollTo(0, resume.y || 0);
 loadPhotos();
 // Demos picked before muscles were stored get them from the exercise database.
 if (Object.values(db.demos).some((d) => !d.pm)) {
@@ -814,10 +875,19 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   // to the foreground, and reload once the new version takes over (all data lives in localStorage).
   const hadController = !!navigator.serviceWorker.controller;
   let reloading = false;
+  // Not in the middle of something: a reload would drop a draft, a camera session or text being typed.
+  // The reload waits until that's over, then comes back to the same tab and scroll position.
+  const busy = () => ui.draft || ui.cdraft || ui.mdraft || ui.demo || ui.noteEdit || ui.photo || ui.pasteOpen || ui.reading || ui.recLoading
+    || kp.el || document.querySelector('.cam, .dlg') || document.activeElement?.matches('input, textarea, select');
+  const reloadWhenIdle = () => {
+    if (busy()) { setTimeout(reloadWhenIdle, 2000); return; }
+    try { sessionStorage.setItem(RESUME_KEY, JSON.stringify({ tab: ui.tab, y: window.scrollY })); } catch { /* ignore */ }
+    location.reload();
+  };
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (!hadController || reloading) return;
     reloading = true;
-    location.reload();
+    reloadWhenIdle();
   });
   navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => {
     document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update().catch(() => {}); });

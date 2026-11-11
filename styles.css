@@ -330,7 +330,10 @@ label.field input, label.field select { margin-top: 4px; color: var(--ink); }
 .tex .muscles { margin-top: 8px; }
 
 /* Set rows: a grid that slides over a red delete layer when swiped */
-.set-grid { display: grid; grid-template-columns: 26px 1fr 1fr 44px; gap: 4px; align-items: center; }
+/* --tap: width of the set number and the +/− buttons. Wider wherever the phone has the room (most do). */
+.set-grid { --tap: 26px; display: grid; grid-template-columns: var(--tap) 1fr 1fr 44px; gap: 4px; align-items: center; }
+/* The weight column gets the extra width back, so a five-character weight (102.5) still fits its field. */
+@media (min-width: 380px) { .set-grid { --tap: 32px; grid-template-columns: var(--tap) 1.25fr 1fr 44px; } }
 .set-head { margin-top: 10px; padding-bottom: 2px; font-size: 12px; color: var(--ink-soft); text-align: center; }
 .set-row { position: relative; margin: 4px 0; border-radius: 6px; overflow: hidden; }
 .set-actions { position: absolute; inset: 0; display: flex; justify-content: space-between; background: var(--red); }
@@ -340,8 +343,8 @@ label.field input, label.field select { margin-top: 4px; color: var(--ink); }
 .set-row .n { text-align: center; }
 .set-row input { padding: 8px 2px; font-family: var(--display); font-size: 26px; line-height: 1; font-weight: 700; }
 .set-n {
-  width: 26px;
-  min-height: 38px;
+  width: var(--tap);
+  min-height: 42px;
   padding: 0;
   border: 0;
   border-radius: 6px;
@@ -364,7 +367,7 @@ label.field input, label.field select { margin-top: 4px; color: var(--ink); }
 .stepper input.kp-fresh { background: color-mix(in srgb, var(--hl) 55%, var(--field)); color: var(--hl-ink); }
 .stepper button {
   flex: none;
-  width: 26px;
+  width: var(--tap);
   padding: 0;
   border: 0;
   border-radius: 6px;
@@ -603,7 +606,9 @@ html.kp-open #view { padding-bottom: var(--kp-h, 240px); }
 }
 .keypad.hidden { display: none; }
 .kp-head { display: flex; justify-content: space-between; gap: 8px; max-width: 616px; margin: 0 auto; padding: 0 2px 6px; font-size: 12px; color: var(--ink-soft); }
-.kp-head b { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kp-head b { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+.kp-timer { flex: none; font-weight: 700; font-size: 14px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.kp-timer.over { background: var(--hl); color: var(--hl-ink); padding: 0 6px; border-radius: 4px; }
 .kp-grid { direction: ltr; display: grid; grid-template-columns: repeat(3, 1fr) 1.15fr; gap: 5px; max-width: 616px; margin: 0 auto; }
 .kp-grid button {
   height: 42px;
@@ -679,6 +684,8 @@ html.note-open .topbar { position: fixed; top: 0; inset-inline: 0; }
   box-shadow: 0 6px 24px rgba(20, 35, 75, .25);
 }
 .toast.hidden { display: none; }
+/* An action inside the toast, e.g. "undo" after a delete. */
+.toast button { margin-inline-start: 12px; padding: 6px 4px; border: 0; background: none; color: var(--hl); font: inherit; font-weight: 700; text-decoration: underline; }
 
 /* Confirm / prompt dialog: an index card pinned over the page, instead of the iOS system alert. */
 .dlg {

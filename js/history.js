@@ -208,6 +208,7 @@ async function openCamera(wid) {
   window.addEventListener('keydown', onVol, true);
   document.body.append(box);
   document.body.classList.add('dlg-open');
+  box.querySelector('[data-k="close"]').focus({ preventScroll: true }); // so Escape reaches the camera
 }
 
 // Photos without a workout (or whose workout is gone) show under the workout closest in time.

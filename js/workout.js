@@ -351,8 +351,8 @@ function viewActive() {
       ${datalist()}
     </div>
     ${viewStretch(w, 'post')}
-    ${viewMusic()}
     <button class="btn primary block" data-act="finish">${L('סיים ושמור אימון', 'Avsluta och spara pass')}</button>
+    ${viewMusic()}
     <button class="btn danger block" data-act="discard">${L('בטל אימון', 'Avbryt pass')}</button>`;
 }
 
