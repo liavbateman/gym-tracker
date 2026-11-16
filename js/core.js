@@ -32,6 +32,12 @@ const EX_PAIRS = [
   ['כפיפת מרפקים', 'Bicepscurl'], ['כפיפת מרפקים במשקולות', 'Bicepscurl med hantlar'], ['כפיפת מרפקים בכבל', 'Bicepscurl i kabel'], ['פטיש', 'Hammarcurl'],
   ['פשיטת מרפקים בכבל', 'Triceps pushdown'], ['פרנץ', 'Fransk press'], ['סקאל קראשר', 'Skullcrushers'], ['פשיטת מרפקים מעל הראש בכבל', 'Triceps overhead i kabel'],
   ['פלאנק', 'Plankan'], ['כפיפות בטן', 'Crunches'], ['הרמות רגליים בתלייה', 'Hängande benlyft'], ['כפיפות בטן בכבל', 'Crunches i kabel'],
+  // From the exercise library
+  ['לחיצת חזה בשיפוע במוט', 'Lutande bänkpress med skivstång'], ['פרפר במשקולות', 'Flyes med hantlar'], ['שראג', 'Shrugs'],
+  ['ארנולד פרס', 'Arnoldpress'], ['כפיפת מרפקים בשיפוע', 'Lutande hantelcurl'], ['כפיפת מרפקים בכיסא כומר', 'Scottcurl'],
+  ['כפיפת מרפקים בריכוז', 'Koncentrationscurl'], ['פשיטת מרפקים לאחור במשקולת', 'Kickback med hantel'],
+  ['כפיפות בטן במכונה', 'Crunches i maskin'], ['גלגלת בטן', 'Magrulle'], ['האק סקוואט', 'Hackknäböj'],
+  ['כפיפת ברכיים בישיבה', 'Sittande lårcurl'], ['הרמת עקבים בישיבה', 'Sittande tåhävningar'],
 ];
 const HE2SV = new Map(EX_PAIRS), SV2HE = new Map(EX_PAIRS.map(([he, sv]) => [sv, he]));
 const stockName = (he) => (SV && HE2SV.get(he)) || he; // one of the app's own names, in the current language
@@ -368,8 +374,8 @@ const bodySvg = (parts, m, side, label) => `
     <figcaption>${label}</figcaption>
   </figure>`;
 const muscleNames = (list) => list.map((k) => MUSCLE_NAMES[k] || k).join(', ');
-function muscleMap(name, area) {
-  const m = musclesFor(name, area);
+const muscleMap = (name, area) => muscleMapOf(musclesFor(name, area));
+function muscleMapOf(m) {
   if (!m.p.length) return '';
   return `
     <div class="muscles">

@@ -21,7 +21,8 @@ function render() {
       break;
     // Templates live inside the workout tab: the editor opens over the start screen or the active workout and returns to it.
     default:
-      if (ui.cdraft) { title = L('אירובי', 'Kondition'); html = viewCardioForm(); }
+      if (ui.lib) { title = L('ספריית תרגילים', 'Övningsbibliotek'); html = viewLibrary(); }
+      else if (ui.cdraft) { title = L('אירובי', 'Kondition'); html = viewCardioForm(); }
       else if (ui.draft) { title = ui.draft.isNew ? L('תבנית חדשה', 'Ny mall') : L('עריכת תבנית', 'Ändra mall'); html = viewEditor(); }
       else { title = db.active ? L('אימון פעיל', 'Aktivt pass') : L('אימון', 'Träning'); html = db.active ? viewActive() : viewStart(); }
   }
@@ -359,10 +360,7 @@ document.addEventListener('click', (ev) => {
     case 'ex-add': {
       const name = $('#new-ex').value.trim();
       if (!name) return;
-      // Goes right after the last exercise of its body area, so it joins that area's group.
-      const list = db.active.exercises, area = groupOf(name);
-      const at = list.map((x) => groupOf(x.name)).lastIndexOf(area);
-      list.splice(at < 0 ? list.length : at + 1, 0, makeExercise({ name }, list.length === 0));
+      addToWorkout(name);
       save(); render();
       break;
     }
@@ -565,6 +563,13 @@ document.addEventListener('click', (ev) => {
       break;
     case 'demo': openDemo(el.dataset.e != null ? ex.name : ui.draft.exercises[i].name); break;
     case 'demo-close': ui.demo = null; renderSheet(); break;
+    case 'lib-open': openLibrary(); break;
+    case 'lib-close': closeLibrary(); break;
+    case 'lib-area': ui.lib = { area: el.dataset.a, more: false }; if (el.dataset.a !== 'saved') ui.libArea = el.dataset.a; render(); break;
+    case 'lib-more': libMore(); break;
+    case 'lib-ex': openLibEx(el.dataset.name, el.dataset.id, el.dataset.area); break;
+    case 'lib-save': libToggleSave(el.dataset.name, el.dataset.id, el.dataset.area); render(); if (ui.demo?.lib) renderSheet(); break;
+    case 'lib-add': libAdd(el.dataset.name, el.dataset.id, el.dataset.area); break;
     case 'clock': clockMenu(); break;
     case 'bateman': openBateman(); break;
     case 'bateman-close': closeBateman(); break;
@@ -877,6 +882,7 @@ function topLayer() {
   if (ui.noteEdit) return () => noteClose(false);
   if (ui.tab === 'history' && ui.hedit) return () => { ui.hedit = null; render(); };
   if (ui.tab === 'body' && ui.mdraft) return () => { ui.mdraft = null; render(); };
+  if (ui.tab === 'workout' && ui.lib) return closeLibrary;
   if (ui.tab === 'workout' && ui.cdraft) return () => { ui.cdraft = null; render(); window.scrollTo(0, 0); };
   if (ui.tab === 'workout' && ui.draft) return () => { ui.draft = null; render(); window.scrollTo(0, 0); };
   if (ui.tab === 'settings') return () => { ui.tab = ui.prevTab || 'workout'; render(); window.scrollTo(0, 0); };

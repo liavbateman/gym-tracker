@@ -244,6 +244,7 @@ async function runDemoSearch(vi = 0) {
 
 function viewDemo() {
   const d = ui.demo;
+  if (d.lib) return viewLibEx(d);
   const saved = db.demos[d.name];
   let body;
   if (!d.picking && saved) {

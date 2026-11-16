@@ -248,6 +248,7 @@ function viewStart() {
       <button class="btn ghost grow" data-act="tpl-new">${L('+ תבנית חדשה', '+ Ny mall')}</button>
       <button class="btn ghost grow" data-act="start-empty">${L('+ אימון ריק', '+ Tomt pass')}</button>
     </div>
+    <button class="btn block lib-entry" data-act="lib-open">${L('ספריית תרגילים לפי אזור גוף', 'Övningar efter kroppsdel')}</button>
     ${viewMusic()}
     ${lastCard}`;
 }
@@ -363,6 +364,7 @@ function viewActive() {
         <button class="btn" data-act="ex-add">${L('הוסף', 'Lägg till')}</button>
       </div>
       ${datalist()}
+      <button class="btn ghost block" data-act="lib-open">${L('בחר מספריית התרגילים', 'Välj från övningsbiblioteket')}</button>
     </div>
     ${viewStretch(w, 'post')}
     <button class="btn primary block" data-act="finish">${L('סיים ושמור אימון', 'Avsluta och spara pass')}</button>
