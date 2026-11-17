@@ -38,6 +38,17 @@ const EX_PAIRS = [
   ['כפיפת מרפקים בריכוז', 'Koncentrationscurl'], ['פשיטת מרפקים לאחור במשקולת', 'Kickback med hantel'],
   ['כפיפות בטן במכונה', 'Crunches i maskin'], ['גלגלת בטן', 'Magrulle'], ['האק סקוואט', 'Hackknäböj'],
   ['כפיפת ברכיים בישיבה', 'Sittande lårcurl'], ['הרמת עקבים בישיבה', 'Sittande tåhävningar'],
+  ['פרפר בשיפוע במשקולות', 'Lutande flyes med hantlar'], ['פרפר בשיפוע בכבל', 'Lutande flyes i kabel'],
+  ['לחיצת חזה בירידה', 'Nedåtlutande bänkpress'], ['לחיצת חזה בירידה במשקולות', 'Nedåtlutande bänkpress med hantlar'],
+  ['מתח באחיזה הפוכה', 'Chins med underhandsgrepp'], ['פולי עליון באחיזה צרה', 'Latsdrag med smalt grepp'],
+  ['חתירת טי בר', 'T-bar-rodd'], ['שראג במשקולות', 'Shrugs med hantlar'], ['פשיטת גב', 'Ryggresningar'], ['דדליפט', 'Marklyft'],
+  ['הרמה קדמית במשקולות', 'Framåtlyft med hantlar'], ['חתירה לסנטר', 'Upprättstående rodd'],
+  ['פרפר הפוך במשקולות', 'Omvända flyes med hantlar'], ['פרפר הפוך בכבל', 'Omvända flyes i kabel'],
+  ['כפיפת מרפקים באחיזה צרה', 'Bicepscurl med smalt grepp'], ['כפיפת מרפקים באחיזה הפוכה', 'Omvänd curl'],
+  ['כפיפת שורש כף היד', 'Handledscurl'], ['פשיטת מרפקים בכבל עם חבל', 'Triceps pushdown med rep'], ['לחיצת חזה צרה', 'Smal bänkpress'],
+  ['הרמות רגליים בשכיבה', 'Liggande benlyft'], ['כפיפות בטן הפוכות', 'Omvända crunches'], ['טוויסט רוסי', 'Rysk twist'],
+  ['פלאנק צידי', 'Sidoplanka'], ['כפיפות צד במשקולת', 'Sidoböjningar med hantel'], ['בעיטת ישבן בכבל', 'Kickback för säte i kabel'],
+  ['מקרבים במכונה', 'Adduktormaskin'], ['מרחיקים במכונה', 'Abduktormaskin'], ['הרמת עקבים בלחיצת רגליים', 'Tåhävningar i benpress'],
 ];
 const HE2SV = new Map(EX_PAIRS), SV2HE = new Map(EX_PAIRS.map(([he, sv]) => [sv, he]));
 const stockName = (he) => (SV && HE2SV.get(he)) || he; // one of the app's own names, in the current language
@@ -105,7 +116,10 @@ if (!db.notes || typeof db.notes !== 'object') db.notes = {}; // exercise name -
 // ---------- Body areas ----------
 const GROUPS = ['חזה', 'גב', 'כתפיים', 'רגליים', 'יד קדמית', 'יד אחורית', 'בטן', 'אחר'];
 const GROUP_HINTS = [
-  ['רגליים', /סקוואט|רגל|מכרע|עקב|ירך|לאנג|דדליפט|היפ|ישבן|תאומ|גובלט/],
+  ['בטן', /הרמות רגליים|כפיפות בטן|טוויסט|אלכסונ/],
+  ['כתפיים', /חתירה לסנטר|הרמה קדמית/],
+  ['יד אחורית', /לחיצת חזה צרה/],
+  ['רגליים', /סקוואט|רגל|מכרע|עקב|ירך|לאנג|דדליפט|היפ|ישבן|תאומ|גובלט|מקרב|מרחיק/],
   ['חזה', /חזה|פרפר|מקבילים|שכיבות סמיכה|פלאי/],
   ['גב', /חתיר|מתח|פולי|גב|פול ?אובר|שראג|משיכ/],
   ['כתפיים', /כתפ|הרחק|פייס|ארנולד/],
@@ -288,25 +302,45 @@ const MUSCLE_NAMES = SV ? {
   chest: 'Bröst', shoulders: 'Axlar', triceps: 'Triceps', biceps: 'Biceps', forearms: 'Underarmar', abdominals: 'Mage',
   lats: 'Lats', 'middle back': 'Mellersta ryggen', 'lower back': 'Ländrygg', traps: 'Trapezius', neck: 'Nacke',
   quadriceps: 'Framsida lår', hamstrings: 'Baksida lår', glutes: 'Säte', calves: 'Vader', adductors: 'Adduktorer', abductors: 'Abduktorer',
+  'chest:upper': 'Övre bröst', 'chest:mid': 'Mellersta bröst', 'chest:lower': 'Nedre bröst',
+  'shoulders:front': 'Främre axel', 'shoulders:side': 'Sidoaxel', 'shoulders:rear': 'Bakre axel',
+  'biceps:long': 'Biceps, långa huvudet', 'biceps:short': 'Biceps, korta huvudet',
+  'triceps:long': 'Triceps, långa huvudet', 'triceps:lat': 'Triceps, laterala huvudet',
+  'abdominals:upper': 'Övre mage', 'abdominals:lower': 'Nedre mage', 'abdominals:obliques': 'Sneda bukmuskler',
 } : {
   chest: 'חזה', shoulders: 'כתפיים', triceps: 'יד אחורית', biceps: 'יד קדמית', forearms: 'אמות', abdominals: 'בטן',
   lats: 'רחב גבי', 'middle back': 'גב אמצעי', 'lower back': 'גב תחתון', traps: 'טרפזים', neck: 'צוואר',
   quadriceps: 'ארבע ראשי', hamstrings: 'המסטרינג', glutes: 'ישבן', calves: 'תאומים', adductors: 'מקרבים', abductors: 'מרחיקים',
+  // Parts of a muscle ("muscle:part"); the figures light just that part.
+  'chest:upper': 'חזה עליון', 'chest:mid': 'חזה אמצעי', 'chest:lower': 'חזה תחתון',
+  'shoulders:front': 'כתף קדמית', 'shoulders:side': 'כתף צידית', 'shoulders:rear': 'כתף אחורית',
+  'biceps:long': 'יד קדמית, ראש ארוך', 'biceps:short': 'יד קדמית, ראש קצר',
+  'triceps:long': 'יד אחורית, ראש ארוך', 'triceps:lat': 'יד אחורית, ראש צידי',
+  'abdominals:upper': 'בטן עליונה', 'abdominals:lower': 'בטן תחתונה', 'abdominals:obliques': 'אלכסונים',
 };
 // [name pattern, primary, secondary], most specific first.
 const MUSCLE_HINTS = [
-  [/פרפר הפוך|פייס פול/, ['shoulders'], ['traps', 'middle back']],
-  [/מקבילים/, ['triceps', 'chest'], ['shoulders']],
-  [/פרפר|פק דק|פלאי/, ['chest'], ['shoulders']],
-  [/חזה|שכיבות סמיכה/, ['chest'], ['shoulders', 'triceps']],
-  [/הרחק/, ['shoulders'], ['traps']],
-  [/כתפ|צבאית|ארנולד/, ['shoulders'], ['triceps', 'traps']],
+  [/פרפר הפוך|פייס פול/, ['shoulders:rear'], ['traps', 'middle back']],
+  [/חתירה לסנטר/, ['shoulders:side', 'traps'], ['shoulders:front']],
+  [/הרמה קדמית/, ['shoulders:front'], ['shoulders:side']],
+  [/לחיצת חזה צרה/, ['triceps'], ['chest', 'shoulders:front']],
+  [/מקבילים/, ['triceps', 'chest:lower'], ['shoulders:front', 'chest:mid']],
+  [/(חזה|פרפר) בשיפוע/, ['chest:upper'], ['shoulders:front', 'triceps']],
+  [/חזה בירידה/, ['chest:lower', 'chest:mid'], ['triceps', 'shoulders:front']],
+  [/פרפר|פק דק|פלאי/, ['chest'], ['shoulders:front']],
+  [/חזה|שכיבות סמיכה/, ['chest'], ['shoulders:front', 'triceps']],
+  [/הרחק/, ['shoulders:side'], ['traps']],
+  [/כתפ|צבאית|ארנולד/, ['shoulders:front', 'shoulders:side'], ['triceps', 'traps']],
   [/שראג/, ['traps'], ['forearms']],
   [/פול ?אובר/, ['lats'], ['chest', 'triceps']],
   [/מתח|פולי עליון/, ['lats'], ['biceps', 'middle back']],
-  [/חתיר|פולי תחתון/, ['middle back', 'lats'], ['biceps', 'traps', 'shoulders']],
+  [/חתיר|פולי תחתון/, ['middle back', 'lats'], ['biceps', 'traps', 'shoulders:rear']],
+  [/פשיטת גב|היפראקסט/, ['lower back'], ['glutes', 'hamstrings']],
   [/פלאנק/, ['abdominals'], ['shoulders', 'lower back']],
-  [/בטן|כפיפות גו|קראנץ|הרמות רגליים/, ['abdominals'], []],
+  [/טוויסט|אלכסונ/, ['abdominals:obliques'], ['abdominals']],
+  [/הרמות רגליים|כפיפות בטן הפוכות/, ['abdominals:lower'], ['abdominals:upper']],
+  [/כפיפות בטן|קראנץ/, ['abdominals:upper'], ['abdominals:lower']],
+  [/בטן|כפיפות גו/, ['abdominals'], []],
   [/רומני|RDL|גוד מורנינג/i, ['hamstrings', 'glutes'], ['lower back']],
   [/דדליפט/, ['lower back', 'glutes', 'hamstrings'], ['quadriceps', 'traps', 'forearms']],
   [/היפ|גשר/, ['glutes'], ['hamstrings']],
@@ -318,11 +352,12 @@ const MUSCLE_HINTS = [
   [/סקוואט|לחיצת רגליים|מכרע|לאנג|האק|גובלט/, ['quadriceps', 'glutes'], ['hamstrings', 'adductors']],
   [/פטיש/, ['biceps', 'forearms'], []],
   [/כפיפת מרפק|כפיפות מרפק|בייספס/, ['biceps'], ['forearms']],
-  [/פשיטת מרפק|פשיטות מרפק|טרייספס|פרנץ|סקאל/, ['triceps'], []],
+  [/מעל הראש|פרנץ/, ['triceps:long'], ['triceps:lat']],
+  [/פשיטת מרפק|פשיטות מרפק|טרייספס|סקאל/, ['triceps'], []],
 ];
 // When the name says nothing more specific: what the body area mostly works.
 const AREA_MUSCLES = {
-  'חזה': [['chest'], ['shoulders', 'triceps']], 'גב': [['lats', 'middle back'], ['biceps', 'traps']],
+  'חזה': [['chest'], ['shoulders:front', 'triceps']], 'גב': [['lats', 'middle back'], ['biceps', 'traps']],
   'כתפיים': [['shoulders'], ['triceps', 'traps']], 'רגליים': [['quadriceps', 'glutes'], ['hamstrings', 'calves']],
   'יד קדמית': [['biceps'], ['forearms']], 'יד אחורית': [['triceps'], []], 'בטן': [['abdominals'], []],
 };
@@ -335,51 +370,81 @@ function musclesFor(name, area = groupOf(name)) {
   return { p, s };
 }
 
-// Front and back figures; each part is tagged with the muscle it stands for.
-const BODY_FRONT = [
-  ['', '<circle cx="25" cy="8" r="5.5"/><rect x="22.5" y="13" width="5" height="4"/><path d="M18 47h14l1.5 6h-17z"/><circle cx="7" cy="56" r="2.3"/><circle cx="43" cy="56" r="2.3"/><ellipse cx="20" cy="83" rx="3" ry="2.5"/><ellipse cx="30" cy="83" rx="3" ry="2.5"/><ellipse cx="19.5" cy="110" rx="3.2" ry="2"/><ellipse cx="30.5" cy="110" rx="3.2" ry="2"/>'],
-  ['traps', '<path d="M19.5 18l3-1.5h5l3 1.5-2 1.5h-7z"/>'],
-  ['shoulders', '<ellipse cx="13.5" cy="21.5" rx="4.8" ry="4.3"/><ellipse cx="36.5" cy="21.5" rx="4.8" ry="4.3"/>'],
-  ['chest', '<rect x="16.5" y="19" width="8.2" height="10.5" rx="3"/><rect x="25.3" y="19" width="8.2" height="10.5" rx="3"/>'],
-  ['biceps', '<ellipse cx="10.5" cy="32" rx="3.2" ry="6.8"/><ellipse cx="39.5" cy="32" rx="3.2" ry="6.8"/>'],
-  ['forearms', '<ellipse cx="8.3" cy="46" rx="2.8" ry="7"/><ellipse cx="41.7" cy="46" rx="2.8" ry="7"/>'],
-  ['abdominals', '<rect x="18.5" y="30.5" width="13" height="16" rx="3"/>'],
-  ['quadriceps', '<ellipse cx="20" cy="68" rx="4.6" ry="12"/><ellipse cx="30" cy="68" rx="4.6" ry="12"/>'],
-  ['adductors', '<ellipse cx="23.6" cy="62" rx="1.5" ry="6"/><ellipse cx="26.4" cy="62" rx="1.5" ry="6"/>'],
-  ['calves', '<ellipse cx="19.8" cy="96" rx="3" ry="10"/><ellipse cx="30.2" cy="96" rx="3" ry="10"/>'],
-];
-const BODY_BACK = [
-  ['', '<circle cx="25" cy="8" r="5.5"/><circle cx="7" cy="56" r="2.3"/><circle cx="43" cy="56" r="2.3"/><ellipse cx="20" cy="83" rx="3" ry="2.5"/><ellipse cx="30" cy="83" rx="3" ry="2.5"/><ellipse cx="19.5" cy="110" rx="3.2" ry="2"/><ellipse cx="30.5" cy="110" rx="3.2" ry="2"/>'],
-  ['shoulders', '<ellipse cx="13.5" cy="21.5" rx="4.8" ry="4.3"/><ellipse cx="36.5" cy="21.5" rx="4.8" ry="4.3"/>'],
-  ['lats', '<path d="M16.5 24l4.5 3.5 1.5 13-4.5-1.5q-3-7-1.5-15z"/><path d="M33.5 24l-4.5 3.5-1.5 13 4.5-1.5q3-7 1.5-15z"/>'],
-  ['middle back', '<rect x="21.5" y="25" width="7" height="11" rx="2"/>'],
-  ['traps', '<path d="M22.5 13h5v3l3.5 2-6 8-6-8 3.5-2z"/>'],
-  ['lower back', '<rect x="20.5" y="37" width="9" height="9.5" rx="2.5"/>'],
-  ['triceps', '<ellipse cx="10.5" cy="32" rx="3.2" ry="6.8"/><ellipse cx="39.5" cy="32" rx="3.2" ry="6.8"/>'],
-  ['forearms', '<ellipse cx="8.3" cy="46" rx="2.8" ry="7"/><ellipse cx="41.7" cy="46" rx="2.8" ry="7"/>'],
-  ['glutes', '<ellipse cx="21" cy="53" rx="4.6" ry="5.5"/><ellipse cx="29" cy="53" rx="4.6" ry="5.5"/>'],
-  ['abductors', '<ellipse cx="15.8" cy="54" rx="1.5" ry="4.5"/><ellipse cx="34.2" cy="54" rx="1.5" ry="4.5"/>'],
-  ['hamstrings', '<ellipse cx="20.3" cy="70" rx="4.3" ry="10"/><ellipse cx="29.7" cy="70" rx="4.3" ry="10"/>'],
-  ['calves', '<ellipse cx="19.8" cy="94" rx="3.4" ry="9"/><ellipse cx="30.2" cy="94" rx="3.4" ry="9"/>'],
-];
-// Drawn on top so the two sides read apart at a glance: a face and navel in front, hair and spine behind.
-const BODY_MARKS = {
-  front: '<circle cx="23" cy="7.5" r=".8"/><circle cx="27" cy="7.5" r=".8"/><path d="M23.3 10.6q1.7 1.2 3.4 0" fill="none"/><circle cx="25" cy="42" r=".7"/>',
-  back: '<path class="hair" d="M19.5 8.5a5.5 5.5 0 0 1 11 0q-1 3.5-5.5 4.2-4.5-.7-5.5-4.2z"/><path d="M25 17v30" fill="none"/>',
+// Front and back figures. Each part is [muscle, part of it, outline of the left half]; the right half is the same
+// outline mirrored unless the fourth item is false. A muscle lights up when the list names it ("chest") or this
+// part of it ("chest:upper"). Parts with no muscle are skin: head, hands, knees and feet.
+const BODY_FIG = {
+  front: [
+    ['', '', 'M50 3.6c-5.6 0-9.3 4.4-9.3 10.6 0 4.2 1.6 7.6 4 9.6l.3 4.6h10l.3-4.6c2.4-2 4-5.4 4-9.6 0-6.2-3.7-10.6-9.3-10.6z', false],
+    ['', '', 'M15.4 105.6c-2.4 2.6-3.4 6.2-2.8 9.8.4 2.4 1.6 4 3.2 4 1.9 0 3.3-2.3 3.6-5.4l.4-8.2z'],
+    ['', '', 'M36 139.8c-.6 3.2.6 6.4 3 7.9 2.6 1.3 5 .2 6-2.7l.7-5c-3 1.6-6.4 1.6-9.7-.2z'],
+    ['', '', 'M37.2 192l4.6.2c.9 3 2.2 6.2 2 8.8-.2 1.4-1.6 2.2-3.4 2.2h-6c-1.4 0-2-1.2-1.2-2.8z'],
+    ['traps', '', 'M45.2 27.6Q41 31.6 34.5 34.2L44.6 35.2z'],
+    ['shoulders', 'front', 'M34.5 34.6Q27.5 34.4 24.6 39.2Q27.6 44 28.4 51.6Q30.6 44.6 35.6 41.4z'],
+    ['shoulders', 'side', 'M24.3 39.5Q20.4 43.4 20.6 50.4Q21.8 54.6 24.3 57Q27 55 28.1 52.2Q27.2 44.2 24.3 39.5z'],
+    ['chest', 'upper', 'M49.3 36.4L36.8 36.3Q33.6 38.6 32.6 42.6Q41 41 49.3 41.6z'],
+    ['chest', 'mid', 'M49.3 42.3Q41 41.7 32.5 43.3Q31.4 47 32 50.2Q41 48.8 49.3 49.4z'],
+    ['chest', 'lower', 'M49.3 50.1Q41 49.5 32.2 50.9Q33.4 54.6 36.4 56.4Q43 58.4 49.3 55.8z'],
+    ['biceps', 'long', 'M24.6 57.6Q21.2 59.6 20.4 66.4Q20 73.6 21.8 78.6L24.6 77.6Q24.4 68 26 58.2z'],
+    ['biceps', 'short', 'M26.3 57.6Q24.8 68 24.9 77.6Q27.6 76.6 28.6 70.6Q29.6 62.6 28.6 53.4Q27.4 55.6 26.3 57.6z'],
+    ['forearms', '', 'M21.2 80.4Q17.4 84 16.2 92Q15.2 99.6 15.4 105.6L19.8 106Q23 98.4 25.2 90.2Q26.8 84.4 26.2 79Q23.6 79 21.2 80.4z'],
+    ['abdominals', 'obliques', 'M36.4 57.4Q33.4 60.8 33.6 68.4Q34.2 78.4 37.2 86Q40 89.6 42.6 90.6L42.4 57.8Q39.4 57 36.4 57.4z'],
+    ['abdominals', 'upper', 'M43.6 57.6Q46.4 56.8 49.3 57.2V64.2H43.6z'],
+    ['abdominals', 'upper', 'M43.6 65.2H49.3V71.8H43.6z'],
+    ['abdominals', 'lower', 'M43.6 72.8H49.3V80H43.7z'],
+    ['abdominals', 'lower', 'M43.7 81H49.3V96.6Q45.4 93.4 43.7 88z'],
+    ['quadriceps', '', 'M37.2 91Q31.2 100 31 116Q31.6 130 35.8 139.4Q41 142.6 45.8 138.4Q47.6 125 46.6 111L43.8 97.6Q41 92.6 37.2 91z'],
+    ['quadriceps', '', 'M45.6 125.6Q42.4 130.6 42.2 136.6Q44.2 139.4 45.8 138.4Q47.2 132 45.6 125.6z'],
+    ['adductors', '', 'M44 97.6L46.6 111Q47.8 104.6 49 99.6V96.6Q46.2 95.2 44 97.6z'],
+    ['calves', '', 'M36.2 150Q33 160 33.8 172Q35.4 184 37.4 191.6L41.4 191.8Q44 178.4 44.6 165Q44.8 155 42.6 148.4Q39 147.6 36.2 150z'],
+  ],
+  back: [
+    ['', '', 'M50 3.6c-5.6 0-9.3 4.4-9.3 10.6 0 4.2 1.6 7.6 4 9.6l.3 4.6h10l.3-4.6c2.4-2 4-5.4 4-9.6 0-6.2-3.7-10.6-9.3-10.6z', false],
+    ['', '', 'M15.4 105.6c-2.4 2.6-3.4 6.2-2.8 9.8.4 2.4 1.6 4 3.2 4 1.9 0 3.3-2.3 3.6-5.4l.4-8.2z'],
+    ['', '', 'M36.8 144.6Q40.8 146.8 44.8 145L44.4 148Q40.6 149.4 37.2 147.8z'],
+    ['', '', 'M37 192L42 192Q43 197 42 202L36.6 202Q35.6 197 37 192z'],
+    ['traps', '', 'M50 26.6L44.6 29.8Q39.4 33 33.6 35.4Q39.8 39.4 44.2 45.6L50 58.6z'],
+    ['shoulders', 'rear', 'M33.4 35.8Q26.4 35.6 23 40.6Q22.6 46.4 23.6 52Q27.4 46.4 31.6 44Q34.6 41.4 33.4 35.8z'],
+    ['shoulders', 'side', 'M22.8 40.8Q19.6 45.6 20.6 52.8L23.4 52.4Q22.4 46.6 22.8 40.8z'],
+    ['middle back', '', 'M31.6 44.6Q28.4 48.6 30.2 53.4Q35.4 55.4 40.4 53.6L43.8 46.4Q38.4 41.8 31.6 44.6z'],
+    ['middle back', '', 'M44.4 47Q42.6 51.4 41.2 54.6Q45.4 59.6 49.3 61.4V59.6z'],
+    ['lats', '', 'M30.4 54.6Q29.2 62.4 32 72Q35.6 81.6 41.6 88L44.4 86.6V66.4Q42.6 60 40.8 55Q35.4 56.6 30.4 54.6z'],
+    ['lower back', '', 'M45 64.4Q44.4 77 45 91.4Q47.4 93.4 49.3 93.4V62.6Q47 62.8 45 64.4z'],
+    ['triceps', 'lat', 'M23.4 53.4Q20 58.4 19.6 66Q19.8 73.2 21.8 78.2L24.8 76.4Q24.4 66 26.4 56.4z'],
+    ['triceps', 'long', 'M26.6 56.2Q24.6 66 25.1 76.2L28.4 78.8Q30 70 29.4 58.4Q28.2 55.2 26.6 56.2z'],
+    ['forearms', '', 'M21.2 80.4Q17.4 84 16.2 92Q15.2 99.6 15.4 105.6L19.8 106Q23 98.4 25.2 90.2Q26.8 84.4 26.2 79Q23.6 79 21.2 80.4z'],
+    ['abductors', '', 'M36.4 87.6Q32.4 91.6 32.6 99.6Q35.2 95 38.2 92.8Q40.2 90.4 42.2 89.2Q39.4 87 36.4 87.6z'],
+    ['glutes', '', 'M49.3 94.4Q44 91 38.2 93.2Q33.2 98 33.6 106Q36 114 43 114.4Q47.6 113.6 49.3 110.4z'],
+    ['hamstrings', '', 'M34.2 115.4Q31.6 125 33 136Q35 142 38.6 144L41 140Q40 128 41 116.2Q37.6 116.6 34.2 115.4z'],
+    ['hamstrings', '', 'M41.4 116.2Q40.4 128 41.4 140L44.6 143Q47.2 135 47.1 124Q47 117.4 45.2 114.4Q43.4 115.8 41.4 116.2z'],
+    ['adductors', '', 'M47.4 116Q48.4 122 47.6 130L49 128V113.6z'],
+    ['calves', '', 'M34.6 170.8Q36.2 182 37.6 191.6L41.8 191.8Q43.8 182 45 171Q43 176 40.8 173.4Q38.6 176 34.6 170.8z'],
+    ['calves', '', 'M35.6 148.2Q32.2 155.6 33 165Q34.8 172 38.6 174.2L40.6 168.4V149.2Q38 147.6 35.6 148.2z'],
+    ['calves', '', 'M41 149.2V168.4L42.8 174.4Q46.2 168.4 46.2 158.4Q45.8 150.4 43 147.6Q42 148.6 41 149.2z'],
+  ],
 };
-const bodySvg = (parts, m, side, label) => `
-  <figure class="body-fig">
-    <svg viewBox="0 0 50 114">${parts.map(([k, shapes]) =>
-      `<g class="${m.p.includes(k) ? 'mp' : m.s.includes(k) ? 'ms' : ''}">${shapes}</g>`).join('')}<g class="marks">${BODY_MARKS[side]}</g></svg>
-    <figcaption>${label}</figcaption>
-  </figure>`;
+// Hair and spine on the back figure, so the two sides read apart at a glance.
+const BODY_MARKS = {
+  front: '',
+  back: '<path class="hair" d="M41 12.6Q41.2 4 50 3.6Q58.8 4 59 12.6Q55 9.4 50 9.4Q45 9.4 41 12.6z"/><path class="spine" d="M50 27V93"/>',
+};
+const figHit = (list, mu, part) => list.includes(mu) || (!!part && list.includes(`${mu}:${part}`));
+// The figure's SVG. m: {p, s}, the muscles (or muscle parts) to light as primary and secondary.
+function bodyFig(side, m) {
+  const flip = ' transform="matrix(-1 0 0 1 100 0)"';
+  return `<svg class="fig" viewBox="0 0 100 206" aria-hidden="true">${BODY_FIG[side].map(([mu, part, d, both = true]) => {
+    const c = mu ? `mu${figHit(m.p, mu, part) ? ' mp' : figHit(m.s || [], mu, part) ? ' ms' : ''}` : 'sk';
+    return `<path class="${c}" d="${d}"/>${both ? `<path class="${c}" d="${d}"${flip}/>` : ''}`;
+  }).join('')}${BODY_MARKS[side]}</svg>`;
+}
+const bodySvg = (side, m, label) => `<figure class="body-fig">${bodyFig(side, m)}<figcaption>${label}</figcaption></figure>`;
 const muscleNames = (list) => list.map((k) => MUSCLE_NAMES[k] || k).join(', ');
 const muscleMap = (name, area) => muscleMapOf(musclesFor(name, area));
 function muscleMapOf(m) {
   if (!m.p.length) return '';
   return `
     <div class="muscles">
-      <div class="muscle-figs" aria-hidden="true">${bodySvg(BODY_FRONT, m, 'front', L('קדימה', 'Framsida'))}${bodySvg(BODY_BACK, m, 'back', L('אחורה', 'Baksida'))}</div>
+      <div class="muscle-figs" aria-hidden="true">${bodySvg('front', m, L('קדימה', 'Framsida'))}${bodySvg('back', m, L('אחורה', 'Baksida'))}</div>
       <div class="muscle-list">
         <div><i class="dot mp"></i><b>${L('ראשי:', 'Primära:')}</b> ${esc(muscleNames(m.p))}</div>
         ${m.s.length ? `<div><i class="dot ms"></i><b>${L('משני:', 'Sekundära:')}</b> ${esc(muscleNames(m.s))}</div>` : ''}

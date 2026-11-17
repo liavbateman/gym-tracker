@@ -9,6 +9,9 @@
   --hl: #E6F53A;        /* highlighter: done sets, what's next */
   --hl-ink: #14234B;
   --red: #D2283C;       /* correction pen: records, deleting */
+  --fig-skin: #EEF1F3;
+  --fig-mu: #D3DAE1;
+  --fig-line: #8C99A9;
   --mus-1: #E5332A;     /* muscles: main movers */
   --mus-2: #F5961E;     /* muscles: helpers */
   --field: #FFFFFF;
@@ -31,6 +34,9 @@
     --hl: #DCEB3B;
     --hl-ink: #0F141C;
     --red: #FF5A6A;
+    --fig-skin: #283140;
+    --fig-mu: #364256;
+    --fig-line: #6B7A91;
     --mus-1: #FF4D3D;
     --mus-2: #FFA53A;
     --field: #0F141C;
@@ -320,7 +326,14 @@ label.field input, label.field select { margin-top: 4px; color: var(--ink); }
 .muscle-figs { display: flex; gap: 8px; flex: none; }
 .body-fig { margin: 0; text-align: center; }
 .body-fig + .body-fig { padding-inline-start: 8px; border-inline-start: 1px dashed var(--rule); }
-.muscle-figs svg { width: 42px; height: 96px; display: block; }
+.muscle-figs svg { width: 50px; height: 103px; display: block; }
+/* Body figures: muscles in plates with thin anatomy lines; the worked ones in red (main) and orange (helping). */
+.fig .sk { fill: var(--fig-skin); stroke: var(--fig-line); stroke-width: .45; }
+.fig .mu { fill: var(--fig-mu); stroke: var(--fig-line); stroke-width: .45; stroke-linejoin: round; }
+.fig .mu.ms { fill: var(--mus-2); }
+.fig .mu.mp { fill: var(--mus-1); }
+.fig .hair { fill: var(--fig-line); }
+.fig .spine { fill: none; stroke: var(--fig-line); stroke-width: .5; stroke-dasharray: 1.4 1.2; }
 .muscle-figs .marks { fill: var(--ink-soft); stroke: var(--ink-soft); stroke-width: .7; stroke-linecap: round; }
 .muscle-figs .marks .hair { stroke: none; }
 .body-fig figcaption { font-size: 11px; line-height: 1; margin-top: 3px; color: var(--ink-soft); font-weight: 700; }
@@ -893,10 +906,18 @@ body.sheet-open { overflow: hidden; }
   background: none; color: var(--ink-soft); font: inherit; font-size: 12px; font-weight: 600; line-height: 1.1;
 }
 .lib-area.on { border-color: var(--ink); color: var(--ink); background: var(--sheet); }
-.lib-fig { display: flex; align-items: center; justify-content: center; height: 64px; }
-.lib-fig svg { width: 28px; height: 64px; display: block; }
-.lib-fig g { fill: var(--rule); }
-.lib-fig g.mp { fill: var(--mus-1); }
+.lib-fig { display: flex; align-items: center; justify-content: center; height: 66px; }
+.lib-fig svg { width: 32px; height: 66px; display: block; }
+.lib-parts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.lib-part { border: 1px solid var(--rule); border-radius: 999px; padding: 6px 12px; background: var(--field); color: var(--ink); font: inherit; font-size: 13px; font-weight: 600; }
+.lib-part.on { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.lib-sec-head { display: flex; align-items: center; gap: 10px; margin: 22px 0 10px; }
+.lib-sec-head h2 { margin: 0 0 4px; }
+.lib-sec-fig svg { width: 34px; height: 70px; display: block; }
+.lib-target { display: flex; justify-content: center; gap: 24px; padding: 12px 0 6px; margin-top: 8px; border: 1px solid var(--rule); border-radius: 10px; background: var(--field); }
+.lib-target svg { width: 96px; height: 198px; display: block; }
+.lib-target figcaption { font-size: 12px; margin-top: 4px; color: var(--ink-soft); font-weight: 700; text-align: center; }
+.lib-target + .muscle-list { margin-top: 8px; }
 .lib-bm svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
 .lib-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .lib-card { position: relative; }
