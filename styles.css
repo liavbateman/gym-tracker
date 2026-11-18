@@ -978,6 +978,14 @@ body.sheet-open { overflow: hidden; }
 .lib-tpl.on { border-color: var(--hl); background: var(--hl); color: var(--hl-ink); opacity: 1; }
 .lib-forme { margin-top: 14px; padding: 12px 16px 10px; margin-inline: -16px; background: var(--sheet); border-block: 1px solid var(--rule); }
 .lib-forme .lib-similar { margin-top: 10px; }
+.lib-map { display: flex; justify-content: center; gap: 18px; margin-top: 10px; padding: 14px 0 10px; border: 1px solid var(--rule); border-radius: 12px; background: var(--field); }
+.lib-map figure { margin: 0; text-align: center; }
+.lib-map svg { width: min(40vw, 150px); height: auto; aspect-ratio: 100 / 206; display: block; }
+.lib-map figcaption { font-size: 12px; font-weight: 700; color: var(--ink-soft); margin-top: 4px; }
+.fig.tap .mu { cursor: pointer; }
+.fig.tap .mu:active { fill: var(--ink); }
+.lib-map-key { display: flex; justify-content: center; gap: 14px; margin-top: 8px; font-size: 12px; color: var(--ink-soft); }
+.lib-map-key .dot:not(.mp):not(.ms) { background: var(--fig-mu); border: 1px solid var(--fig-line); }
 .lib-mine-box { margin-top: 14px; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 10px; background: var(--field); }
 .lib-mine-box .chips { margin-top: 8px; }
 .lib-save-btn { display: inline-flex; align-items: center; gap: 6px; }

@@ -244,6 +244,38 @@ function libWeek() {
   return { area, part, recent };
 }
 
+// Body map: tap a muscle to open its part of the library. Colored by this week's sets, so it doubles as a
+// picture of what's been trained: red = a full week's worth, orange = some, grey = none.
+function libMap() {
+  const p = [], s = [];
+  for (const [k, n] of libWk.part) (n >= 6 ? p : n > 0 ? s : []).push(k);
+  const m = { p, s };
+  return `
+    <p class="muted small" style="margin:14px 0 0">${L('לחץ על שריר כדי לראות את התרגילים שלו.', 'Tryck på en muskel för att se dess övningar.')}</p>
+    <div class="lib-map">
+      <figure>${bodyFig('front', m, true)}<figcaption>${L('קדימה', 'Framsida')}</figcaption></figure>
+      <figure>${bodyFig('back', m, true)}<figcaption>${L('אחורה', 'Baksida')}</figcaption></figure>
+    </div>
+    <div class="lib-map-key">
+      <span><i class="dot mp"></i>${L('6+ סטים השבוע', '6+ set i veckan')}</span>
+      <span><i class="dot ms"></i>${L('מעט', 'Lite')}</span>
+      <span><i class="dot"></i>${L('לא אומן', 'Inte tränad')}</span>
+    </div>`;
+}
+
+// The library part a tapped muscle belongs to: its own part ("chest:upper") if the library has one, else the muscle.
+function libPartOf(mu, part) {
+  const want = mu === 'abductors' ? 'adductors' : mu;
+  for (const pass of [0, 1]) {
+    for (const [area, parts] of Object.entries(LIBRARY)) {
+      for (const [k] of parts) {
+        if (pass === 0 ? k === `${want}:${part}` || (!part && k === want) : k === want || k.split(':')[0] === want) return [area, k];
+      }
+    }
+  }
+  return null;
+}
+
 // "Recommended now": the three parts with the fewest sets this week, from areas not trained in the last 48 hours
 // (they're still recovering), at most one per area. For each, an exercise you've done before if there is one.
 function libForMe(hist) {
@@ -333,6 +365,9 @@ function libStrip() {
       <button class="lib-area ${area === 'saved' ? 'on' : ''}" data-act="lib-area" data-a="saved" role="tab" aria-selected="${area === 'saved'}">
         <span class="lib-fig lib-bm">${BOOKMARK}</span><span>${L('שמורים', 'Sparade')}</span>
       </button>
+      <button class="lib-area ${area === 'map' ? 'on' : ''}" data-act="lib-area" data-a="map" role="tab" aria-selected="${area === 'map'}">
+        <span class="lib-fig lib-bm"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="4.5" r="2.5"/><path d="M7 9h10M12 9v6M9 21l3-6 3 6"/></svg></span><span>${L('מפת גוף', 'Kroppskarta')}</span>
+      </button>
       ${LIB_AREAS.map(([a, side]) => `
         <button class="lib-area ${a === area ? 'on' : ''}" data-act="lib-area" data-a="${a}" role="tab" aria-selected="${a === area}">
           <span class="lib-fig">${bodyFig(side, { p: GROUP_MUSCLES[a] || [], s: [] })}</span><span>${gName(a)}</span>${areaWeekTag(a)}
@@ -345,6 +380,7 @@ function libStrip() {
 function libBody() {
   const lb = ui.lib, area = lb.area, hist = libHistory();
   if (ui.libQ?.trim()) return libSearch(ui.libQ.trim(), hist);
+  if (area === 'map') return libMap();
   let body;
   if (area === 'saved') {
     const list = Object.entries(libSaved());

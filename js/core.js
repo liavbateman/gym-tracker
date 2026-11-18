@@ -435,11 +435,13 @@ const BODY_MARKS = {
 };
 const figHit = (list, mu, part) => list.includes(mu) || (!!part && list.includes(`${mu}:${part}`));
 // The figure's SVG. m: {p, s}, the muscles (or muscle parts) to light as primary and secondary.
-function bodyFig(side, m) {
+// tap: each muscle becomes a button for the exercise library's body map.
+function bodyFig(side, m, tap = false) {
   const flip = ' transform="matrix(-1 0 0 1 100 0)"';
-  return `<svg class="fig" viewBox="0 0 100 206" aria-hidden="true">${BODY_FIG[side].map(([mu, part, d, both = true]) => {
+  return `<svg class="fig${tap ? ' tap' : ''}" viewBox="0 0 100 206" aria-hidden="true">${BODY_FIG[side].map(([mu, part, d, both = true]) => {
     const c = mu ? `mu${figHit(m.p, mu, part) ? ' mp' : figHit(m.s || [], mu, part) ? ' ms' : ''}` : 'sk';
-    return `<path class="${c}" d="${d}"/>${both ? `<path class="${c}" d="${d}"${flip}/>` : ''}`;
+    const a = tap && mu ? ` data-act="lib-map" data-mu="${mu}" data-part="${part}"` : '';
+    return `<path class="${c}" d="${d}"${a}/>${both ? `<path class="${c}" d="${d}"${flip}${a}/>` : ''}`;
   }).join('')}${BODY_MARKS[side]}</svg>`;
 }
 const bodySvg = (side, m, label) => `<figure class="body-fig">${bodyFig(side, m)}<figcaption>${label}</figcaption></figure>`;
