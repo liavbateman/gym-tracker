@@ -351,7 +351,7 @@ function viewActive() {
         </div>
       </div>`).join('');
     return `
-      <div class="card">
+      <div class="card ex-card">
         <div class="row between">
           <div class="grow">
             <div class="ex-name">${esc(exName(e.name))}</div>

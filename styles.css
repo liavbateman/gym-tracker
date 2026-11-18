@@ -442,6 +442,11 @@ input[type=date].pill-in, .pill-in {
 .area-div b { font-family: var(--display); font-size: 28px; line-height: 1; }
 .area-div span { font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
 .area-div::after { content: ''; flex: 1; border-top: 2px solid var(--ink); align-self: center; }
+/* Workout exercise card: the muscles as a slim dashed strip at the bottom, not a big framed box. */
+.ex-card .muscles { margin-top: 10px; padding: 6px 8px; gap: 10px; border-style: dashed; }
+.ex-card .muscle-figs svg { width: 30px; height: 62px; }
+.ex-card .body-fig figcaption { display: none; }
+.ex-card .muscle-list { font-size: 12px; line-height: 1.45; }
 /* Template editor card: one compact block per exercise. Sets, reps, rest and weight sit in one row of four
    small fields (they took a 2x2 grid of big inputs), the area under them, the muscles as a slim strip. */
 .tex { background: var(--sheet); border: 1px solid var(--rule); border-radius: 12px; padding: 10px; margin-bottom: 10px; }
