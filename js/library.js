@@ -174,33 +174,59 @@ function closeLibrary() {
 
 const inWorkout = (name) => !!db.active?.exercises.some((x) => x.name === name);
 
-function libCard(name, id, area, sub, english) {
-  const saved = !!libSaved()[name], here = inWorkout(name);
+// Your own record with each exercise, gathered once per screen: name -> {n: workouts, t: last time, top: that day's heaviest set}.
+function libHistory() {
+  const h = new Map();
+  for (const w of sortedWorkouts()) {
+    for (const e of w.exercises) {
+      const sets = work(e.sets).filter((s) => num(s.r) != null);
+      if (!sets.length) continue;
+      const cur = h.get(e.name);
+      if (cur) { cur.n++; continue; }
+      const top = sets.reduce((a, s) => ((num(s.w) || 0) > (num(a.w) || 0) || ((num(s.w) || 0) === (num(a.w) || 0) && num(s.r) > num(a.r)) ? s : a));
+      h.set(e.name, { n: 1, t: w.start, top });
+    }
+  }
+  return h;
+}
+const setText = (s) => (num(s.w) ? `${fmtW(num(s.w))}×${num(s.r)}` : `${num(s.r)} ${L('חזרות', 'reps')}`);
+function agoText(t) {
+  const d = Math.round((Date.now() - t) / 86400000);
+  if (d <= 0) return L('היום', 'i dag');
+  if (d === 1) return L('אתמול', 'i går');
+  if (d < 14) return L(`לפני ${d} ימים`, `för ${d} dagar sedan`);
+  if (d < 60) return L(`לפני ${Math.round(d / 7)} שבועות`, `för ${Math.round(d / 7)} veckor sedan`);
+  return L(`לפני ${Math.round(d / 30)} חודשים`, `för ${Math.round(d / 30)} månader sedan`);
+}
+
+function libCard(name, id, area, sub, english, hist) {
+  const saved = !!libSaved()[name], here = inWorkout(name), mine = hist?.get(name);
   return `
-    <div class="lib-card ${here ? 'here' : ''}">
+    <div class="lib-card ${here ? 'here' : ''} ${mine ? 'mine' : ''}">
       <button class="lib-open" data-act="lib-ex" data-name="${esc(name)}" data-id="${esc(id)}" data-area="${esc(area)}">
         ${demoAnim(libImages(id))}
         <span class="lib-name" ${english ? 'dir="ltr"' : ''}>${esc(english ? name : exName(name))}</span>
         <span class="muted small">${here ? L('✓ באימון', '✓ I passet') : esc(sub)}</span>
+        ${mine ? `<span class="lib-mine"><b dir="ltr">${esc(setText(mine.top))}</b> · ${esc(agoText(mine.t))}</span>` : ''}
       </button>
       <button class="lib-save ${saved ? 'on' : ''}" data-act="lib-save" data-name="${esc(name)}" data-id="${esc(id)}" data-area="${esc(area)}" aria-pressed="${saved}" aria-label="${L('שמור', 'Spara')}">${BOOKMARK}</button>
     </div>`;
 }
 
 // One part of an area: a figure with that part lit, its name, and its exercises.
-function libSection(area, [part, side, list]) {
+function libSection(area, [part, side, list], hist) {
   return `
     <section class="lib-sec">
       <div class="lib-sec-head">
         <span class="lib-sec-fig">${bodyFig(side, { p: [part], s: [] })}</span>
         <div><h2>${esc(partName(part))}</h2><span class="muted small">${list.length} ${L('תרגילים', 'övningar')}</span></div>
       </div>
-      <div class="lib-grid">${list.map(([n, id]) => libCard(n, id, area, partName(part))).join('')}</div>
+      <div class="lib-grid">${list.map(([n, id]) => libCard(n, id, area, partName(part), false, hist)).join('')}</div>
     </section>`;
 }
 
 function viewLibrary() {
-  const lb = ui.lib, area = lb.area;
+  const lb = ui.lib, area = lb.area, hist = libHistory();
   const strip = `
     <div class="lib-areas" role="tablist">
       <button class="lib-area ${area === 'saved' ? 'on' : ''}" data-act="lib-area" data-a="saved" role="tab" aria-selected="${area === 'saved'}">
@@ -218,7 +244,7 @@ function viewLibrary() {
     body = list.length
       ? `<div class="lib-grid" style="margin-top:14px">${list.map(([n, s]) => {
         const it = LIB_ITEMS.get(s.id);
-        return libCard(n, s.id, s.area, it ? partName(it.part) : gName(s.area), !it);
+        return libCard(n, s.id, s.area, it ? partName(it.part) : gName(s.area), !it, hist);
       }).join('')}</div>`
       : `<p class="muted">${L('עוד לא שמרת תרגילים. לחץ על הסימנייה בכרטיס של תרגיל כדי לשמור אותו כאן.', 'Inga sparade övningar än. Tryck på bokmärket på en övning för att spara den här.')}</p>`;
   } else {
@@ -233,8 +259,8 @@ function viewLibrary() {
     if (!lb.more) more = `<button class="btn ghost block" data-act="lib-more">${L('עוד תרגילים מהמאגר (באנגלית)', 'Fler övningar från databasen (på engelska)')}</button>`;
     else if (lb.moreErr) more = `<p class="muted small">${L('אין חיבור לאינטרנט. המאגר צריך רשת.', 'Ingen internetanslutning. Databasen behöver nätet.')}</p>`;
     else if (!lb.extra) more = '<div class="center" style="padding:24px 0"><div class="spinner"></div></div>';
-    else more = `<h2>${L('עוד מהמאגר', 'Mer från databasen')}</h2><div class="lib-grid">${lb.extra.map((x) => libCard(x.name, x.id, area, x.equipment || '', true)).join('')}</div>`;
-    body = `${chips}${shown.map((p) => libSection(area, p)).join('')}${lb.part ? '' : more}`;
+    else more = `<h2>${L('עוד מהמאגר', 'Mer från databasen')}</h2><div class="lib-grid">${lb.extra.map((x) => libCard(x.name, x.id, area, x.equipment || '', true, hist)).join('')}</div>`;
+    body = `${chips}${shown.map((p) => libSection(area, p, hist)).join('')}${lb.part ? '' : more}`;
   }
   return `
     ${strip}
@@ -295,6 +321,7 @@ function viewLibEx(d) {
         ${here ? `<span class="muted small">${L('✓ כבר באימון', '✓ Redan i passet')}</span>`
           : `<button class="btn sm primary" data-act="lib-add" data-name="${esc(d.name)}" data-id="${esc(id)}" data-area="${esc(area)}">${db.active ? L('+ הוסף לאימון', '+ Lägg till i passet') : L('התחל אימון עם התרגיל', 'Starta ett pass med övningen')}</button>`}
       </div>
+      ${libMineBox(d.name)}
       <h3 style="margin-top:16px">${L('שרירי מטרה', 'Målmuskler')}</h3>
       ${m.p.length ? `
         <div class="lib-target">
@@ -306,6 +333,21 @@ function viewLibEx(d) {
         </div>` : `<p class="muted small">${L('אין מידע על השרירים.', 'Ingen muskelinformation.')}</p>`}
       ${x ? `<div class="demo-en" dir="ltr">${esc(x.name)}${x.equipment ? ` · ${esc(x.equipment)}` : ''}</div>` : ''}
       ${x?.instructions?.length ? `<ol class="demo-steps" dir="ltr">${x.instructions.map((s) => `<li>${esc(s)}</li>`).join('')}</ol>` : ''}
+    </div>`;
+}
+
+// In the sheet: what you did last time and your best, so you know what to load before you walk to the station.
+function libMineBox(name) {
+  const last = lastSetsFor(name);
+  if (!last) return '';
+  const mine = libHistory().get(name), { maxW, maxE } = bestFor(name);
+  return `
+    <div class="lib-mine-box">
+      <div class="row between"><b>${L('הפעם האחרונה שלך', 'Senast du gjorde den')}</b><span class="muted small">${mine ? esc(agoText(mine.t)) : ''}</span></div>
+      <div class="chips">${last.map((s) => `<span class="chip">${esc(setText(s))}</span>`).join('')}</div>
+      <div class="muted small" style="margin-top:6px">
+        ${mine ? L(`עשית ${mine.n} פעמים`, `Gjort ${mine.n} gånger`) : ''}${maxW && num(maxW.w) ? ` · ${L('שיא', 'Rekord')} <b dir="ltr">${esc(setText(maxW))}</b>` : ''}${maxE ? ` · 1RM ≈ <b dir="ltr">${Math.round(maxE)}</b>` : ''}
+      </div>
     </div>`;
 }
 
