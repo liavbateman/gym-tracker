@@ -154,6 +154,18 @@ const splitMus = (s) => (s ? s.split(',') : []);
 const LIB_ITEMS = new Map(Object.entries(LIBRARY).flatMap(([area, parts]) => parts.flatMap(([part, side, list]) =>
   list.map(([name, id, eq, p, s]) => [id, { name, area, part, side, eq, p: splitMus(p), s: splitMus(s) }]))));
 const LIB_IDS = new Set(LIB_ITEMS.keys());
+// A stored exercise name (either language) -> its library id; a name listed in two areas (dips) takes the one
+// in the exercise's own area.
+function libIdFor(name) {
+  const he = canon(name), g = groupOf(name);
+  let first = null;
+  for (const [id, it] of LIB_ITEMS) {
+    if (it.name !== he) continue;
+    if (it.area === g) return id;
+    first ||= id;
+  }
+  return first;
+}
 const libImages = (id) => [`${id}/0.jpg`, `${id}/1.jpg`];
 // Bookmarked library exercises: name -> {id, area}. Created on first use, so an imported backup without it still works.
 function libSaved() {

@@ -209,6 +209,18 @@ const demoAnim = (images, big) => `
 
 function openDemo(name) {
   if (!name.trim()) { toast(L('קודם תן שם לתרגיל', 'Ge övningen ett namn först')); return; }
+  // A library exercise needs no search: its demo comes from the library.
+  const lib = libIdFor(name);
+  if (!db.demos[name] && lib) {
+    libKeepDemo(name, lib, groupOf(name)); save(); render();
+    // Its steps come with the exercise data; fill them in once that's loaded.
+    loadExercises().then((list) => {
+      const x = list.find((r) => r.id === lib), d = db.demos[name];
+      if (!x || !d || d.id !== lib || d.instructions?.length) return;
+      d.instructions = x.instructions || []; save();
+      if (ui.demo?.name === name && !ui.demo.lib) renderSheet();
+    }).catch(() => {});
+  }
   ui.demo = { name, q: name, variants: [], vi: 0, vq: null, results: null, loading: false, error: '', picking: !db.demos[name] };
   renderSheet();
   if (ui.demo.picking) runDemoSearch();
@@ -250,6 +262,7 @@ function viewDemo() {
   if (!d.picking && saved) {
     body = `
       ${demoAnim(saved.images, true)}
+      ${libIdFor(d.name) ? libHowBox(libIdFor(d.name)) : ''}
       <div class="demo-en" dir="ltr">${esc(saved.name)}</div>
       ${saved.instructions?.length ? `<ol class="demo-steps" dir="ltr">${saved.instructions.map((s) => `<li>${esc(s)}</li>`).join('')}</ol>` : ''}
       <div class="row" style="margin-top:12px">
