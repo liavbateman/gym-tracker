@@ -112,6 +112,11 @@ if (!db.muscles || typeof db.muscles !== 'object') db.muscles = {}; // exercise 
 if (!db.demos || typeof db.demos !== 'object') db.demos = {}; // exercise name -> chosen technique demo
 if (!db.alts || typeof db.alts !== 'object') db.alts = {}; // exercise name -> alternatives used when it's taken
 if (!db.notes || typeof db.notes !== 'object') db.notes = {}; // exercise name -> standing note ("seat on 4"), shown every workout
+// Injury periods { id, from, to, note }: YYYY-MM-DD, `to` is the last injured day and null while it's ongoing.
+// Injury days don't count against the weekly goal, the streak or the per-week averages.
+if (!Array.isArray(db.injuries)) db.injuries = [];
+const activeInjury = () => db.injuries.find((x) => !x.to) || null;
+const injuredOn = (iso) => db.injuries.some((x) => iso >= x.from && (!x.to || iso <= x.to));
 
 // ---------- Body areas ----------
 const GROUPS = ['חזה', 'גב', 'כתפיים', 'רגליים', 'יד קדמית', 'יד אחורית', 'בטן', 'אחר'];
@@ -580,7 +585,7 @@ function ask({ title, msg = '', ok = L('אישור', 'OK'), cancel = L('ביטו
     box.innerHTML = `<div class="dlg-card${danger ? ' danger' : ''}" role="alertdialog" aria-modal="true" aria-labelledby="dlg-t"${msg ? ' aria-describedby="dlg-m"' : ''}>
       <h2 id="dlg-t">${esc(title)}</h2>
       ${msg ? `<p id="dlg-m">${esc(msg)}</p>` : ''}
-      ${input ? `<input type="${input.type === 'number' ? 'number" inputmode="numeric' : 'text'}" value="${esc(input.value)}" aria-labelledby="dlg-t">` : ''}
+      ${input ? `<input type="${input.type === 'number' ? 'number" inputmode="numeric' : input.type === 'date' ? `date" max="${esc(input.max || '')}` : 'text'}" value="${esc(input.value)}" aria-labelledby="dlg-t">` : ''}
       <div class="dlg-btns">
         <button class="btn" data-k="no">${esc(cancel)}</button>
         ${extra ? `<button class="btn" data-k="extra">${esc(extra)}</button>` : ''}
@@ -621,6 +626,6 @@ function ask({ title, msg = '', ok = L('אישור', 'OK'), cancel = L('ביטו
     // A destructive action starts on "cancel", so Enter alone can't delete anything.
     const first = field || box.querySelector(danger ? '[data-k="no"]' : '[data-k="yes"]');
     first.focus({ preventScroll: true });
-    if (field) field.select();
+    if (field && field.type !== 'date') field.select();
   });
 }

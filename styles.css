@@ -246,6 +246,11 @@ label.field input, label.field select { margin-top: 4px; color: var(--ink); }
 .week span.on { background: var(--hl); border-color: var(--hl); }
 /* Rest day: diagonal hatching. Cardio: a dot in the middle of the box. */
 .week span.rest { background: repeating-linear-gradient(135deg, var(--field) 0 5px, var(--rule) 5px 7px); }
+/* Injury day: dashed outline with hatching the other way. */
+.week span.inj { border-style: dashed; border-color: var(--ink-soft); background: repeating-linear-gradient(45deg, var(--field) 0 5px, var(--rule) 5px 7px); }
+.inj-card { border-style: dashed; }
+.inj-card .btn { margin-top: 10px; }
+.inj-row { padding: 6px 0; border-bottom: 1px solid var(--rule); gap: 10px; }
 .week span i { position: absolute; inset: 0; margin: auto; width: 8px; height: 8px; border-radius: 50%; background: var(--ink); }
 .week .today { color: var(--ink); font-weight: 700; }
 .week .today span { border: 2px solid var(--ink); }
