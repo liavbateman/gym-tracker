@@ -342,7 +342,8 @@ function libForMe(hist) {
 // "8/10": this week's sets against the low end of the area's weekly target; low until it's reached.
 function areaWeekTag(a) {
   const n = libWk?.area.get(a) || 0, lo = AREA_TARGET[a]?.[0];
-  return lo ? `<span class="lib-wk ${n >= lo ? 'ok' : n ? 'low' : 'none'}" dir="ltr">${n}/${lo}</span>` : '';
+  // A thin bar toward the target, the count beside it.
+  return lo ? `<span class="lib-wk ${n >= lo ? 'ok' : n ? 'low' : 'none'}" dir="ltr" aria-label="${n}/${lo}"><i><b style="width:${Math.min(100, Math.round(n / lo * 100))}%"></b></i>${n}/${lo}</span>` : '';
 }
 
 // The figure crop that frames a part: torso, arm, thigh or lower leg.

@@ -925,10 +925,11 @@ body.sheet-open { overflow: hidden; }
 .lib-fig { display: flex; align-items: center; justify-content: center; width: 56px; height: 56px; padding: 3px; border-radius: 16px; background: var(--field); border: 1px solid var(--rule); }
 .lib-fig svg { width: 100%; height: 100%; display: block; }
 .lib-bm svg { width: 26px; height: 26px; }
-.lib-wk { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 999px; font-variant-numeric: tabular-nums; }
-.lib-wk.ok { background: var(--hl); color: var(--hl-ink); }
-.lib-wk.low { border: 1px solid var(--mus-2); color: var(--ink); }
-.lib-wk.none { border: 1px dashed var(--rule); color: var(--ink-soft); }
+.lib-wk { display: flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.lib-wk i { display: block; width: 26px; height: 4px; border-radius: 2px; background: var(--rule); overflow: hidden; }
+.lib-wk i b { display: block; height: 100%; border-radius: 2px; background: var(--mus-2); }
+.lib-wk.ok i b { background: var(--ink); }
+.lib-wk.ok { color: var(--ink); }
 .lib-sec-wk { display: inline-block; margin-inline-start: 8px; font-size: 12px; font-weight: 700; color: var(--ink); }
 .lib-sec-wk.none { color: var(--red); }
 /* Search: one slim row with a magnifier. */
