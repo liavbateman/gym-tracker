@@ -939,8 +939,9 @@ body.sheet-open { overflow: hidden; }
 .lib-part.on { background: var(--ink); border-color: var(--ink); color: var(--paper); }
 .lib-eqs { align-items: center; margin-top: 8px; }
 .lib-eqs > .muted { flex: none; }
-.lib-eq { border: 1px dashed var(--ink-soft); border-radius: 6px; padding: 4px 10px; background: none; color: var(--ink-soft); font: inherit; font-size: 13px; font-weight: 600; }
-.lib-eq.on { border-style: solid; border-color: var(--hl); background: var(--hl); color: var(--hl-ink); }
+.lib-eq { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--rule); border-radius: 999px; padding: 5px 11px 5px 9px; background: none; color: var(--ink-soft); font: inherit; font-size: 12px; font-weight: 600; }
+.lib-eq svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.lib-eq.on { border-color: var(--hl); background: var(--hl); color: var(--hl-ink); }
 .lib-sec-head { display: flex; align-items: center; gap: 10px; margin: 22px 0 10px; }
 .lib-sec-head h2 { margin: 0 0 4px; }
 .lib-sec-fig { flex: none; width: 56px; height: 56px; padding: 4px; border-radius: 14px; background: var(--field); border: 1px solid var(--rule); }

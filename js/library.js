@@ -146,6 +146,14 @@ const PART_LABEL = {
 };
 // Equipment, so you can pick what's free at the gym right now.
 const EQUIP_KINDS = { m: L('מכונה', 'Maskin'), c: L('כבל', 'Kabel'), d: L('משקולות', 'Hantlar'), b: L('מוט', 'Skivstång'), w: L('משקל גוף', 'Kroppsvikt') };
+// Line icons for the equipment filter: a machine stack, a cable pulley, a dumbbell, a barbell, a person.
+const EQUIP_ICONS = {
+  m: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h8"/>',
+  c: '<circle cx="12" cy="5" r="2.5"/><path d="M12 7.5V17M9 20h6M12 17v3"/>',
+  d: '<path d="M7 9v6M17 9v6M4 10.5v3M20 10.5v3M7 12h10"/>',
+  b: '<path d="M2 12h20M6 8v8M18 8v8M4 10v4M20 10v4"/>',
+  w: '<circle cx="12" cy="5" r="2.2"/><path d="M8 10h8M12 10v5M9.5 20l2.5-5 2.5 5"/>',
+};
 const DB_EQUIP = { machine: 'm', cable: 'c', dumbbell: 'd', kettlebells: 'd', barbell: 'b', 'e-z curl bar': 'b', 'body only': 'w', other: 'w' };
 const eqOk = (eq) => !ui.libEq || ui.libEq === eq;
 const partName = (k) => PART_LABEL[k] || MUSCLE_NAMES[k] || k;
@@ -435,8 +443,7 @@ function libBody() {
         ${parts.map(([k]) => `<button class="lib-part ${lb.part === k ? 'on' : ''}" data-act="lib-part" data-k="${esc(k)}">${esc(partName(k))}</button>`).join('')}
       </div>
       <div class="lib-eqs">
-        <span class="muted small">${L('ציוד:', 'Utrustning:')}</span>
-        ${Object.entries(EQUIP_KINDS).map(([k, label]) => `<button class="lib-eq ${ui.libEq === k ? 'on' : ''}" data-act="lib-eq" data-k="${k}" aria-pressed="${ui.libEq === k}">${label}</button>`).join('')}
+        ${Object.entries(EQUIP_KINDS).map(([k, label]) => `<button class="lib-eq ${ui.libEq === k ? 'on' : ''}" data-act="lib-eq" data-k="${k}" aria-pressed="${ui.libEq === k}"><svg viewBox="0 0 24 24" aria-hidden="true">${EQUIP_ICONS[k]}</svg>${label}</button>`).join('')}
       </div>`;
     const sections = shown.map((p) => libSection(area, p, hist)).join('');
     let more = '';
