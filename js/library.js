@@ -333,6 +333,9 @@ function areaWeekTag(a) {
 
 // The figure crop that frames a part: torso, arm, thigh or lower leg.
 const PART_VIEWS = { torso: '10 20 80 80', arm: '2 32 50 50', thigh: '20 84 60 60', shin: '20 138 60 60' };
+// The same for the area tiles at the top; legs show from the hips to below the knees.
+const AREA_VIEWS = { 'חזה': PART_VIEWS.torso, 'גב': PART_VIEWS.torso, 'כתפיים': PART_VIEWS.torso, 'בטן': '14 30 72 72',
+  'יד קדמית': PART_VIEWS.arm, 'יד אחורית': PART_VIEWS.arm, 'רגליים': '6 84 88 88' };
 function partView(part) {
   const mu = part.split(':')[0];
   if (['biceps', 'triceps', 'forearms'].includes(mu)) return PART_VIEWS.arm;
@@ -396,7 +399,7 @@ function libStrip() {
       </button>
       ${LIB_AREAS.map(([a, side]) => `
         <button class="lib-area ${a === area ? 'on' : ''}" data-act="lib-area" data-a="${a}" role="tab" aria-selected="${a === area}">
-          <span class="lib-fig">${bodyFig(side, { p: GROUP_MUSCLES[a] || [], s: [] })}</span><span>${gName(a)}</span>${areaWeekTag(a)}
+          <span class="lib-fig">${bodyFig(side, { p: GROUP_MUSCLES[a] || [], s: [] }, false, AREA_VIEWS[a])}</span><span>${gName(a)}</span>${areaWeekTag(a)}
         </button>`).join('')}
     </div>`;
   return strip;
