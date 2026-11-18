@@ -461,6 +461,14 @@ input[type=date].pill-in, .pill-in {
 .ex-card .ex-move { gap: 0; border: 1px solid var(--rule); border-radius: 999px; overflow: hidden; background: var(--field); }
 .ex-card .ex-move .icon-btn { padding: 4px 10px; font-size: 12px; }
 .ex-card .ex-move .icon-btn + .icon-btn { border-inline-start: 1px solid var(--rule); }
+/* Workout card footer: "+ set" (the button pressed most mid-workout) is a full-width dashed row with "+ warm-up"
+   beside it; swap and remove move to a quiet row under it. */
+.ex-card > .row.between ~ .row.between { flex-wrap: wrap; gap: 6px; }
+.ex-card > .row.between ~ .row.between > .row:first-child { flex: 1 1 100%; gap: 8px; }
+.ex-card [data-act="set-add"] { flex: 1; padding: 10px; border-style: dashed; font-size: 15px; }
+.ex-card [data-act="wu-add"] { flex: none; padding: 10px 14px; border-style: dashed; color: var(--ink-soft); border-color: var(--ink-soft); }
+.ex-card > .row.between ~ .row.between > .row:last-child { flex: 1 1 100%; justify-content: space-between; }
+.ex-card > .row.between ~ .row.between .link-btn { font-size: 12px; padding: 4px 2px; }
 /* Workout exercise card: the muscles as a slim dashed strip at the bottom, not a big framed box. */
 .ex-card .muscles { margin-top: 10px; padding: 6px 8px; gap: 10px; border-style: dashed; }
 .ex-card .muscle-figs svg { width: 30px; height: 62px; }
