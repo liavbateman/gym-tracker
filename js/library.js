@@ -225,7 +225,7 @@ function libCard(name, id, area, sub, english, hist) {
 // you've skipped stand out. A set counts toward a part when the exercise's main muscles name it or its whole muscle.
 let libWk = null;
 function libWeek() {
-  const since = Date.now() - 7 * 86400000, area = new Map(), part = new Map();
+  const since = Date.now() - 7 * 86400000, fresh = Date.now() - 2 * 86400000, area = new Map(), part = new Map(), recent = new Set();
   const keys = Object.values(LIBRARY).flat().map(([k]) => k);
   const hits = (p, k) => {
     const mu = k.split(':')[0];
@@ -237,10 +237,46 @@ function libWeek() {
       if (!n) continue;
       const g = groupOf(e.name), { p } = musclesFor(e.name, g);
       area.set(g, (area.get(g) || 0) + n);
+      if (w.start >= fresh) recent.add(g);
       for (const k of keys) if (hits(p, k)) part.set(k, (part.get(k) || 0) + n);
     }
   }
-  return { area, part };
+  return { area, part, recent };
+}
+
+// "Recommended now": the three parts with the fewest sets this week, from areas not trained in the last 48 hours
+// (they're still recovering), at most one per area. For each, an exercise you've done before if there is one.
+function libForMe(hist) {
+  const cand = [];
+  for (const [area, parts] of Object.entries(LIBRARY)) {
+    if (libWk.recent.has(area)) continue;
+    for (const [part, , list] of parts) {
+      const ok = list.filter(([, , eq]) => eqOk(eq));
+      if (!ok.length) continue;
+      const pick = ok.find(([n]) => hist.has(n)) || ok[0];
+      const lo = AREA_TARGET[area]?.[0] || 6;
+      cand.push({ area, part, n: libWk.part.get(part) || 0, fill: (libWk.area.get(area) || 0) / lo, pick });
+    }
+  }
+  cand.sort((a, b) => a.n - b.n || a.fill - b.fill);
+  const out = [], used = new Set();
+  for (const c of cand) {
+    if (out.length === 3) break;
+    if (used.has(c.area)) continue;
+    used.add(c.area); out.push(c);
+  }
+  if (!out.length) return '';
+  return `
+    <div class="lib-forme">
+      <div class="row between"><b>${L('מומלץ לך עכשיו', 'Rekommenderat nu')}</b><span class="muted small">${L('מה שהכי פחות אומן השבוע', 'Minst tränat den här veckan')}</span></div>
+      <div class="lib-similar">${out.map(({ area, part, n, pick: [name, id] }) => `
+        <button class="lib-sim" data-act="lib-ex" data-name="${esc(name)}" data-id="${esc(id)}" data-area="${esc(area)}">
+          ${demoAnim(libImages(id))}
+          <span class="lib-sim-name">${esc(exName(name))}</span>
+          <span class="muted small">${esc(partName(part))} · ${n ? L(`${n} סטים`, `${n} set`) : L('0 השבוע', '0 i veckan')}</span>
+        </button>`).join('')}
+      </div>
+    </div>`;
 }
 // "8/10": this week's sets against the low end of the area's weekly target; low until it's reached.
 function areaWeekTag(a) {
@@ -337,7 +373,7 @@ function libBody() {
     else if (!lb.extra) more = '<div class="center" style="padding:24px 0"><div class="spinner"></div></div>';
     else more = `<h2>${L('עוד מהמאגר', 'Mer från databasen')}</h2><div class="lib-grid">${lb.extra.filter((x) => eqOk(DB_EQUIP[x.equipment] || 'w')).map((x) => libCard(x.name, x.id, area, EQUIP_KINDS[DB_EQUIP[x.equipment] || 'w'], true, hist)).join('')}</div>`;
     const none = `<p class="muted" style="margin-top:16px">${L(`אין כאן תרגילים עם ${EQUIP_KINDS[ui.libEq]}.`, `Inga övningar med ${EQUIP_KINDS[ui.libEq]} här.`)} <button class="link-btn" data-act="lib-eq" data-k="${ui.libEq}">${L('הצג הכל', 'Visa alla')}</button></p>`;
-    body = `${chips}${sections || none}${lb.part ? '' : more}`;
+    body = `${lb.part ? '' : libForMe(hist)}${chips}${sections || none}${lb.part ? '' : more}`;
   }
   return body;
 }

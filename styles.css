@@ -976,6 +976,8 @@ body.sheet-open { overflow: hidden; }
 .lib-tpl { border: 1px solid var(--rule); border-radius: 999px; padding: 5px 12px; background: var(--field); color: var(--ink); font: inherit; font-size: 13px; font-weight: 600; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lib-tpl:active { border-color: var(--ink); }
 .lib-tpl.on { border-color: var(--hl); background: var(--hl); color: var(--hl-ink); opacity: 1; }
+.lib-forme { margin-top: 14px; padding: 12px 16px 10px; margin-inline: -16px; background: var(--sheet); border-block: 1px solid var(--rule); }
+.lib-forme .lib-similar { margin-top: 10px; }
 .lib-mine-box { margin-top: 14px; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 10px; background: var(--field); }
 .lib-mine-box .chips { margin-top: 8px; }
 .lib-save-btn { display: inline-flex; align-items: center; gap: 6px; }
