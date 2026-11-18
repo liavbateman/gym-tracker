@@ -312,13 +312,15 @@ function libForMe(hist) {
   if (!out.length) return '';
   return `
     <div class="lib-forme">
-      <div class="row between"><b>${L('מומלץ לך עכשיו', 'Rekommenderat nu')}</b><span class="muted small">${L('מה שהכי פחות אומן השבוע', 'Minst tränat den här veckan')}</span></div>
-      <div class="lib-similar">${out.map(({ area, part, n, pick: [name, id] }) => `
-        <button class="lib-sim" data-act="lib-ex" data-name="${esc(name)}" data-id="${esc(id)}" data-area="${esc(area)}">
-          ${demoAnim(libImages(id))}
-          <span class="lib-sim-name">${esc(exName(name))}</span>
-          <span class="muted small lib-sim-sub">${esc(partName(part))}</span>
-          <span class="lib-sim-wk ${n ? '' : 'none'}">${n ? L(`${n} סטים השבוע`, `${n} set i veckan`) : L('לא אומן השבוע', 'Inte tränad i veckan')}</span>
+      <div class="lib-forme-head"><b>${L('מומלץ לך עכשיו', 'Rekommenderat nu')}</b><span>${L('הכי פחות אומן השבוע', 'Minst tränat i veckan')}</span></div>
+      <div class="lib-recs">${out.map(({ area, part, n, pick: [name, id] }) => `
+        <button class="lib-rec" data-act="lib-ex" data-name="${esc(name)}" data-id="${esc(id)}" data-area="${esc(area)}">
+          <span class="lib-rec-img">${demoAnim(libImages(id))}</span>
+          <span class="lib-rec-text">
+            <span class="lib-rec-part">${esc(partName(part))}</span>
+            <span class="lib-rec-name">${esc(exName(name))}</span>
+            <span class="lib-rec-wk ${n ? '' : 'none'}">${n ? L(`${n} סטים השבוע`, `${n} set i veckan`) : L('לא אומן השבוע', 'Inte tränad i veckan')}</span>
+          </span>
         </button>`).join('')}
       </div>
     </div>`;
@@ -366,7 +368,7 @@ function viewLibrary() {
   libWk = libWeek();
   return `
     ${libStrip()}
-    <input type="search" class="lib-q" data-f="lib-q" value="${esc(ui.libQ || '')}" placeholder="${L('חיפוש תרגיל…', 'Sök övning…')}" enterkeyhint="search" autocomplete="off" aria-label="${L('חיפוש תרגיל', 'Sök övning')}">
+    <label class="lib-q-wrap"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><input type="search" class="lib-q" data-f="lib-q" value="${esc(ui.libQ || '')}" placeholder="${L('חיפוש תרגיל, ציוד או שריר…', 'Sök övning, utrustning eller muskel…')}" enterkeyhint="search" autocomplete="off" aria-label="${L('חיפוש תרגיל', 'Sök övning')}"></label>
     <div id="lib-body">${libBody()}</div>
     <div class="lib-offline" id="lib-offline">${libOfflineHtml()}</div>
     <button class="btn block" data-act="lib-close">${db.active ? L('חזרה לאימון', 'Tillbaka till passet') : L('חזרה', 'Tillbaka')}</button>`;

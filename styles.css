@@ -921,12 +921,20 @@ body.sheet-open { overflow: hidden; }
 .lib-wk.none { border: 1px dashed var(--rule); color: var(--ink-soft); }
 .lib-sec-wk { display: inline-block; margin-inline-start: 8px; font-size: 12px; font-weight: 700; color: var(--ink); }
 .lib-sec-wk.none { color: var(--red); }
-.lib-q { width: 100%; margin-top: 12px; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 10px; background: var(--field); color: var(--ink); font: inherit; font-size: 16px; }
-.lib-q:focus { outline: none; border-color: var(--ink); }
-.lib-parts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
-.lib-part { border: 1px solid var(--rule); border-radius: 999px; padding: 6px 12px; background: var(--field); color: var(--ink); font: inherit; font-size: 13px; font-weight: 600; }
+/* Search: one slim row with a magnifier. */
+.lib-q-wrap { position: relative; display: block; margin-top: 10px; }
+.lib-q-wrap svg { position: absolute; inset-inline-start: 11px; top: 50%; width: 18px; height: 18px; transform: translateY(-50%); fill: none; stroke: var(--ink-soft); stroke-width: 2; stroke-linecap: round; pointer-events: none; }
+.lib-q-wrap input.lib-q { width: 100%; height: 40px; padding: 0 12px; padding-inline-start: 36px; border: 1px solid var(--rule); border-radius: 999px; background: var(--field); color: var(--ink); font: inherit; font-size: 16px; }
+.lib-q-wrap input.lib-q:focus { outline: none; border-color: var(--ink); }
+/* Part and equipment filters: single rows that scroll sideways, edge to edge, instead of wrapping. */
+.lib-parts, .lib-eqs { display: flex; flex-wrap: nowrap; gap: 6px; overflow-x: auto; scrollbar-width: none; margin-inline: -16px; padding-inline: 16px; }
+.lib-parts::-webkit-scrollbar, .lib-eqs::-webkit-scrollbar { display: none; }
+.lib-parts { margin-top: 14px; }
+.lib-part, .lib-eq { flex: none; white-space: nowrap; }
+.lib-part { border: 1px solid var(--rule); border-radius: 999px; padding: 7px 14px; background: var(--field); color: var(--ink); font: inherit; font-size: 13px; font-weight: 600; }
 .lib-part.on { background: var(--ink); border-color: var(--ink); color: var(--paper); }
-.lib-eqs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.lib-eqs { align-items: center; margin-top: 8px; }
+.lib-eqs > .muted { flex: none; }
 .lib-eq { border: 1px dashed var(--ink-soft); border-radius: 6px; padding: 4px 10px; background: none; color: var(--ink-soft); font: inherit; font-size: 13px; font-weight: 600; }
 .lib-eq.on { border-style: solid; border-color: var(--hl); background: var(--hl); color: var(--hl-ink); }
 .lib-sec-head { display: flex; align-items: center; gap: 10px; margin: 22px 0 10px; }
@@ -939,16 +947,19 @@ body.sheet-open { overflow: hidden; }
 .lib-bm svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
 .lib-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .lib-card { position: relative; }
+/* Cards: the photo runs edge to edge across the top, the text sits under it. */
 .lib-open {
-  display: block; width: 100%; height: 100%; text-align: start; padding: 8px;
-  background: var(--field); border: 1px solid var(--rule); border-radius: 10px; color: var(--ink); font: inherit;
+  display: block; width: 100%; height: 100%; text-align: start; padding: 0 0 10px; overflow: hidden;
+  background: var(--field); border: 1px solid var(--rule); border-radius: 12px; color: var(--ink); font: inherit;
 }
+.lib-open .demo-anim { border: 0; border-radius: 0; border-bottom: 1px solid var(--rule); }
+.lib-open > :not(.demo-anim) { margin-inline: 10px; }
 .lib-open:active { border-color: var(--ink); }
 .lib-card.here .lib-open { border-color: var(--hl); box-shadow: inset 0 0 0 1px var(--hl); }
 .lib-name { display: block; font-weight: 700; font-size: 14px; line-height: 1.3; margin-top: 8px; }
 .lib-open .muted { display: block; margin-top: 2px; }
 .lib-quick, .lib-here {
-  position: absolute; top: 12px; inset-inline-end: 12px; width: 34px; height: 34px; padding: 7px;
+  position: absolute; top: 8px; inset-inline-end: 8px; width: 34px; height: 34px; padding: 7px;
   border: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center;
 }
 .lib-quick { background: var(--ink); color: var(--paper); box-shadow: 0 2px 6px rgba(15, 20, 28, .3); }
@@ -956,7 +967,7 @@ body.sheet-open { overflow: hidden; }
 .lib-here { background: var(--hl); color: var(--hl-ink); pointer-events: none; }
 .lib-quick svg, .lib-here svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
 .lib-save {
-  position: absolute; top: 12px; inset-inline-start: 12px; width: 32px; height: 32px; padding: 5px;
+  position: absolute; top: 8px; inset-inline-start: 8px; width: 32px; height: 32px; padding: 5px;
   border: 0; border-radius: 8px; background: rgba(255, 255, 255, .85); color: #14234B;
 }
 .lib-save svg, .lib-save-btn svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
@@ -981,8 +992,21 @@ body.sheet-open { overflow: hidden; }
 .lib-tpl { border: 1px solid var(--rule); border-radius: 999px; padding: 5px 12px; background: var(--field); color: var(--ink); font: inherit; font-size: 13px; font-weight: 600; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lib-tpl:active { border-color: var(--ink); }
 .lib-tpl.on { border-color: var(--hl); background: var(--hl); color: var(--hl-ink); opacity: 1; }
-.lib-forme { margin-top: 14px; padding: 12px 16px 10px; margin-inline: -16px; background: var(--sheet); border-block: 1px solid var(--rule); }
-.lib-forme .lib-similar { margin-top: 10px; }
+/* "Recommended now": a row of compact cards (thumbnail beside the text), not tall tiles. */
+.lib-forme { margin-top: 14px; }
+.lib-forme-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.lib-forme-head span { font-size: 12px; color: var(--ink-soft); }
+.lib-recs { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 8px -16px 0; padding: 0 16px 2px; scroll-snap-type: x mandatory; }
+.lib-recs::-webkit-scrollbar { display: none; }
+.lib-rec { flex: none; width: 236px; display: flex; align-items: center; gap: 10px; padding: 6px; padding-inline-end: 10px; text-align: start; background: var(--field); border: 1px solid var(--rule); border-radius: 12px; color: var(--ink); font: inherit; scroll-snap-align: start; }
+.lib-rec:active { border-color: var(--ink); }
+.lib-rec-img { flex: none; width: 76px; }
+.lib-rec-img .demo-anim { border-radius: 8px; }
+.lib-rec-text { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.lib-rec-part { font-size: 11px; font-weight: 700; color: var(--ink-soft); }
+.lib-rec-name { font-size: 14px; font-weight: 700; line-height: 1.25; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.lib-rec-wk { font-size: 11px; font-weight: 700; color: var(--ink); }
+.lib-rec-wk.none { color: var(--red); }
 .lib-map { display: flex; justify-content: center; gap: 18px; margin-top: 10px; padding: 14px 0 10px; border: 1px solid var(--rule); border-radius: 12px; background: var(--field); }
 .lib-map figure { margin: 0; text-align: center; }
 .lib-map svg { width: min(40vw, 150px); height: auto; aspect-ratio: 100 / 206; display: block; }
