@@ -533,8 +533,11 @@ function viewLibEx(d) {
             ${m.s.length ? `<div><i class="dot ms"></i><b>${L('משני:', 'Sekundära:')}</b> ${esc(muscleNames(m.s))}</div>` : ''}
           </div>
         </div>` : `<p class="muted small">${L('אין מידע על השרירים.', 'Ingen muskelinformation.')}</p>`}
-      ${x ? `<div class="lib-h" dir="ltr">${esc(x.name)}${x.equipment ? ` · ${esc(x.equipment)}` : ''}</div>` : ''}
-      ${x?.instructions?.length ? `<ol class="demo-steps" dir="ltr">${x.instructions.map((s) => `<li>${esc(s)}</li>`).join('')}</ol>` : ''}
+      ${x?.instructions?.length ? `
+        <details class="lib-steps">
+          <summary><span><b>${L('הוראות מלאות', 'Fullständiga instruktioner')}</b><small dir="ltr">${esc(x.name)} · ${x.instructions.length} steps</small></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+          <ol dir="ltr">${x.instructions.map((s) => `<li>${esc(s)}</li>`).join('')}</ol>
+        </details>` : ''}
     </div>`;
 }
 
