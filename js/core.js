@@ -433,9 +433,16 @@ const BODY_FIG = {
   ],
 };
 // Hair and spine on the back figure, so the two sides read apart at a glance.
+// Thin lines inside the muscles (where one head meets the next), both sides, so the figure reads like an anatomy chart.
+const BODY_DETAIL = {
+  front: 'M26.4 41.4Q24.8 46.4 25.6 52.4M22.6 84Q20 92 18 102M35 62.4L39.6 63.8M34.6 68.4L39.8 69.8M35.2 74.4L40.2 75.8'
+    + 'M38.8 98.4Q36.6 114 37.8 132M43.2 100.4Q42.6 112 43.8 124M39.4 154Q38.4 168 39.4 186',
+  back: 'M33.2 62Q37 68 42 72M34.6 72Q38.6 77 43 80M22.6 84Q20 92 18 102M37.4 104Q42.4 108 48.6 107.4M28.2 42.6Q27 46 27.4 49',
+};
+const detail = (side) => ['', ' transform="matrix(-1 0 0 1 100 0)"'].map((t) => `<path class="det" d="${BODY_DETAIL[side]}"${t}/>`).join('');
 const BODY_MARKS = {
-  front: '',
-  back: '<path class="hair" d="M41 12.6Q41.2 4 50 3.6Q58.8 4 59 12.6Q55 9.4 50 9.4Q45 9.4 41 12.6z"/><path class="spine" d="M50 27V93"/>',
+  front: detail('front'),
+  back: detail('back') + '<path class="hair" d="M41 12.6Q41.2 4 50 3.6Q58.8 4 59 12.6Q55 9.4 50 9.4Q45 9.4 41 12.6z"/><path class="spine" d="M50 27V93"/>',
 };
 const figHit = (list, mu, part) => list.includes(mu) || (!!part && list.includes(`${mu}:${part}`));
 // The figure's SVG. m: {p, s}, the muscles (or muscle parts) to light as primary and secondary.

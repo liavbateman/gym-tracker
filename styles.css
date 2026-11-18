@@ -338,6 +338,8 @@ label.field input, label.field select { margin-top: 4px; color: var(--ink); }
 .fig .mu.ms { fill: var(--mus-2); }
 .fig .mu.mp { fill: var(--mus-1); }
 .fig .hair { fill: var(--fig-line); }
+.fig .det { fill: none; stroke: var(--fig-line); stroke-width: .35; stroke-linecap: round; opacity: .75; pointer-events: none; }
+.fig .spine { pointer-events: none; }
 .fig .spine { fill: none; stroke: var(--fig-line); stroke-width: .5; stroke-dasharray: 1.4 1.2; }
 .muscle-figs .marks { fill: var(--ink-soft); stroke: var(--ink-soft); stroke-width: .7; stroke-linecap: round; }
 .muscle-figs .marks .hair { stroke: none; }
