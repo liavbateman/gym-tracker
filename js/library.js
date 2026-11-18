@@ -263,15 +263,21 @@ function libMap() {
   for (const [k, n] of libWk.part) (n >= 6 ? p : n > 0 ? s : []).push(k);
   const m = { p, s };
   return `
-    <p class="muted small" style="margin:14px 0 0">${L('לחץ על שריר כדי לראות את התרגילים שלו.', 'Tryck på en muskel för att se dess övningar.')}</p>
-    <div class="lib-map">
-      <figure>${bodyFig('front', m, true)}<figcaption>${L('קדימה', 'Framsida')}</figcaption></figure>
-      <figure>${bodyFig('back', m, true)}<figcaption>${L('אחורה', 'Baksida')}</figcaption></figure>
-    </div>
-    <div class="lib-map-key">
-      <span><i class="dot mp"></i>${L('6+ סטים השבוע', '6+ set i veckan')}</span>
-      <span><i class="dot ms"></i>${L('מעט', 'Lite')}</span>
-      <span><i class="dot"></i>${L('לא אומן', 'Inte tränad')}</span>
+    <div class="lib-map-card">
+      <div class="lib-map-head">
+        <h2>${L('מפת גוף', 'Kroppskarta')}</h2>
+        <span>${L('לחץ על שריר כדי לראות את התרגילים שלו', 'Tryck på en muskel för att se dess övningar')}</span>
+      </div>
+      <div class="lib-map">
+        <figure>${bodyFig('front', m, true)}<figcaption>${L('קדימה', 'Framsida')}</figcaption></figure>
+        <figure>${bodyFig('back', m, true)}<figcaption>${L('אחורה', 'Baksida')}</figcaption></figure>
+      </div>
+      <div class="lib-map-key">
+        <span class="muted">${L('7 ימים אחרונים:', 'Senaste 7 dagarna:')}</span>
+        <span><i class="dot mp"></i>${L('6+ סטים', '6+ set')}</span>
+        <span><i class="dot ms"></i>${L('מעט', 'Lite')}</span>
+        <span><i class="dot"></i>${L('לא אומן', 'Inte tränad')}</span>
+      </div>
     </div>`;
 }
 
@@ -395,7 +401,7 @@ function libStrip() {
         <span class="lib-fig lib-bm">${BOOKMARK}</span><span>${L('שמורים', 'Sparade')}</span>
       </button>
       <button class="lib-area ${area === 'map' ? 'on' : ''}" data-act="lib-area" data-a="map" role="tab" aria-selected="${area === 'map'}">
-        <span class="lib-fig lib-bm"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="4.5" r="2.5"/><path d="M7 9h10M12 9v6M9 21l3-6 3 6"/></svg></span><span>${L('מפת גוף', 'Kroppskarta')}</span>
+        <span class="lib-fig lib-mapfig">${bodyFig('front', { p: [], s: [] })}</span><span>${L('מפת גוף', 'Kroppskarta')}</span>
       </button>
       ${LIB_AREAS.map(([a, side]) => `
         <button class="lib-area ${a === area ? 'on' : ''}" data-act="lib-area" data-a="${a}" role="tab" aria-selected="${a === area}">
