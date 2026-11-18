@@ -390,7 +390,8 @@ function libBody() {
       ? `<div class="lib-grid" style="margin-top:14px">${list.map(([n, s]) => {
         const it = LIB_ITEMS.get(s.id);
         return libCard(n, s.id, s.area, it ? partName(it.part) : gName(s.area), !it, hist);
-      }).join('')}</div>`
+      }).join('')}</div>
+      <button class="btn primary block" data-act="lib-saved-tpl">${L(`צור תבנית מ-${list.length} השמורים`, `Skapa en mall av de ${list.length} sparade`)}</button>`
       : `<p class="muted">${L('עוד לא שמרת תרגילים. לחץ על הסימנייה בכרטיס של תרגיל כדי לשמור אותו כאן.', 'Inga sparade övningar än. Tryck på bokmärket på en övning för att spara den här.')}</p>`;
   } else {
     const parts = LIBRARY[area];
@@ -749,6 +750,23 @@ async function libSaveOffline() {
   libOff.busy = false;
   await libOfflineCount();
   if (libOff.failed) toast(L('חלק מההדגמות לא נשמרו. נסה שוב כשיש רשת טובה.', 'Vissa demos sparades inte. Försök igen med bättre nät.'));
+}
+
+// The saved exercises as a new template, in the body-area order the app uses everywhere, each with the library's
+// sets, reps and rest. Opens in the template editor, where it gets a name and can be changed before it's saved.
+function libSavedToTemplate() {
+  const known = new Set(allExerciseNames());
+  const rows = Object.entries(libSaved()).map(([name, s]) => {
+    libKeepDemo(name, s.id, s.area);
+    const pr = prescFor(s.id) || PRESC.compound;
+    // A new exercise takes the area it was saved from; one done before keeps its own, so its history stays put.
+    return { id: uid(), name, sets: pr.sets, reps: pr.reps || '', rest: pr.rest, ...(known.has(name) ? {} : { group: s.area }) };
+  }).sort((a, b) => GROUPS.indexOf(draftGroup(a)) - GROUPS.indexOf(draftGroup(b)));
+  if (!rows.length) return;
+  save();
+  ui.lib = null;
+  ui.draft = { id: uid(), name: '', exercises: rows, isNew: true };
+  render(); window.scrollTo(0, 0);
 }
 
 function libToggleSave(name, id, area) {
