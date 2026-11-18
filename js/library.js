@@ -219,6 +219,33 @@ function libCard(name, id, area, sub, english, hist) {
 }
 
 // One part of an area: a figure with that part lit, its name, and its exercises.
+// Working sets in the last 7 days (the live workout included), per body area and per part of one, so the parts
+// you've skipped stand out. A set counts toward a part when the exercise's main muscles name it or its whole muscle.
+let libWk = null;
+function libWeek() {
+  const since = Date.now() - 7 * 86400000, area = new Map(), part = new Map();
+  const keys = Object.values(LIBRARY).flat().map(([k]) => k);
+  const hits = (p, k) => {
+    const mu = k.split(':')[0];
+    return p.some((x) => x === k || x === mu || (!k.includes(':') && x.startsWith(`${mu}:`)));
+  };
+  for (const w of [...db.workouts.filter((x) => x.start >= since), ...(db.active ? [db.active] : [])]) {
+    for (const e of w.exercises) {
+      const n = work(e.sets).filter((s) => db.active === w ? s.done : true).length;
+      if (!n) continue;
+      const g = groupOf(e.name), { p } = musclesFor(e.name, g);
+      area.set(g, (area.get(g) || 0) + n);
+      for (const k of keys) if (hits(p, k)) part.set(k, (part.get(k) || 0) + n);
+    }
+  }
+  return { area, part };
+}
+// "8/10": this week's sets against the low end of the area's weekly target; low until it's reached.
+function areaWeekTag(a) {
+  const n = libWk?.area.get(a) || 0, lo = AREA_TARGET[a]?.[0];
+  return lo ? `<span class="lib-wk ${n >= lo ? 'ok' : n ? 'low' : 'none'}" dir="ltr">${n}/${lo}</span>` : '';
+}
+
 function libSection(area, [part, side, all], hist) {
   const list = all.filter(([, , eq]) => eqOk(eq));
   if (!list.length) return '';
@@ -226,7 +253,11 @@ function libSection(area, [part, side, all], hist) {
     <section class="lib-sec">
       <div class="lib-sec-head">
         <span class="lib-sec-fig">${bodyFig(side, { p: [part], s: [] })}</span>
-        <div><h2>${esc(partName(part))}</h2><span class="muted small">${list.length} ${L('תרגילים', 'övningar')}</span></div>
+        <div><h2>${esc(partName(part))}</h2><span class="muted small">${list.length} ${L('תרגילים', 'övningar')}</span>${(() => {
+          const n = libWk?.part.get(part) || 0;
+          return n ? `<span class="lib-sec-wk">${L(`${n} סטים ב-7 ימים`, `${n} set på 7 dagar`)}</span>`
+            : `<span class="lib-sec-wk none">${L('לא אומן ב-7 ימים', 'Inte tränad på 7 dagar')}</span>`;
+        })()}</div>
       </div>
       <div class="lib-grid">${list.map(([n, id, eq]) => libCard(n, id, area, EQUIP_KINDS[eq], false, hist)).join('')}</div>
     </section>`;
@@ -234,6 +265,7 @@ function libSection(area, [part, side, all], hist) {
 
 function viewLibrary() {
   const lb = ui.lib, area = lb.area, hist = libHistory();
+  libWk = libWeek();
   const strip = `
     <div class="lib-areas" role="tablist">
       <button class="lib-area ${area === 'saved' ? 'on' : ''}" data-act="lib-area" data-a="saved" role="tab" aria-selected="${area === 'saved'}">
@@ -241,7 +273,7 @@ function viewLibrary() {
       </button>
       ${LIB_AREAS.map(([a, side]) => `
         <button class="lib-area ${a === area ? 'on' : ''}" data-act="lib-area" data-a="${a}" role="tab" aria-selected="${a === area}">
-          <span class="lib-fig">${bodyFig(side, { p: GROUP_MUSCLES[a] || [], s: [] })}</span><span>${gName(a)}</span>
+          <span class="lib-fig">${bodyFig(side, { p: GROUP_MUSCLES[a] || [], s: [] })}</span><span>${gName(a)}</span>${areaWeekTag(a)}
         </button>`).join('')}
     </div>`;
 

@@ -908,6 +908,12 @@ body.sheet-open { overflow: hidden; }
 .lib-area.on { border-color: var(--ink); color: var(--ink); background: var(--sheet); }
 .lib-fig { display: flex; align-items: center; justify-content: center; height: 66px; }
 .lib-fig svg { width: 32px; height: 66px; display: block; }
+.lib-wk { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 999px; font-variant-numeric: tabular-nums; }
+.lib-wk.ok { background: var(--hl); color: var(--hl-ink); }
+.lib-wk.low { border: 1px solid var(--mus-2); color: var(--ink); }
+.lib-wk.none { border: 1px dashed var(--rule); color: var(--ink-soft); }
+.lib-sec-wk { display: inline-block; margin-inline-start: 8px; font-size: 12px; font-weight: 700; color: var(--ink); }
+.lib-sec-wk.none { color: var(--red); }
 .lib-parts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
 .lib-part { border: 1px solid var(--rule); border-radius: 999px; padding: 6px 12px; background: var(--field); color: var(--ink); font: inherit; font-size: 13px; font-weight: 600; }
 .lib-part.on { background: var(--ink); border-color: var(--ink); color: var(--paper); }
