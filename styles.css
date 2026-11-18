@@ -466,6 +466,14 @@ input[type=date].pill-in, .pill-in {
 .ex-card .muscle-figs svg { width: 30px; height: 62px; }
 .ex-card .body-fig figcaption { display: none; }
 .ex-card .muscle-list { font-size: 12px; line-height: 1.45; }
+/* Template card head: the name gets the room and weight; the demo button is a small square, up/down are one
+   joined control, and remove is a quiet x at the end. */
+.tex > .row { gap: 6px; align-items: stretch; }
+.tex > .row input[data-f="tex-name"] { font-size: 16px; font-weight: 700; }
+.tex > .row .icon-btn { flex: none; width: 34px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--ink); background: var(--field); border: 1px solid var(--rule); border-radius: 8px; }
+.tex > .row [data-act="tex-up"] { border-start-end-radius: 0; border-end-end-radius: 0; margin-inline-end: -7px; }
+.tex > .row [data-act="tex-down"] { border-start-start-radius: 0; border-end-start-radius: 0; }
+.tex > .row [data-act="tex-del"] { width: 28px; background: none; border-color: transparent; color: var(--ink-soft); font-size: 14px; }
 /* Template editor card: one compact block per exercise. Sets, reps, rest and weight sit in one row of four
    small fields (they took a 2x2 grid of big inputs), the area under them, the muscles as a slim strip. */
 .tex { background: var(--sheet); border: 1px solid var(--rule); border-radius: 12px; padding: 10px; margin-bottom: 10px; }
