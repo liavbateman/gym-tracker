@@ -331,13 +331,23 @@ function areaWeekTag(a) {
   return lo ? `<span class="lib-wk ${n >= lo ? 'ok' : n ? 'low' : 'none'}" dir="ltr">${n}/${lo}</span>` : '';
 }
 
+// The figure crop that frames a part: torso, arm, thigh or lower leg.
+const PART_VIEWS = { torso: '10 20 80 80', arm: '2 32 50 50', thigh: '20 84 60 60', shin: '20 138 60 60' };
+function partView(part) {
+  const mu = part.split(':')[0];
+  if (['biceps', 'triceps', 'forearms'].includes(mu)) return PART_VIEWS.arm;
+  if (mu === 'calves') return PART_VIEWS.shin;
+  if (['quadriceps', 'hamstrings', 'glutes', 'adductors', 'abductors'].includes(mu)) return PART_VIEWS.thigh;
+  return PART_VIEWS.torso;
+}
+
 function libSection(area, [part, side, all], hist) {
   const list = all.filter(([, , eq]) => eqOk(eq));
   if (!list.length) return '';
   return `
     <section class="lib-sec">
       <div class="lib-sec-head">
-        <span class="lib-sec-fig">${bodyFig(side, { p: [part], s: [] })}</span>
+        <span class="lib-sec-fig">${bodyFig(side, { p: [part], s: [] }, false, partView(part))}</span>
         <div><h2>${esc(partName(part))}</h2><span class="muted small">${list.length} ${L('תרגילים', 'övningar')}</span>${(() => {
           const n = libWk?.part.get(part) || 0;
           return n ? `<span class="lib-sec-wk">${L(`${n} סטים ב-7 ימים`, `${n} set på 7 dagar`)}</span>`

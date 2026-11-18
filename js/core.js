@@ -447,9 +447,10 @@ const BODY_MARKS = {
 const figHit = (list, mu, part) => list.includes(mu) || (!!part && list.includes(`${mu}:${part}`));
 // The figure's SVG. m: {p, s}, the muscles (or muscle parts) to light as primary and secondary.
 // tap: each muscle becomes a button for the exercise library's body map.
-function bodyFig(side, m, tap = false) {
+// view: a crop of the figure ("x y w h"), to zoom in on one region.
+function bodyFig(side, m, tap = false, view = '0 0 100 206') {
   const flip = ' transform="matrix(-1 0 0 1 100 0)"';
-  return `<svg class="fig${tap ? ' tap' : ''}" viewBox="0 0 100 206" aria-hidden="true">${BODY_FIG[side].map(([mu, part, d, both = true]) => {
+  return `<svg class="fig${tap ? ' tap' : ''}" viewBox="${view}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">${BODY_FIG[side].map(([mu, part, d, both = true]) => {
     const c = mu ? `mu${figHit(m.p, mu, part) ? ' mp' : figHit(m.s || [], mu, part) ? ' ms' : ''}` : 'sk';
     const a = tap && mu ? ` data-act="lib-map" data-mu="${mu}" data-part="${part}"` : '';
     return `<path class="${c}" d="${d}"${a}/>${both ? `<path class="${c}" d="${d}"${flip}${a}/>` : ''}`;
