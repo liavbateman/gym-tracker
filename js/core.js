@@ -378,8 +378,11 @@ function musclesFor(name, area = groupOf(name)) {
 // Front and back figures. Each part is [muscle, part of it, outline of the left half]; the right half is the same
 // outline mirrored unless the fourth item is false. A muscle lights up when the list names it ("chest") or this
 // part of it ("chest:upper"). Parts with no muscle are skin: head, hands, knees and feet.
+// The whole body's outline, under the muscles, so the seams between them read as body and not as holes.
+const BODY_SIL = ['', '', 'M50 26L45.2 27.2L44.6 31.2L36 33.8L27.2 35.2L22 40L19.8 48L19.4 58L19 70L20.4 79L16 90L14.6 104L16 106.2L19.8 106L25 90L27 80L29.4 66L30 56L32 58L33.2 68L34.5 80L36.4 88L31.4 100L30.4 116L31.4 130L35 140L35.4 146L33.2 160L34 175L36.8 192L41.8 192L44 178L45 162L45 148L46 140L47.6 125L48.8 105L49.6 99.4L50 99.4z'];
 const BODY_FIG = {
   front: [
+    BODY_SIL,
     ['', '', 'M50 3.6c-5.6 0-9.3 4.4-9.3 10.6 0 4.2 1.6 7.6 4 9.6l.3 4.6h10l.3-4.6c2.4-2 4-5.4 4-9.6 0-6.2-3.7-10.6-9.3-10.6z', false],
     ['', '', 'M15.4 105.6c-2.4 2.6-3.4 6.2-2.8 9.8.4 2.4 1.6 4 3.2 4 1.9 0 3.3-2.3 3.6-5.4l.4-8.2z'],
     ['', '', 'M36 139.8c-.6 3.2.6 6.4 3 7.9 2.6 1.3 5 .2 6-2.7l.7-5c-3 1.6-6.4 1.6-9.7-.2z'],
@@ -404,6 +407,7 @@ const BODY_FIG = {
     ['calves', '', 'M36.2 150Q33 160 33.8 172Q35.4 184 37.4 191.6L41.4 191.8Q44 178.4 44.6 165Q44.8 155 42.6 148.4Q39 147.6 36.2 150z'],
   ],
   back: [
+    BODY_SIL,
     ['', '', 'M50 3.6c-5.6 0-9.3 4.4-9.3 10.6 0 4.2 1.6 7.6 4 9.6l.3 4.6h10l.3-4.6c2.4-2 4-5.4 4-9.6 0-6.2-3.7-10.6-9.3-10.6z', false],
     ['', '', 'M15.4 105.6c-2.4 2.6-3.4 6.2-2.8 9.8.4 2.4 1.6 4 3.2 4 1.9 0 3.3-2.3 3.6-5.4l.4-8.2z'],
     ['', '', 'M36.8 144.6Q40.8 146.8 44.8 145L44.4 148Q40.6 149.4 37.2 147.8z'],
