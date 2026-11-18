@@ -215,6 +215,8 @@ function libCard(name, id, area, sub, english, hist) {
         ${mine ? `<span class="lib-mine"><b dir="ltr">${esc(setText(mine.top))}</b> · ${esc(agoText(mine.t))}</span>` : ''}
       </button>
       <button class="lib-save ${saved ? 'on' : ''}" data-act="lib-save" data-name="${esc(name)}" data-id="${esc(id)}" data-area="${esc(area)}" aria-pressed="${saved}" aria-label="${L('שמור', 'Spara')}">${BOOKMARK}</button>
+      ${db.active && !here ? `<button class="lib-quick" data-act="lib-add" data-name="${esc(name)}" data-id="${esc(id)}" data-area="${esc(area)}" aria-label="${L('הוסף לאימון', 'Lägg till i passet')}: ${esc(english ? name : exName(name))}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>` : ''}
+      ${here ? '<span class="lib-here" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>' : ''}
     </div>`;
 }
 
@@ -406,7 +408,9 @@ function libToggleSave(name, id, area) {
 function addToWorkout(name) {
   const list = db.active.exercises, area = groupOf(name);
   const at = list.map((x) => groupOf(x.name)).lastIndexOf(area);
-  list.splice(at < 0 ? list.length : at + 1, 0, makeExercise({ name }, list.length === 0));
+  const ex = makeExercise({ name }, list.length === 0);
+  list.splice(at < 0 ? list.length : at + 1, 0, ex);
+  return ex;
 }
 
 function libAdd(name, id, area) {
@@ -421,9 +425,16 @@ function libAdd(name, id, area) {
     const x = ui.demo?.lib?.x, m = libMuscles(id, x, name, area);
     db.demos[name] = { id, name: x?.name || id.replace(/_/g, ' '), images: libImages(id), instructions: x?.instructions || [], pm: m.p, sm: m.s };
   }
-  addToWorkout(name);
+  const ex = addToWorkout(name), w = db.active, y = window.scrollY;
   save();
   ui.demo = null; renderSheet();
   render();
-  toast(L(`"${exName(name)}" נוסף לאימון`, `"${exName(name)}" lades till i passet`));
+  window.scrollTo(0, y); // stay at the card, so several can be added in a row
+  // Undo takes it out again, as long as no set of it was done yet.
+  toast(L(`"${exName(name)}" נוסף לאימון`, `"${exName(name)}" lades till i passet`), 5000, { label: L('בטל', 'Ångra'), run: () => {
+    const i = w.exercises.indexOf(ex);
+    if (db.active !== w || i < 0 || ex.sets.some((s) => s.done)) return;
+    w.exercises.splice(i, 1);
+    save(); render(); window.scrollTo(0, y);
+  } });
 }
