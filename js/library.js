@@ -431,8 +431,10 @@ async function libMore() {
 }
 
 // The exercise sheet: its demo, the muscles it works and how to do it. Uses the demo sheet's slot, so it closes the same ways.
+// Opened from inside another exercise's sheet (its alternatives): remember that one, for the back button.
 async function openLibEx(name, id, area) {
-  const d = { name, lib: { id, area, x: null } };
+  const from = ui.demo?.lib ? { name: ui.demo.name, id: ui.demo.lib.id, area: ui.demo.lib.area } : null;
+  const d = { name, lib: { id, area, x: null, from } };
   ui.demo = d;
   renderSheet();
   try {
@@ -458,6 +460,7 @@ function viewLibEx(d) {
     <div class="sheet-panel" data-act="none" role="dialog" aria-modal="true" aria-label="${esc(d.name)}">
       <div class="sheet-grab" aria-hidden="true"></div>
       <div class="row between" style="margin-bottom:12px">
+        ${d.lib.from ? `<button class="icon-btn lib-back" data-act="lib-back" aria-label="${L('חזרה ל', 'Tillbaka till ')}${esc(exName(d.lib.from.name))}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>` : ''}
         <h3 class="grow" ${english ? 'dir="ltr"' : ''}>${esc(english ? d.name : exName(d.name))}</h3>
         <button class="icon-btn" data-act="demo-close" aria-label="${L('סגור', 'Stäng')}">✕</button>
       </div>
@@ -688,6 +691,11 @@ function libKeepDemo(name, id, area) {
   const x = ui.demo?.lib?.x, m = libMuscles(id, x, name, area);
   db.demos[name] = { id, name: x?.name || id.replace(/_/g, ' '), images: libImages(id), instructions: x?.instructions || [], pm: m.p, sm: m.s };
 }
+
+// The area strip shrinks to small figures once the page scrolls, leaving room for the exercises.
+window.addEventListener('scroll', () => {
+  document.documentElement.classList.toggle('lib-compact', !!ui.lib && window.scrollY > 90);
+}, { passive: true });
 
 function libToggleSave(name, id, area) {
   if (libSaved()[name]) delete libSaved()[name];

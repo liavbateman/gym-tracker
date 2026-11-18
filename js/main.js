@@ -577,6 +577,13 @@ document.addEventListener('click', (ev) => {
     case 'lib-part': ui.lib.part = el.dataset.k || null; render(); break;
     case 'lib-more': libMore(); break;
     case 'lib-ex': openLibEx(el.dataset.name, el.dataset.id, el.dataset.area); $('#sheet .sheet-panel')?.scrollTo(0, 0); break;
+    case 'lib-back': {
+      // Back to the exercise this one was opened from.
+      const f = ui.demo.lib.from;
+      ui.demo = null;
+      openLibEx(f.name, f.id, f.area);
+      break;
+    }
     case 'lib-save': libToggleSave(el.dataset.name, el.dataset.id, el.dataset.area); render(); if (ui.demo?.lib) renderSheet(); break;
     case 'lib-add': libAdd(el.dataset.name, el.dataset.id, el.dataset.area); break;
     case 'lib-tpl': libAddToTemplate(el.dataset.tpl, el.dataset.name, el.dataset.id); break;

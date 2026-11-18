@@ -986,6 +986,15 @@ body.sheet-open { overflow: hidden; }
 .fig.tap .mu:active { fill: var(--ink); }
 .lib-map-key { display: flex; justify-content: center; gap: 14px; margin-top: 8px; font-size: 12px; color: var(--ink-soft); }
 .lib-map-key .dot:not(.mp):not(.ms) { background: var(--fig-mu); border: 1px solid var(--fig-line); }
+.lib-back svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; display: block; }
+[dir="ltr"] .lib-back svg { transform: scaleX(-1); }
+.lib-area, .lib-fig, .lib-fig svg { transition: height .18s, width .18s, padding .18s; }
+html.lib-compact .lib-areas { padding-block: 6px; }
+html.lib-compact .lib-area { padding-block: 3px; gap: 2px; }
+html.lib-compact .lib-fig { height: 34px; }
+html.lib-compact .lib-fig svg { width: 17px; height: 34px; }
+html.lib-compact .lib-bm svg { width: 20px; height: 20px; }
+html.lib-compact .lib-wk { display: none; }
 .lib-mine-box { margin-top: 14px; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 10px; background: var(--field); }
 .lib-mine-box .chips { margin-top: 8px; }
 .lib-save-btn { display: inline-flex; align-items: center; gap: 6px; }
