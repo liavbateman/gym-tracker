@@ -961,10 +961,12 @@ body.sheet-open { overflow: hidden; }
 .lib-card { position: relative; }
 /* Cards: the photo runs edge to edge across the top, the text sits under it. */
 .lib-open {
-  display: block; width: 100%; height: 100%; text-align: start; padding: 0 0 10px; overflow: hidden;
+  /* A flex column pinned to the top: a plain button centers its content, which pushed the photo of the shorter
+     card in a row down from the card's edge. */
+  display: flex; flex-direction: column; justify-content: flex-start; width: 100%; height: 100%; text-align: start; padding: 0 0 10px; overflow: hidden;
   background: var(--field); border: 1px solid var(--rule); border-radius: 12px; color: var(--ink); font: inherit;
 }
-.lib-open .demo-anim { border: 0; border-radius: 0; border-bottom: 1px solid var(--rule); }
+.lib-open .demo-anim { flex: none; border: 0; border-radius: 0; border-bottom: 1px solid var(--rule); }
 /* Fill the frame: the photos come in different proportions, and letterboxing left white bands in the cards. */
 .lib-open .demo-anim img, .lib-rec .demo-anim img, .lib-sim .demo-anim img { object-fit: cover; }
 .lib-open > :not(.demo-anim) { margin-inline: 10px; }
