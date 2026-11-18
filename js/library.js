@@ -395,6 +395,7 @@ function viewLibEx(d) {
         ${here ? `<span class="muted small">${L('✓ כבר באימון', '✓ Redan i passet')}</span>`
           : `<button class="btn sm primary" data-act="lib-add" data-name="${esc(d.name)}" data-id="${esc(id)}" data-area="${esc(area)}">${db.active ? L('+ הוסף לאימון', '+ Lägg till i passet') : L('התחל אימון עם התרגיל', 'Starta ett pass med övningen')}</button>`}
       </div>
+      ${libHowBox(id)}
       ${libMineBox(d.name)}
       <h3 style="margin-top:16px">${L('שרירי מטרה', 'Målmuskler')}</h3>
       ${m.p.length ? `
@@ -425,6 +426,141 @@ function libMineBox(name) {
     </div>`;
 }
 
+// ---------- How to do it ----------
+// Sets, reps and rest by kind of exercise: heavy compound lifts low reps and long rests, isolation more reps and short rests.
+const HEAVY_IDS = new Set(['Barbell_Bench_Press_-_Medium_Grip', 'Barbell_Incline_Bench_Press_-_Medium_Grip', 'Decline_Barbell_Bench_Press',
+  'Standing_Military_Press', 'Barbell_Squat', 'Barbell_Deadlift', 'Romanian_Deadlift', 'Bent_Over_Barbell_Row', 'Leg_Press', 'Hack_Squat',
+  'Smith_Machine_Squat', 'Barbell_Hip_Thrust', 'T-Bar_Row_with_Handle', 'Close-Grip_Barbell_Bench_Press', 'Pullups', 'Chin-Up']);
+const ISO_IDS = new Set(['Incline_Dumbbell_Flyes', 'Incline_Cable_Flye', 'Butterfly', 'Dumbbell_Flyes', 'Cable_Crossover', 'Straight-Arm_Pulldown',
+  'Barbell_Shrug', 'Dumbbell_Shrug', 'Front_Dumbbell_Raise', 'Side_Lateral_Raise', 'Cable_Seated_Lateral_Raise', 'Reverse_Machine_Flyes',
+  'Face_Pull', 'Seated_Bent-Over_Rear_Delt_Raise', 'Cable_Rear_Delt_Fly', 'Leg_Extensions', 'Lying_Leg_Curls', 'Seated_Leg_Curl',
+  'One-Legged_Cable_Kickback', 'Thigh_Adductor', 'Thigh_Abductor', 'Standing_Calf_Raises', 'Seated_Calf_Raise',
+  'Calf_Press_On_The_Leg_Press_Machine', 'Hyperextensions_Back_Extensions']);
+const HOLD_IDS = new Set(['Plank', 'Side_Bridge']);
+const PRESC = {
+  heavy: { sets: 4, reps: 8, range: '6–8', rest: 150 },
+  compound: { sets: 3, reps: 10, range: '8–12', rest: 120 },
+  iso: { sets: 3, reps: 12, range: '10–15', rest: 75 },
+  core: { sets: 3, reps: 15, range: '12–20', rest: 60 },
+  hold: { sets: 3, reps: null, range: L('30–60 שנ׳', '30–60 s'), rest: 60 },
+};
+function prescFor(id) {
+  const it = LIB_ITEMS.get(id);
+  if (!it) return null;
+  if (HOLD_IDS.has(id)) return PRESC.hold;
+  if (it.area === 'בטן') return PRESC.core;
+  if (HEAVY_IDS.has(id)) return PRESC.heavy;
+  if (ISO_IDS.has(id) || ((it.area === 'יד קדמית' || it.area === 'יד אחורית') && it.part !== 'triceps')) return PRESC.iso;
+  return PRESC.compound;
+}
+const restText = (s) => (s >= 120 ? L(`${s / 60} דק׳`, `${s / 60} min`).replace('2.5', '2:30') : L(`${s} שנ׳`, `${s} s`));
+
+// The one or two things that make each exercise work, in Hebrew (the database's own steps are in English).
+const CUES = {
+  Incline_Dumbbell_Press: 'ספסל בשיפוע 30°. שכמות צמודות לספסל, מרפקים בזווית 45° מהגוף.',
+  'Barbell_Incline_Bench_Press_-_Medium_Grip': 'המוט יורד לחזה העליון, מתחת לעצם הבריח. כפות רגליים יציבות על הרצפה.',
+  Incline_Dumbbell_Flyes: 'מרפקים כפופים מעט וקבועים. לרדת עד מתיחה בחזה, לא מעבר לכתף.',
+  Incline_Cable_Flye: 'לחבק מלמטה למעלה ולחבר ידיים מול הסנטר.',
+  'Barbell_Bench_Press_-_Medium_Grip': 'שכמות מכווצות ולמטה, קשת קלה בגב. המוט נוגע בפטמות, מרפקים 45°.',
+  Dumbbell_Bench_Press: 'להוריד עמוק עד מתיחה בחזה, לדחוף למעלה ולמרכז.',
+  Machine_Bench_Press: 'ידיות בגובה אמצע החזה. לא לנעול מרפקים למעלה.',
+  Butterfly: 'חזה קדימה, לחבר ידיים לאט ולהחזיק שנייה בכיווץ.',
+  Dumbbell_Flyes: 'קשת רחבה, מרפקים כפופים מעט. לעלות עד שהמשקולות כמעט נוגעות.',
+  Pushups: 'גוף ישר מהראש עד העקבים, חזה כמעט נוגע ברצפה.',
+  'Dips_-_Chest_Version': 'גוף נוטה קדימה ומרפקים פתוחים מעט, כדי שהחזה יעבוד. לרדת עד 90° במרפק.',
+  Decline_Barbell_Bench_Press: 'המוט יורד לחזה התחתון. רגליים נעולות היטב בספסל.',
+  Decline_Dumbbell_Bench_Press: 'לדחוף למעלה ומעט פנימה, כתפיים צמודות לספסל.',
+  Cable_Crossover: 'גלגלות גבוהות, צעד קדימה. למשוך למטה ופנימה עד מול המותניים.',
+  Pullups: 'להתחיל מתלייה מלאה, למשוך מרפקים למטה לכיוון המותניים, חזה לבר.',
+  'Chin-Up': 'אחיזה ברוחב כתפיים, כפות אליך. לעלות עד שהסנטר מעל הבר.',
+  'Wide-Grip_Lat_Pulldown': 'למשוך לחזה העליון, לא מאחורי הראש. חזה גבוה, לא להתנדנד.',
+  'Close-Grip_Front_Lat_Pulldown': 'מרפקים צמודים לגוף, למשוך עד החזה ולכווץ את הגב.',
+  'Straight-Arm_Pulldown': 'ידיים כמעט ישרות, למשוך את המוט עד הירכיים בקשת.',
+  Bent_Over_Barbell_Row: 'גו מקביל כמעט לרצפה, גב ישר. למשוך לבטן התחתונה.',
+  'One-Arm_Dumbbell_Row': 'יד וברך על הספסל, למשוך את המרפק לכיוון הירך, לא לסובב את הגו.',
+  Seated_Cable_Rows: 'גב זקוף, למשוך לבטן ולקרב שכמות. לא להישען אחורה.',
+  Leverage_Iso_Row: 'חזה צמוד לכרית, למשוך מרפקים אחורה ולהחזיק שנייה.',
+  'T-Bar_Row_with_Handle': 'ברכיים כפופות, גב ישר, למשוך את הידית לחזה התחתון.',
+  Barbell_Shrug: 'להרים כתפיים ישר למעלה לאוזניים, בלי לסובב. החזקה קצרה למעלה.',
+  Dumbbell_Shrug: 'ידיים ישרות לצד הגוף, להרים כתפיים ולהוריד לאט.',
+  Hyperextensions_Back_Extensions: 'לעלות עד קו ישר עם הרגליים, לא לקשת יותר מדי.',
+  Barbell_Deadlift: 'מוט צמוד לשוקיים, גב ניטרלי. לדחוף את הרצפה ברגליים, ירכיים וכתפיים עולות יחד.',
+  Dumbbell_Shoulder_Press: 'משקולות בגובה האוזניים, לדחוף למעלה בלי לקשת את הגב.',
+  Standing_Military_Press: 'בטן וישבן מכווצים. המוט עובר קרוב לפנים ונגמר מעל הראש.',
+  Machine_Shoulder_Military_Press: 'מושב בגובה שהידיות מול הכתפיים. גב צמוד למשענת.',
+  Arnold_Dumbbell_Press: 'להתחיל עם כפות אליך ולסובב החוצה תוך כדי לחיצה.',
+  Front_Dumbbell_Raise: 'להרים קדימה עד גובה העיניים, בלי תנופה מהגב.',
+  Side_Lateral_Raise: 'להרים לצדדים עד גובה הכתף, מרפקים מובילים. משקל קל ושליטה.',
+  Cable_Seated_Lateral_Raise: 'הכבל מעביר מתח לאורך כל הטווח. להרים עד הכתף ולהוריד לאט.',
+  Upright_Barbell_Row: 'אחיזה רחבה, למשוך עד גובה החזה בלבד כדי לשמור על הכתף.',
+  Reverse_Machine_Flyes: 'חזה לכרית, לפתוח ידיים לאחור בקשת עד קו הגוף.',
+  Face_Pull: 'חבל בגובה הפנים, למשוך לכיוון המצח ולפתוח ידיים החוצה.',
+  'Seated_Bent-Over_Rear_Delt_Raise': 'גו רכון על הירכיים, להרים לצדדים עם מרפקים כפופים מעט.',
+  Cable_Rear_Delt_Fly: 'כבלים מוצלבים בגובה הכתף, למשוך לאחור בקשת רחבה.',
+  Barbell_Curl: 'מרפקים צמודים לגוף ולא זזים. בלי תנופה מהגב.',
+  Dumbbell_Bicep_Curl: 'לסובב את כף היד כלפי מעלה תוך כדי עלייה, להוריד לאט.',
+  Standing_Biceps_Cable_Curl: 'הכבל שומר על מתח למטה, לכווץ למעלה שנייה.',
+  Incline_Dumbbell_Curl: 'ספסל בשיפוע 45°, ידיים תלויות מאחורי הגוף למתיחה של הראש הארוך.',
+  'Close-Grip_Standing_Barbell_Curl': 'אחיזה צרה מכתפיים מדגישה את הראש הארוך.',
+  Preacher_Curl: 'בית שחי צמוד לכרית. לא לנעול את המרפק למטה.',
+  Concentration_Curls: 'מרפק על פנים הירך, להרים לאט ולכווץ חזק למעלה.',
+  Hammer_Curls: 'כפות פונות זו לזו לאורך כל התנועה.',
+  Reverse_Barbell_Curl: 'אחיזה מלמעלה, משקל קל יותר מכפיפה רגילה. שורש כף יד ישר.',
+  'Palms-Up_Barbell_Wrist_Curl_Over_A_Bench': 'אמות על הספסל, רק שורש כף היד זז.',
+  Cable_Rope_Overhead_Triceps_Extension: 'גב לגלגלת, מרפקים ליד הראש ומצביעים קדימה. לפשוט עד הסוף.',
+  Standing_Dumbbell_Triceps_Extension: 'משקולת מאחורי הראש, מרפקים צמודים ולא נפתחים לצדדים.',
+  'EZ-Bar_Skullcrusher': 'להוריד את המוט מאחורי המצח, הזרוע העליונה כמעט לא זזה.',
+  Triceps_Pushdown: 'מרפקים צמודים לצלעות, לפשוט עד הסוף ולהחזיק שנייה.',
+  'Triceps_Pushdown_-_Rope_Attachment': 'בסוף התנועה לפתוח את החבל לצדדים.',
+  Tricep_Dumbbell_Kickback: 'זרוע עליונה מקבילה לרצפה, רק האמה זזה לאחור.',
+  'Dips_-_Triceps_Version': 'גוף זקוף ומרפקים צמודים, כדי שהיד האחורית תעבוד.',
+  'Close-Grip_Barbell_Bench_Press': 'אחיזה ברוחב כתפיים, מרפקים צמודים לגוף בירידה.',
+  Crunches: 'להרים את השכמות מהרצפה ולכווץ, לא למשוך בצוואר.',
+  Cable_Crunch: 'לכופף את הגב ולקרב צלעות לאגן. הירכיים לא זזות.',
+  Ab_Crunch_Machine: 'לכווץ את הבטן, לא לדחוף בידיים.',
+  Hanging_Leg_Raise: 'בלי תנופה. להרים את האגן קצת למעלה בסוף התנועה.',
+  Flat_Bench_Lying_Leg_Raise: 'גב תחתון צמוד לספסל, להוריד רגליים לאט.',
+  Reverse_Crunch: 'להרים את האגן מהרצפה ולקרב ברכיים לחזה.',
+  Russian_Twist: 'גב ישר בזווית 45°, לסובב את הכתפיים, לא רק את הידיים.',
+  Side_Bridge: 'גוף בקו ישר, אגן לא צונח. מרפק מתחת לכתף.',
+  Dumbbell_Side_Bend: 'משקולת ביד אחת, לרדת לצד ולעלות מהאלכסונים בלי להסתובב.',
+  Plank: 'גוף ישר, ישבן ובטן מכווצים, לא להוריד אגן.',
+  Ab_Roller: 'לגלגל קדימה רק כל עוד הגב התחתון לא שוקע.',
+  Barbell_Squat: 'חזה גבוה, ברכיים בכיוון האצבעות. לרדת לפחות עד שהירך מקבילה.',
+  Leg_Press: 'כפות רגליים ברוחב כתפיים, לא לנעול ברכיים למעלה. גב תחתון צמוד.',
+  Smith_Machine_Squat: 'רגליים מעט לפני המוט, לרדת עמוק בשליטה.',
+  Hack_Squat: 'גב צמוד למשענת, לרדת עמוק בלי שהעקבים יתרוממו.',
+  Goblet_Squat: 'משקולת צמודה לחזה, מרפקים בין הברכיים בתחתית.',
+  Leg_Extensions: 'להחזיק שנייה למעלה ולהוריד לאט.',
+  Barbell_Hip_Thrust: 'גב עליון על הספסל, סנטר למטה. לנעול את הישבן למעלה בלי לקשת את הגב.',
+  Split_Squat_with_Dumbbells: 'רגל אחורית על ספסל. נטייה קלה קדימה מדגישה את הישבן.',
+  Dumbbell_Lunges: 'צעד ארוך, ברך אחורית כמעט נוגעת ברצפה. לדחוף מהעקב.',
+  'One-Legged_Cable_Kickback': 'לבעוט אחורה מהישבן, בלי לקשת את הגב.',
+  Romanian_Deadlift: 'ברכיים כפופות מעט, לדחוף את הישבן אחורה עד מתיחה במסטרינג.',
+  Lying_Leg_Curls: 'אגן צמוד לכרית, לכופף עד הסוף ולהוריד לאט.',
+  Seated_Leg_Curl: 'כרית מעל הברכיים מהודקת, למשוך את העקבים מתחת למושב.',
+  Thigh_Adductor: 'לסגור לאט ולהחזיק שנייה, בלי לזרוק את המשקל.',
+  Thigh_Abductor: 'לפתוח עד הסוף, גו נוטה מעט קדימה לישבן.',
+  Standing_Calf_Raises: 'לרדת עד מתיחה מלאה בעקב, לעלות על קצות האצבעות ולהחזיק.',
+  Seated_Calf_Raise: 'ברך כפופה מדגישה את הסולאוס. טווח מלא ולאט.',
+  Calf_Press_On_The_Leg_Press_Machine: 'רק כריות כף הרגל על הפלטה, ברכיים כמעט ישרות.',
+};
+
+// In the sheet: how many sets and reps, how long to rest, and what to watch for.
+function libHowBox(id) {
+  const pr = prescFor(id), cue = !SV && CUES[id];
+  if (!pr && !cue) return '';
+  return `
+    <div class="lib-how">
+      ${pr ? `<div class="lib-presc">
+        <span><b>${pr.sets}</b>${L('סטים', 'set')}</span>
+        <span><b dir="ltr">${pr.range}</b>${pr.reps ? L('חזרות', 'reps') : L('החזקה', 'håll')}</span>
+        <span><b>${restText(pr.rest)}</b>${L('מנוחה', 'vila')}</span>
+      </div>` : ''}
+      ${cue ? `<p class="lib-cue">${esc(cue)}</p>` : ''}
+    </div>`;
+}
+
 function libToggleSave(name, id, area) {
   if (libSaved()[name]) delete libSaved()[name];
   else libSaved()[name] = { id, area };
@@ -432,10 +568,10 @@ function libToggleSave(name, id, area) {
 }
 
 // Adds an exercise to the live workout, right after the last exercise of its body area so it joins that group.
-function addToWorkout(name) {
+function addToWorkout(name, src = {}) {
   const list = db.active.exercises, area = groupOf(name);
   const at = list.map((x) => groupOf(x.name)).lastIndexOf(area);
-  const ex = makeExercise({ name }, list.length === 0);
+  const ex = makeExercise({ ...src, name }, list.length === 0);
   list.splice(at < 0 ? list.length : at + 1, 0, ex);
   return ex;
 }
@@ -452,7 +588,9 @@ function libAdd(name, id, area) {
     const x = ui.demo?.lib?.x, m = libMuscles(id, x, name, area);
     db.demos[name] = { id, name: x?.name || id.replace(/_/g, ' '), images: libImages(id), instructions: x?.instructions || [], pm: m.p, sm: m.s };
   }
-  const ex = addToWorkout(name), w = db.active, y = window.scrollY;
+  // A first time: the library's sets, reps and rest. Done before: your own last workout leads, as everywhere.
+  const pr = !lastSetsFor(name) && prescFor(id);
+  const ex = addToWorkout(name, pr ? { sets: pr.sets, reps: pr.reps || '', rest: pr.rest } : {}), w = db.active, y = window.scrollY;
   save();
   ui.demo = null; renderSheet();
   render();
