@@ -572,6 +572,7 @@ document.addEventListener('click', (ev) => {
     case 'lib-ex': openLibEx(el.dataset.name, el.dataset.id, el.dataset.area); $('#sheet .sheet-panel')?.scrollTo(0, 0); break;
     case 'lib-save': libToggleSave(el.dataset.name, el.dataset.id, el.dataset.area); render(); if (ui.demo?.lib) renderSheet(); break;
     case 'lib-add': libAdd(el.dataset.name, el.dataset.id, el.dataset.area); break;
+    case 'lib-tpl': libAddToTemplate(el.dataset.tpl, el.dataset.name, el.dataset.id); break;
     case 'clock': clockMenu(); break;
     case 'bateman': openBateman(); break;
     case 'bateman-close': closeBateman(); break;

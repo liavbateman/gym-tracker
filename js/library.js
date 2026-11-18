@@ -396,6 +396,7 @@ function viewLibEx(d) {
           : `<button class="btn sm primary" data-act="lib-add" data-name="${esc(d.name)}" data-id="${esc(id)}" data-area="${esc(area)}">${db.active ? L('+ הוסף לאימון', '+ Lägg till i passet') : L('התחל אימון עם התרגיל', 'Starta ett pass med övningen')}</button>`}
       </div>
       ${libHowBox(id)}
+      ${libTplRow(d.name, id)}
       ${libMineBox(d.name)}
       ${libSimilar(id)}
       <h3 style="margin-top:16px">${L('שרירי מטרה', 'Målmuskler')}</h3>
@@ -580,6 +581,42 @@ function libSimilar(id) {
     </div>`;
 }
 
+// Add to a template, for planning the next workouts: one chip per template, a check on the ones that have it.
+function libTplRow(name, id) {
+  if (!db.templates.length) return '';
+  return `
+    <div class="lib-tpls">
+      <span class="muted small">${L('הוסף לתבנית:', 'Lägg till i mall:')}</span>
+      ${db.templates.map((t) => {
+        const has = t.exercises.some((e) => e.name === name);
+        return `<button class="lib-tpl ${has ? 'on' : ''}" data-act="lib-tpl" data-tpl="${esc(t.id)}" data-name="${esc(name)}" data-id="${esc(id)}" ${has ? 'disabled' : ''}>${has ? '✓ ' : '+ '}${esc(t.name)}</button>`;
+      }).join('')}
+    </div>`;
+}
+
+// Goes after the template's last exercise of the same body area, like in a workout. Undo in the toast.
+function libAddToTemplate(tplId, name, id) {
+  const t = db.templates.find((x) => x.id === tplId);
+  if (!t || t.exercises.some((e) => e.name === name)) return;
+  const pr = prescFor(id) || PRESC.compound;
+  const row = { id: uid(), name, sets: pr.sets, reps: pr.reps || '', rest: pr.rest };
+  const area = groupOf(name), at = t.exercises.map((e) => e.group || groupOf(e.name)).lastIndexOf(area);
+  t.exercises.splice(at < 0 ? t.exercises.length : at + 1, 0, row);
+  libKeepDemo(name, id);
+  save(); renderSheet(); render();
+  toast(L(`"${exName(name)}" נוסף ל"${t.name}"`, `"${exName(name)}" lades till i "${t.name}"`), 5000, { label: L('בטל', 'Ångra'), run: () => {
+    const i = t.exercises.indexOf(row);
+    if (i >= 0) { t.exercises.splice(i, 1); save(); renderSheet(); render(); }
+  } });
+}
+
+// The library's demo becomes the exercise's demo, unless one was picked before.
+function libKeepDemo(name, id, area) {
+  if (db.demos[name]) return;
+  const x = ui.demo?.lib?.x, m = libMuscles(id, x, name, area);
+  db.demos[name] = { id, name: x?.name || id.replace(/_/g, ' '), images: libImages(id), instructions: x?.instructions || [], pm: m.p, sm: m.s };
+}
+
 function libToggleSave(name, id, area) {
   if (libSaved()[name]) delete libSaved()[name];
   else libSaved()[name] = { id, area };
@@ -602,11 +639,7 @@ function libAdd(name, id, area) {
   // A first-time exercise counts toward the area it was picked from (dips from the triceps list count as triceps).
   // One done before keeps its area, so its history doesn't move.
   if (isNew && !db.muscles[name] && groupOf(name) !== area) db.muscles[name] = area;
-  // The library's demo becomes the exercise's demo, unless one was picked before.
-  if (!db.demos[name]) {
-    const x = ui.demo?.lib?.x, m = libMuscles(id, x, name, area);
-    db.demos[name] = { id, name: x?.name || id.replace(/_/g, ' '), images: libImages(id), instructions: x?.instructions || [], pm: m.p, sm: m.s };
-  }
+  libKeepDemo(name, id, area);
   // A first time: the library's sets, reps and rest. Done before: your own last workout leads, as everywhere.
   const pr = !lastSetsFor(name) && prescFor(id);
   const ex = addToWorkout(name, pr ? { sets: pr.sets, reps: pr.reps || '', rest: pr.rest } : {}), w = db.active, y = window.scrollY;
