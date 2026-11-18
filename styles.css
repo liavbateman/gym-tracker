@@ -995,6 +995,10 @@ html.lib-compact .lib-fig { height: 34px; }
 html.lib-compact .lib-fig svg { width: 17px; height: 34px; }
 html.lib-compact .lib-bm svg { width: 20px; height: 20px; }
 html.lib-compact .lib-wk { display: none; }
+.lib-offline:empty { display: none; }
+.lib-offline { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-top: 22px; padding: 12px; border: 1px dashed var(--ink-soft); border-radius: 10px; }
+.lib-off-bar { flex-basis: 100%; height: 6px; border-radius: 3px; background: var(--rule); overflow: hidden; }
+.lib-off-bar i { display: block; height: 100%; background: var(--ink); transition: width .2s; }
 .lib-mine-box { margin-top: 14px; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 10px; background: var(--field); }
 .lib-mine-box .chips { margin-top: 8px; }
 .lib-save-btn { display: inline-flex; align-items: center; gap: 6px; }

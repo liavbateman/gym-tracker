@@ -574,6 +574,7 @@ document.addEventListener('click', (ev) => {
       render(); window.scrollTo(0, 0);
       break;
     }
+    case 'lib-offline': libSaveOffline(); break;
     case 'lib-part': ui.lib.part = el.dataset.k || null; render(); break;
     case 'lib-more': libMore(); break;
     case 'lib-ex': openLibEx(el.dataset.name, el.dataset.id, el.dataset.area); $('#sheet .sheet-panel')?.scrollTo(0, 0); break;

@@ -355,6 +355,7 @@ function viewLibrary() {
     ${libStrip()}
     <input type="search" class="lib-q" data-f="lib-q" value="${esc(ui.libQ || '')}" placeholder="${L('חיפוש תרגיל…', 'Sök övning…')}" enterkeyhint="search" autocomplete="off" aria-label="${L('חיפוש תרגיל', 'Sök övning')}">
     <div id="lib-body">${libBody()}</div>
+    <div class="lib-offline" id="lib-offline">${libOfflineHtml()}</div>
     <button class="btn block" data-act="lib-close">${db.active ? L('חזרה לאימון', 'Tillbaka till passet') : L('חזרה', 'Tillbaka')}</button>`;
 }
 
@@ -696,6 +697,58 @@ function libKeepDemo(name, id, area) {
 window.addEventListener('scroll', () => {
   document.documentElement.classList.toggle('lib-compact', !!ui.lib && window.scrollY > 90);
 }, { passive: true });
+
+// ---------- Demos without a signal ----------
+// Gym basements often have no reception. One tap saves every library demo photo and the exercise data to the
+// phone, into the service worker's media cache, which it serves first and keeps across app updates.
+const LIB_MEDIA = 'gym-tracker-media';
+const libMediaUrls = () => [EXDB + 'dist/exercises.json', ...[...LIB_IDS].flatMap((id) => libImages(id).map(exImg))];
+const libOff = { have: null, busy: false, done: 0, failed: 0 };
+
+async function libOfflineCount() {
+  if (!('caches' in window)) return;
+  try {
+    const c = await caches.open(LIB_MEDIA), urls = libMediaUrls();
+    const hits = await Promise.all(urls.map((u) => c.match(u)));
+    libOff.have = hits.filter(Boolean).length;
+  } catch { libOff.have = null; }
+  libOfflinePaint();
+}
+
+function libOfflineHtml() {
+  if (!('caches' in window)) return '';
+  const total = libMediaUrls().length;
+  if (libOff.have == null && !libOff.busy) { libOfflineCount(); return ''; }
+  if (libOff.busy) return `<span class="muted small">${L('שומר הדגמות…', 'Sparar demos…')} <b dir="ltr">${libOff.done}/${total}</b></span><div class="lib-off-bar"><i style="width:${Math.round(libOff.done / total * 100)}%"></i></div>`;
+  if (libOff.have >= total) return `<span class="muted small">✓ ${L('כל ההדגמות שמורות בטלפון ויעבדו גם בלי רשת', 'Alla demos finns på telefonen och fungerar utan nät')}</span>`;
+  return `
+    <div><b>${L('הדגמות בלי רשת', 'Demos utan nät')}</b><div class="muted small">${L(`${libOff.have} מתוך ${total} שמורות. שמור את כולן כדי לראות אותן גם במרתף בלי קליטה.`, `${libOff.have} av ${total} sparade. Spara alla för att se dem även utan mottagning.`)}${libOff.failed ? ` ${L(`(${libOff.failed} נכשלו)`, `(${libOff.failed} misslyckades)`)}` : ''}</div></div>
+    <button class="btn sm" data-act="lib-offline">${L('שמור הכל', 'Spara alla')}</button>`;
+}
+const libOfflinePaint = () => { const el = $('#lib-offline'); if (el) el.innerHTML = libOfflineHtml(); };
+
+async function libSaveOffline() {
+  if (libOff.busy) return;
+  const c = await caches.open(LIB_MEDIA), urls = libMediaUrls();
+  libOff.busy = true; libOff.done = 0; libOff.failed = 0;
+  libOfflinePaint();
+  let i = 0;
+  // Six at a time, in CORS mode like the <img> tags, so the cached copies serve them.
+  const worker = async () => {
+    while (i < urls.length) {
+      const u = urls[i++];
+      try {
+        if (!await c.match(u)) { const r = await fetch(u, { mode: 'cors' }); if (!r.ok) throw new Error(); await c.put(u, r); }
+      } catch { libOff.failed++; }
+      libOff.done++;
+      if (libOff.done % 6 === 0) libOfflinePaint();
+    }
+  };
+  await Promise.all(Array.from({ length: 6 }, worker));
+  libOff.busy = false;
+  await libOfflineCount();
+  if (libOff.failed) toast(L('חלק מההדגמות לא נשמרו. נסה שוב כשיש רשת טובה.', 'Vissa demos sparades inte. Försök igen med bättre nät.'));
+}
 
 function libToggleSave(name, id, area) {
   if (libSaved()[name]) delete libSaved()[name];
