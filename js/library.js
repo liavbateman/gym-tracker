@@ -434,7 +434,7 @@ function libBody() {
       </div>`;
     const sections = shown.map((p) => libSection(area, p, hist)).join('');
     let more = '';
-    if (!lb.more) more = `<button class="btn ghost block" data-act="lib-more">${L('עוד תרגילים מהמאגר (באנגלית)', 'Fler övningar från databasen (på engelska)')}</button>`;
+    if (!lb.more) more = `<button class="lib-more" data-act="lib-more"><span><b>${L('עוד תרגילים מהמאגר', 'Fler övningar från databasen')}</b><small>${L('מאות תרגילים נוספים, בשמות באנגלית', 'Hundratals till, med engelska namn')}</small></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>`;
     else if (lb.moreErr) more = `<p class="muted small">${L('אין חיבור לאינטרנט. המאגר צריך רשת.', 'Ingen internetanslutning. Databasen behöver nätet.')}</p>`;
     else if (!lb.extra) more = '<div class="center" style="padding:24px 0"><div class="spinner"></div></div>';
     else more = `<h2>${L('עוד מהמאגר', 'Mer från databasen')}</h2><div class="lib-grid">${lb.extra.filter((x) => eqOk(DB_EQUIP[x.equipment] || 'w')).map((x) => libCard(x.name, x.id, area, EQUIP_KINDS[DB_EQUIP[x.equipment] || 'w'], true, hist)).join('')}</div>`;
@@ -756,7 +756,7 @@ function libOfflineHtml() {
   const total = libMediaUrls().length;
   if (libOff.have == null && !libOff.busy) { libOfflineCount(); return ''; }
   if (libOff.busy) return `<span class="muted small">${L('שומר הדגמות…', 'Sparar demos…')} <b dir="ltr">${libOff.done}/${total}</b></span><div class="lib-off-bar"><i style="width:${Math.round(libOff.done / total * 100)}%"></i></div>`;
-  if (libOff.have >= total) return `<span class="muted small">✓ ${L('כל ההדגמות שמורות בטלפון ויעבדו גם בלי רשת', 'Alla demos finns på telefonen och fungerar utan nät')}</span>`;
+  if (libOff.have >= total) return `<span class="lib-off-done">✓ ${L('כל ההדגמות שמורות בטלפון ויעבדו גם בלי רשת', 'Alla demos finns på telefonen och fungerar utan nät')}</span>`;
   return `
     <div><b>${L('הדגמות בלי רשת', 'Demos utan nät')}</b><div class="muted small">${L(`${libOff.have} מתוך ${total} שמורות. שמור את כולן כדי לראות אותן גם במרתף בלי קליטה.`, `${libOff.have} av ${total} sparade. Spara alla för att se dem även utan mottagning.`)}${libOff.failed ? ` ${L(`(${libOff.failed} נכשלו)`, `(${libOff.failed} misslyckades)`)}` : ''}</div></div>
     <button class="btn sm" data-act="lib-offline">${L('שמור הכל', 'Spara alla')}</button>`;
