@@ -1034,6 +1034,25 @@ html.lib-compact .lib-wk { display: none; }
 .lib-offline { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-top: 22px; padding: 12px; border: 1px dashed var(--ink-soft); border-radius: 10px; }
 .lib-off-bar { flex-basis: 100%; height: 6px; border-radius: 3px; background: var(--rule); overflow: hidden; }
 .lib-off-bar i { display: block; height: 100%; background: var(--ink); transition: width .2s; }
+/* Exercise sheet: a display-type title with where it belongs under it, the photo edge to edge, one big
+   action beside a square save button. */
+.lib-sheet-head { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 12px; }
+.lib-sheet-title { font-family: var(--display); font-size: 34px; line-height: .95; margin: 0; }
+.lib-sheet-meta { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 6px; }
+.lib-sheet-meta span { font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+.lib-sheet-meta span + span::before { content: '·'; margin-inline-end: 6px; }
+.lib-sheet .demo-anim.big { border: 0; border-radius: 14px; }
+.lib-sheet .demo-anim.big img { object-fit: cover; }
+.lib-actions { display: flex; gap: 8px; margin-top: 12px; }
+.lib-actions .btn { margin: 0; }
+.lib-actions .primary { flex: 1; min-height: 48px; font-size: 16px; }
+.lib-actions .lib-save-btn { flex: none; width: 48px; min-height: 48px; padding: 0; justify-content: center; }
+.lib-actions .lib-save-btn svg { width: 22px; height: 22px; }
+.lib-in { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 48px; border-radius: 8px; background: var(--hl); color: var(--hl-ink); font-weight: 700; }
+.lib-tpls-label { margin-top: 14px; }
+.lib-tpls { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: -16px; padding-inline: 16px; margin-top: 6px; }
+.lib-tpls::-webkit-scrollbar { display: none; }
+.lib-tpl { flex: none; }
 .lib-mine-box { margin-top: 14px; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 10px; background: var(--field); }
 .lib-mine-box .chips { margin-top: 8px; }
 .lib-save-btn { display: inline-flex; align-items: center; gap: 6px; }

@@ -485,20 +485,25 @@ function viewLibEx(d) {
   const { id, area, x } = d.lib;
   const english = !LIB_IDS.has(id);
   const m = libMuscles(id, x, d.name, area);
-  const here = inWorkout(d.name), saved = !!libSaved()[d.name];
+  const here = inWorkout(d.name), saved = !!libSaved()[d.name], it = LIB_ITEMS.get(id);
+  // Under the name: where it sits in the library and what it takes.
+  const meta = it ? [gName(it.area), partName(it.part), EQUIP_KINDS[it.eq]] : [gName(area), x?.equipment].filter(Boolean);
   return `
-    <div class="sheet-panel" data-act="none" role="dialog" aria-modal="true" aria-label="${esc(d.name)}">
+    <div class="sheet-panel lib-sheet" data-act="none" role="dialog" aria-modal="true" aria-label="${esc(d.name)}">
       <div class="sheet-grab" aria-hidden="true"></div>
-      <div class="row between" style="margin-bottom:12px">
+      <div class="lib-sheet-head">
         ${d.lib.from ? `<button class="icon-btn lib-back" data-act="lib-back" aria-label="${L('חזרה ל', 'Tillbaka till ')}${esc(exName(d.lib.from.name))}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>` : ''}
-        <h3 class="grow" ${english ? 'dir="ltr"' : ''}>${esc(english ? d.name : exName(d.name))}</h3>
+        <div class="grow">
+          <h2 class="lib-sheet-title" ${english ? 'dir="ltr"' : ''}>${esc(english ? d.name : exName(d.name))}</h2>
+          <div class="lib-sheet-meta">${meta.map((t) => `<span>${esc(t)}</span>`).join('')}</div>
+        </div>
         <button class="icon-btn" data-act="demo-close" aria-label="${L('סגור', 'Stäng')}">✕</button>
       </div>
       ${demoAnim(libImages(id), true)}
-      <div class="row" style="margin-top:12px">
-        <button class="btn sm lib-save-btn ${saved ? 'on' : ''}" data-act="lib-save" data-name="${esc(d.name)}" data-id="${esc(id)}" data-area="${esc(area)}">${BOOKMARK}${saved ? L('נשמר', 'Sparad') : L('שמור', 'Spara')}</button>
-        ${here ? `<span class="muted small">${L('✓ כבר באימון', '✓ Redan i passet')}</span>`
-          : `<button class="btn sm primary" data-act="lib-add" data-name="${esc(d.name)}" data-id="${esc(id)}" data-area="${esc(area)}">${db.active ? L('+ הוסף לאימון', '+ Lägg till i passet') : L('התחל אימון עם התרגיל', 'Starta ett pass med övningen')}</button>`}
+      <div class="lib-actions">
+        ${here ? `<span class="lib-in">${L('✓ כבר באימון', '✓ Redan i passet')}</span>`
+          : `<button class="btn primary" data-act="lib-add" data-name="${esc(d.name)}" data-id="${esc(id)}" data-area="${esc(area)}">${db.active ? L('+ הוסף לאימון', '+ Lägg till i passet') : L('התחל אימון עם התרגיל', 'Starta ett pass med övningen')}</button>`}
+        <button class="btn lib-save-btn ${saved ? 'on' : ''}" data-act="lib-save" data-name="${esc(d.name)}" data-id="${esc(id)}" data-area="${esc(area)}" aria-pressed="${saved}" aria-label="${saved ? L('נשמר', 'Sparad') : L('שמור', 'Spara')}">${BOOKMARK}</button>
       </div>
       ${libHowBox(id)}
       ${libTplRow(d.name, id)}
@@ -690,8 +695,8 @@ function libSimilar(id) {
 function libTplRow(name, id) {
   if (!db.templates.length) return '';
   return `
+    <div class="lib-tpls-label muted small">${L('הוסף לתבנית', 'Lägg till i mall')}</div>
     <div class="lib-tpls">
-      <span class="muted small">${L('הוסף לתבנית:', 'Lägg till i mall:')}</span>
       ${db.templates.map((t) => {
         const has = t.exercises.some((e) => e.name === name);
         return `<button class="lib-tpl ${has ? 'on' : ''}" data-act="lib-tpl" data-tpl="${esc(t.id)}" data-name="${esc(name)}" data-id="${esc(id)}" ${has ? 'disabled' : ''}>${has ? '✓ ' : '+ '}${esc(t.name)}</button>`;
