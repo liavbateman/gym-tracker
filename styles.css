@@ -350,7 +350,6 @@ label.field input, label.field select { margin-top: 4px; color: var(--ink); }
 .muscle-list { font-size: 13px; line-height: 1.5; min-width: 0; }
 .muscle-list b { font-weight: 700; }
 .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-inline-end: 6px; vertical-align: 0; }
-.tex .muscles { margin-top: 8px; }
 
 /* Set rows: a grid that slides over a red delete layer when swiped */
 /* --tap: width of the set number and the +/− buttons. Wider wherever the phone has the room (most do). */
@@ -443,11 +442,18 @@ input[type=date].pill-in, .pill-in {
 .area-div b { font-family: var(--display); font-size: 28px; line-height: 1; }
 .area-div span { font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
 .area-div::after { content: ''; flex: 1; border-top: 2px solid var(--ink); align-self: center; }
-.tex { background: var(--sheet); border: 1px solid var(--rule); border-radius: 4px; padding: 10px; margin-bottom: 8px; }
-.tex .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 10px; margin-top: 10px; }
-.tex .grid .field { font-size: 12px; min-width: 0; }
-.tex .grid .span2 { grid-column: 1 / -1; }
-.tex .grid input { display: block; width: 100%; padding: 9px 4px; }
+/* Template editor card: one compact block per exercise. Sets, reps, rest and weight sit in one row of four
+   small fields (they took a 2x2 grid of big inputs), the area under them, the muscles as a slim strip. */
+.tex { background: var(--sheet); border: 1px solid var(--rule); border-radius: 12px; padding: 10px; margin-bottom: 10px; }
+.tex .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
+.tex .grid .field { font-size: 11px; font-weight: 600; color: var(--ink-soft); min-width: 0; text-align: center; white-space: nowrap; }
+.tex .grid .span2 { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; text-align: start; }
+.tex .grid input { display: block; width: 100%; margin-top: 3px; padding: 8px 2px; text-align: center; font-size: 16px; font-weight: 700; color: var(--ink); }
+.tex .grid select { flex: 1; margin: 0; padding: 7px 8px; font-size: 14px; color: var(--ink); }
+.tex .muscles { margin-top: 8px; padding: 6px 8px; gap: 10px; border-style: dashed; }
+.tex .muscle-figs svg { width: 30px; height: 62px; }
+.tex .body-fig figcaption { display: none; }
+.tex .muscle-list { font-size: 12px; line-height: 1.45; }
 .tex > .row input { min-width: 0; }
 
 /* Body area, written small above exercise names */
