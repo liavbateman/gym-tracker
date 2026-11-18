@@ -21,7 +21,8 @@ function render() {
       break;
     // Templates live inside the workout tab: the editor opens over the start screen or the active workout and returns to it.
     default:
-      if (ui.lib) { title = L('ספריית תרגילים', 'Övningsbibliotek'); html = viewLibrary(); }
+      // During a workout the clock shares the top bar, so the title gets shorter instead of being cut off.
+      if (ui.lib) { title = db.active ? L('תרגילים', 'Övningar') : L('ספריית תרגילים', 'Övningsbibliotek'); html = viewLibrary(); }
       else if (ui.cdraft) { title = L('אירובי', 'Kondition'); html = viewCardioForm(); }
       else if (ui.draft) { title = ui.draft.isNew ? L('תבנית חדשה', 'Ny mall') : L('עריכת תבנית', 'Ändra mall'); html = viewEditor(); }
       else { title = db.active ? L('אימון פעיל', 'Aktivt pass') : L('אימון', 'Träning'); html = db.active ? viewActive() : viewStart(); }
