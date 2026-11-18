@@ -265,9 +265,33 @@ function libSection(area, [part, side, all], hist) {
     </section>`;
 }
 
+// Search across every area: each word has to appear in the name (either language), the part or the area.
+function libSearch(q, hist) {
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+  const hits = [];
+  for (const [area, parts] of Object.entries(LIBRARY)) {
+    for (const [part, , list] of parts) {
+      for (const [name, id, eq] of list) {
+        const text = [name, exName(name), partName(part), gName(area), area, EQUIP_KINDS[eq]].join(' ').toLowerCase();
+        if (words.every((w) => text.includes(w))) hits.push(libCard(name, id, area, `${gName(area)} · ${partName(part)}`, false, hist));
+      }
+    }
+  }
+  return hits.length ? `<div class="lib-grid" style="margin-top:14px">${hits.join('')}</div>`
+    : `<p class="muted" style="margin-top:16px">${L('לא נמצאו תרגילים. נסה מילה אחרת, למשל "פרפר" או "כבל".', 'Inga övningar hittades. Prova ett annat ord, t.ex. "flyes" eller "kabel".')}</p>`;
+}
+
 function viewLibrary() {
-  const lb = ui.lib, area = lb.area, hist = libHistory();
   libWk = libWeek();
+  return `
+    ${libStrip()}
+    <input type="search" class="lib-q" data-f="lib-q" value="${esc(ui.libQ || '')}" placeholder="${L('חיפוש תרגיל…', 'Sök övning…')}" enterkeyhint="search" autocomplete="off" aria-label="${L('חיפוש תרגיל', 'Sök övning')}">
+    <div id="lib-body">${libBody()}</div>
+    <button class="btn block" data-act="lib-close">${db.active ? L('חזרה לאימון', 'Tillbaka till passet') : L('חזרה', 'Tillbaka')}</button>`;
+}
+
+function libStrip() {
+  const area = ui.lib.area;
   const strip = `
     <div class="lib-areas" role="tablist">
       <button class="lib-area ${area === 'saved' ? 'on' : ''}" data-act="lib-area" data-a="saved" role="tab" aria-selected="${area === 'saved'}">
@@ -278,7 +302,13 @@ function viewLibrary() {
           <span class="lib-fig">${bodyFig(side, { p: GROUP_MUSCLES[a] || [], s: [] })}</span><span>${gName(a)}</span>${areaWeekTag(a)}
         </button>`).join('')}
     </div>`;
+  return strip;
+}
 
+// Everything below the search box; typing redraws just this part, so the keyboard stays up.
+function libBody() {
+  const lb = ui.lib, area = lb.area, hist = libHistory();
+  if (ui.libQ?.trim()) return libSearch(ui.libQ.trim(), hist);
   let body;
   if (area === 'saved') {
     const list = Object.entries(libSaved());
@@ -309,10 +339,7 @@ function viewLibrary() {
     const none = `<p class="muted" style="margin-top:16px">${L(`אין כאן תרגילים עם ${EQUIP_KINDS[ui.libEq]}.`, `Inga övningar med ${EQUIP_KINDS[ui.libEq]} här.`)} <button class="link-btn" data-act="lib-eq" data-k="${ui.libEq}">${L('הצג הכל', 'Visa alla')}</button></p>`;
     body = `${chips}${sections || none}${lb.part ? '' : more}`;
   }
-  return `
-    ${strip}
-    ${body}
-    <button class="btn block" data-act="lib-close">${db.active ? L('חזרה לאימון', 'Tillbaka till passet') : L('חזרה', 'Tillbaka')}</button>`;
+  return body;
 }
 
 async function libMore() {

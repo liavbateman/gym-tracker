@@ -914,6 +914,8 @@ body.sheet-open { overflow: hidden; }
 .lib-wk.none { border: 1px dashed var(--rule); color: var(--ink-soft); }
 .lib-sec-wk { display: inline-block; margin-inline-start: 8px; font-size: 12px; font-weight: 700; color: var(--ink); }
 .lib-sec-wk.none { color: var(--red); }
+.lib-q { width: 100%; margin-top: 12px; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 10px; background: var(--field); color: var(--ink); font: inherit; font-size: 16px; }
+.lib-q:focus { outline: none; border-color: var(--ink); }
 .lib-parts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
 .lib-part { border: 1px solid var(--rule); border-radius: 999px; padding: 6px 12px; background: var(--field); color: var(--ink); font: inherit; font-size: 13px; font-weight: 600; }
 .lib-part.on { background: var(--ink); border-color: var(--ink); color: var(--paper); }

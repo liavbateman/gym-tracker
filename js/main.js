@@ -565,7 +565,7 @@ document.addEventListener('click', (ev) => {
     case 'demo-close': ui.demo = null; renderSheet(); break;
     case 'lib-open': openLibrary(); break;
     case 'lib-close': closeLibrary(); break;
-    case 'lib-area': ui.lib = { area: el.dataset.a, part: null, more: false }; if (el.dataset.a !== 'saved') ui.libArea = el.dataset.a; render(); break;
+    case 'lib-area': ui.libQ = ''; ui.lib = { area: el.dataset.a, part: null, more: false }; if (el.dataset.a !== 'saved') ui.libArea = el.dataset.a; render(); break;
     case 'lib-eq': ui.libEq = ui.libEq === el.dataset.k ? null : el.dataset.k; render(); break;
     case 'lib-part': ui.lib.part = el.dataset.k || null; render(); break;
     case 'lib-more': libMore(); break;
@@ -652,6 +652,7 @@ document.addEventListener('input', (ev) => {
   if (!f) return;
   const i = +el.dataset.i;
   switch (f) {
+    case 'lib-q': ui.libQ = el.value; $('#lib-body').innerHTML = libBody(); break;
     case 'w':
     case 'r': {
       const set = db.active.exercises[+el.dataset.e].sets[+el.dataset.s];
