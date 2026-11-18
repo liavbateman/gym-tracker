@@ -305,7 +305,8 @@ function libForMe(hist) {
         <button class="lib-sim" data-act="lib-ex" data-name="${esc(name)}" data-id="${esc(id)}" data-area="${esc(area)}">
           ${demoAnim(libImages(id))}
           <span class="lib-sim-name">${esc(exName(name))}</span>
-          <span class="muted small">${esc(partName(part))} · ${n ? L(`${n} סטים`, `${n} set`) : L('0 השבוע', '0 i veckan')}</span>
+          <span class="muted small lib-sim-sub">${esc(partName(part))}</span>
+          <span class="lib-sim-wk ${n ? '' : 'none'}">${n ? L(`${n} סטים השבוע`, `${n} set i veckan`) : L('לא אומן השבוע', 'Inte tränad i veckan')}</span>
         </button>`).join('')}
       </div>
     </div>`;
@@ -499,7 +500,7 @@ function libMineBox(name) {
       <div class="row between"><b>${L('הפעם האחרונה שלך', 'Senast du gjorde den')}</b><span class="muted small">${mine ? esc(agoText(mine.t)) : ''}</span></div>
       <div class="chips">${last.map((s) => `<span class="chip">${esc(setText(s))}</span>`).join('')}</div>
       <div class="muted small" style="margin-top:6px">
-        ${mine ? L(`עשית ${mine.n} פעמים`, `Gjort ${mine.n} gånger`) : ''}${maxW && num(maxW.w) ? ` · ${L('שיא', 'Rekord')} <b dir="ltr">${esc(setText(maxW))}</b>` : ''}${maxE ? ` · 1RM ≈ <b dir="ltr">${Math.round(maxE)}</b>` : ''}
+        ${mine ? (mine.n === 1 ? L('עשית פעם אחת', 'Gjort en gång') : L(`עשית ${mine.n} פעמים`, `Gjort ${mine.n} gånger`)) : ''}${maxW && num(maxW.w) ? ` · ${L('שיא', 'Rekord')} <b dir="ltr">${esc(setText(maxW))}</b>` : ''}${maxE ? ` · 1RM ≈ <b dir="ltr">${Math.round(maxE)}</b>` : ''}
       </div>
     </div>`;
 }
