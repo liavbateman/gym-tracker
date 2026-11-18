@@ -948,7 +948,7 @@ body.sheet-open { overflow: hidden; }
 .lib-target { display: flex; justify-content: center; gap: 24px; padding: 12px 0 6px; margin-top: 8px; border: 1px solid var(--rule); border-radius: 10px; background: var(--field); }
 .lib-target svg { width: 96px; height: 198px; display: block; }
 .lib-target figcaption { font-size: 12px; margin-top: 4px; color: var(--ink-soft); font-weight: 700; text-align: center; }
-.lib-target + .muscle-list { margin-top: 8px; }
+
 .lib-bm svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
 .lib-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .lib-card { position: relative; }
@@ -989,7 +989,9 @@ body.sheet-open { overflow: hidden; }
 .lib-cue { margin: 10px 0 0; padding-top: 10px; border-top: 1px dashed var(--rule); font-size: 14px; line-height: 1.5; }
 .lib-similar { display: flex; gap: 8px; overflow-x: auto; margin: 8px -16px 0; padding: 0 16px 4px; scrollbar-width: none; }
 .lib-similar::-webkit-scrollbar { display: none; }
-.lib-sim { flex: none; width: 128px; text-align: start; padding: 6px; background: var(--field); border: 1px solid var(--rule); border-radius: 10px; color: var(--ink); font: inherit; }
+.lib-sim { flex: none; width: 132px; text-align: start; padding: 0 0 8px; overflow: hidden; background: var(--field); border: 1px solid var(--rule); border-radius: 12px; color: var(--ink); font: inherit; }
+.lib-sim .demo-anim { border: 0; border-radius: 0; border-bottom: 1px solid var(--rule); }
+.lib-sim > :not(.demo-anim) { margin-inline: 8px; }
 .lib-sim:active { border-color: var(--ink); }
 .lib-sim-sub { display: block; }
 .lib-sim-wk { display: block; font-size: 12px; font-weight: 700; margin-top: 2px; }
@@ -1049,7 +1051,12 @@ html.lib-compact .lib-wk { display: none; }
 .lib-actions .lib-save-btn { flex: none; width: 48px; min-height: 48px; padding: 0; justify-content: center; }
 .lib-actions .lib-save-btn svg { width: 22px; height: 22px; }
 .lib-in { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 48px; border-radius: 8px; background: var(--hl); color: var(--hl-ink); font-weight: 700; }
-.lib-tpls-label { margin-top: 14px; }
+/* One heading style for every section of the sheet. */
+.lib-h { margin: 20px 0 8px; font-size: 12px; font-weight: 700; letter-spacing: .02em; color: var(--ink-soft); }
+.lib-target-box { padding: 12px 12px 10px; border: 1px solid var(--rule); border-radius: 12px; background: var(--field); }
+.lib-target-box .lib-target { border: 0; padding: 0; margin: 0; background: none; }
+.lib-target-box .muscle-list { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--rule); }
+.lib-sheet .demo-steps { margin-top: 0; }
 .lib-tpls { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: -16px; padding-inline: 16px; margin-top: 6px; }
 .lib-tpls::-webkit-scrollbar { display: none; }
 .lib-tpl { flex: none; }

@@ -509,16 +509,18 @@ function viewLibEx(d) {
       ${libTplRow(d.name, id)}
       ${libMineBox(d.name)}
       ${libSimilar(id)}
-      <h3 style="margin-top:16px">${L('שרירי מטרה', 'Målmuskler')}</h3>
+      <div class="lib-h">${L('שרירי מטרה', 'Målmuskler')}</div>
       ${m.p.length ? `
-        <div class="lib-target">
-          ${bodySvg('front', m, L('קדימה', 'Framsida'))}${bodySvg('back', m, L('אחורה', 'Baksida'))}
-        </div>
-        <div class="muscle-list">
-          <div><i class="dot mp"></i><b>${L('ראשי:', 'Primära:')}</b> ${esc(muscleNames(m.p))}</div>
-          ${m.s.length ? `<div><i class="dot ms"></i><b>${L('משני:', 'Sekundära:')}</b> ${esc(muscleNames(m.s))}</div>` : ''}
+        <div class="lib-target-box">
+          <div class="lib-target">
+            ${bodySvg('front', m, L('קדימה', 'Framsida'))}${bodySvg('back', m, L('אחורה', 'Baksida'))}
+          </div>
+          <div class="muscle-list">
+            <div><i class="dot mp"></i><b>${L('ראשי:', 'Primära:')}</b> ${esc(muscleNames(m.p))}</div>
+            ${m.s.length ? `<div><i class="dot ms"></i><b>${L('משני:', 'Sekundära:')}</b> ${esc(muscleNames(m.s))}</div>` : ''}
+          </div>
         </div>` : `<p class="muted small">${L('אין מידע על השרירים.', 'Ingen muskelinformation.')}</p>`}
-      ${x ? `<div class="demo-en" dir="ltr">${esc(x.name)}${x.equipment ? ` · ${esc(x.equipment)}` : ''}</div>` : ''}
+      ${x ? `<div class="lib-h" dir="ltr">${esc(x.name)}${x.equipment ? ` · ${esc(x.equipment)}` : ''}</div>` : ''}
       ${x?.instructions?.length ? `<ol class="demo-steps" dir="ltr">${x.instructions.map((s) => `<li>${esc(s)}</li>`).join('')}</ol>` : ''}
     </div>`;
 }
@@ -530,7 +532,7 @@ function libMineBox(name) {
   const mine = libHistory().get(name), { maxW, maxE } = bestFor(name);
   return `
     <div class="lib-mine-box">
-      <div class="row between"><b>${L('הפעם האחרונה שלך', 'Senast du gjorde den')}</b><span class="muted small">${mine ? esc(agoText(mine.t)) : ''}</span></div>
+      <div class="row between"><span class="lib-h" style="margin:0">${L('הפעם האחרונה שלך', 'Senast du gjorde den')}</span><span class="muted small">${mine ? esc(agoText(mine.t)) : ''}</span></div>
       <div class="chips">${last.map((s) => `<span class="chip">${esc(setText(s))}</span>`).join('')}</div>
       <div class="muted small" style="margin-top:6px">
         ${mine ? (mine.n === 1 ? L('עשית פעם אחת', 'Gjort en gång') : L(`עשית ${mine.n} פעמים`, `Gjort ${mine.n} gånger`)) : ''}${maxW && num(maxW.w) ? ` · ${L('שיא', 'Rekord')} <b dir="ltr">${esc(setText(maxW))}</b>` : ''}${maxE ? ` · 1RM ≈ <b dir="ltr">${Math.round(maxE)}</b>` : ''}
@@ -681,7 +683,7 @@ function libSimilar(id) {
     .sort((a, b) => (a[2] === it.eq) - (b[2] === it.eq));
   if (!list.length) return '';
   return `
-    <h3 style="margin-top:16px">${L('תפוס? אפשר במקום', 'Upptagen? Gör i stället')}</h3>
+    <div class="lib-h">${L('תפוס? אפשר במקום', 'Upptagen? Gör i stället')}</div>
     <div class="lib-similar">${list.map(([n, x, eq]) => `
       <button class="lib-sim" data-act="lib-ex" data-name="${esc(n)}" data-id="${esc(x)}" data-area="${esc(it.area)}">
         ${demoAnim(libImages(x))}
@@ -695,7 +697,7 @@ function libSimilar(id) {
 function libTplRow(name, id) {
   if (!db.templates.length) return '';
   return `
-    <div class="lib-tpls-label muted small">${L('הוסף לתבנית', 'Lägg till i mall')}</div>
+    <div class="lib-h">${L('הוסף לתבנית', 'Lägg till i mall')}</div>
     <div class="lib-tpls">
       ${db.templates.map((t) => {
         const has = t.exercises.some((e) => e.name === name);
