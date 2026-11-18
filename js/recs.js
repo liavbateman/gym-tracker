@@ -43,11 +43,21 @@ function bodyProfile() {
   return { m: wM, weight, height, pbf, ffm, bmi, ffmi, hm, trend, bmr: wM.bmr ?? null, visceral: wM.visceral ?? null };
 }
 
+// Four weeks of training time: injury days are left out, so the window reaches back past them (up to 16 weeks).
 function trainingSummary() {
-  const now = Date.now();
-  const recent = db.workouts.filter((w) => w.start >= now - 4 * WEEK_MS);
+  const today = new Date(), wd = activeDays();
+  const free = (d) => wd.has(d.toDateString()) || !injuredOn(isoDay(d.getTime()));
+  let from = addDays(today, -111);
+  for (let i = 0, n = 0; i < 112; i++) {
+    const d = addDays(today, -i);
+    if (free(d) && ++n === 28) { from = d; break; }
+  }
+  const recent = db.workouts.filter((w) => w.start >= from.getTime());
   if (!recent.length) return null;
-  const weeks = Math.min(4, Math.max(1, (now - Math.min(...recent.map((w) => w.start))) / WEEK_MS));
+  const first = new Date(Math.min(...recent.map((w) => w.start)));
+  let freeDays = 0;
+  for (let d = new Date(first.getFullYear(), first.getMonth(), first.getDate()); d <= today; d = addDays(d, 1)) if (free(d)) freeDays++;
+  const weeks = Math.min(4, Math.max(1, freeDays / 7));
   const sets = new Map(GROUPS.map((g) => [g, 0]));
   for (const w of recent) for (const e of w.exercises) sets.set(groupOf(e.name), sets.get(groupOf(e.name)) + work(e.sets).length);
   return { perWeek: recent.length / weeks, sets: new Map([...sets].map(([g, c]) => [g, c / weeks])) };
@@ -137,6 +147,12 @@ function buildRecs() {
   const tr = trainingSummary();
   const goal = pickGoal(p, sex);
   const recs = [];
+  const inj = activeInjury();
+  if (inj) recs.push({
+    t: L('פציעה', 'Skada'),
+    d: L(`בפציעה מאז ${fmtDate(dayTs(inj.from))}${inj.note ? ` (${esc(inj.note)})` : ''}. הקלוריות מחושבות לפי פעילות נמוכה, והתדירות והנפח לפי השבועות שלפני הפציעה. בזמן ההחלמה שמור על חלבון גבוה כדי לא לאבד שריר, ובחזרה התחל בכ-50%–60% מהמשקלים והסטים הרגילים ועלה בהדרגה במשך 2–3 שבועות.`,
+      `Skadad sedan ${fmtDate(dayTs(inj.from))}${inj.note ? ` (${esc(inj.note)})` : ''}. Kalorierna räknas på låg aktivitet, och frekvens och volym på veckorna före skadan. Håll proteinet högt under läkningen så att du inte tappar muskler, och börja på cirka 50–60 % av dina vanliga vikter och set när du är tillbaka och öka gradvis under 2–3 veckor.`),
+  });
 
   if (goal) {
     let d = `${GOALS[goal].d}. `;
@@ -153,7 +169,7 @@ function buildRecs() {
 
   // Calories: measured BMR when the report has it, otherwise Katch-McArdle from lean mass, otherwise a per-kg estimate.
   const bmr = p.bmr ?? (p.ffm ? 370 + 21.6 * p.ffm : p.weight * (sex === 'f' ? 20 : 22));
-  const pw = tr ? tr.perWeek : 0;
+  const pw = tr && !inj ? tr.perWeek : 0; // injured: count on low activity
   const tdee = bmr * (pw < 1.5 ? 1.35 : pw < 3.5 ? 1.5 : pw < 5.5 ? 1.6 : 1.75);
   const target = goal === 'cut' ? Math.max(bmr, tdee - 450) : goal === 'bulk' ? tdee + 250 : tdee;
   // Protein per kg; with a BMI over 30 count it on a BMI-25 weight, not on the extra fat.
@@ -269,6 +285,7 @@ const aiHtml = (text) => esc(text)
 
 function recPrompt() {
   const { p, sex, goal, tdee, tr } = buildRecs();
+  const inj = activeInjury();
   const v = (n) => (n == null ? '?' : r1(n));
   const hist = sortedMetrics().slice(0, 8).map((m) => `- ${isoDay(m.t)}: ${MFIELDS.filter((f) => m[f.k] != null).map((f) => `${f.k}=${fmtW(m[f.k])}`).join(', ')}`).join('\n');
   const sets = tr ? [...tr.sets].filter(([, c]) => c).map(([g, c]) => `${gName(g)}: ${v(c)}`).join(', ') : 'no workouts logged';
@@ -283,7 +300,7 @@ Suggested goal: ${goal ? GOALS[goal].en : 'unknown'}. Estimated maintenance ~${r
 Measurement history (newest first; pbf = body fat %, smm = skeletal muscle mass kg):
 ${hist}
 
-Last 4 weeks: ${tr ? `${v(tr.perWeek)} workouts per week. Working sets per week by body area: ${sets}` : sets}.
+${inj ? `I'm currently injured (since ${inj.from}${inj.note ? `: ${inj.note}` : ''}) and not training; take that into account and include how to come back from it.\n` : ''}Last 4 weeks of training (injury time left out): ${tr ? `${v(tr.perWeek)} workouts per week. Working sets per week by body area: ${sets}` : sets}.
 
 My workout templates:
 ${tpls || '- none'}

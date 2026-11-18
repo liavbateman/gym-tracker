@@ -597,6 +597,15 @@ document.addEventListener('click', (ev) => {
       });
       break;
     case 'day-rest': toggleRest(el.dataset.d); break;
+    case 'inj-start': startInjury(); break;
+    case 'inj-end': endInjury(); break;
+    case 'inj-del': {
+      const x = db.injuries.find((y) => y.id === el.dataset.id);
+      if (!x) break;
+      db.injuries = db.injuries.filter((y) => y !== x); save(); render();
+      toast(L('הפציעה נמחקה', 'Skadan togs bort'), 5000, { ...UNDO, run: () => { db.injuries.push(x); save(); render(); } });
+      break;
+    }
     case 'c-new': ui.cdraft = { type: db.settings.lastCardio || 'run', mins: '', dist: '', kcal: '', bw: '', date: isoDay(Date.now()) }; render(); window.scrollTo(0, 0); break;
     case 'c-type': ui.cdraft.type = db.settings.lastCardio = el.dataset.k; ui.cdraft.dist = ''; render(); break;
     case 'c-cancel': ui.cdraft = null; render(); window.scrollTo(0, 0); break;

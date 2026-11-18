@@ -11,12 +11,20 @@ const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + 
 const WEEK_FIRST = SV ? 1 : 0;
 const weekStart = (d = new Date()) => addDays(d, -((d.getDay() - WEEK_FIRST + 7) % 7));
 const weekCount = (sunday, days) => [0, 1, 2, 3, 4, 5, 6].filter((i) => days.has(addDays(sunday, i).toDateString())).length;
+// The weekly goal scaled to the days that weren't injury days (a day with training counts either way). 0 = a whole week injured.
+function weekGoal(sunday, goal, days) {
+  const free = [0, 1, 2, 3, 4, 5, 6].filter((i) => { const d = addDays(sunday, i); return days.has(d.toDateString()) || !injuredOn(isoDay(d.getTime())); }).length;
+  return Math.round((goal * free) / 7);
+}
 // Weeks in a row that reached the weekly goal. This week counts once it's reached; until then it doesn't break the run.
+// Injury weeks are skipped: they neither break the run nor add to it.
 function weekStreak(goal, days) {
-  let sun = weekStart(), n = weekCount(sun, days) >= goal ? 1 : 0;
+  let sun = weekStart(), g = weekGoal(sun, goal, days), n = g && weekCount(sun, days) >= g ? 1 : 0;
   for (let k = 0; k < 520; k++) {
     sun = addDays(sun, -7);
-    if (weekCount(sun, days) < goal) break;
+    g = weekGoal(sun, goal, days);
+    if (!g) continue;
+    if (weekCount(sun, days) < g) break;
     n++;
   }
   return n;
@@ -30,35 +38,46 @@ function viewWeek() {
   const trained = new Set(db.workouts.map((w) => new Date(w.start).toDateString()));
   const cardio = new Set(db.cardio.map((c) => new Date(c.t).toDateString()));
   const days = activeDays();
-  const goal = db.settings.weeklyGoal || 0;
+  const fullGoal = db.settings.weeklyGoal || 0;
+  const goal = fullGoal ? weekGoal(sunday, fullGoal, days) : 0;
   const count = weekCount(sunday, days);
   const streak = goal ? weekStreak(goal, days) : 0;
   const cells = names.map((d, i) => {
     const day = addDays(sunday, i);
     const k = day.toDateString(), iso = isoDay(day.getTime());
-    const rest = db.rest.includes(iso) && !days.has(k);
+    const inj = !days.has(k) && injuredOn(iso);
+    const rest = !inj && db.rest.includes(iso) && !days.has(k);
     const today = k === now.toDateString();
-    return `<button class="${today ? 'today' : ''}" data-act="day-rest" data-d="${iso}" aria-label="${day.toLocaleDateString(LOC, { weekday: 'long' })}${rest ? L(', יום מנוחה', ', vilodag') : ''}">
-      <span class="${trained.has(k) ? 'on' : ''} ${rest ? 'rest' : ''}">${cardio.has(k) ? '<i></i>' : ''}</span>${d}</button>`;
+    return `<button class="${today ? 'today' : ''}" data-act="day-rest" data-d="${iso}" aria-label="${day.toLocaleDateString(LOC, { weekday: 'long' })}${inj ? L(', פציעה', ', skada') : rest ? L(', יום מנוחה', ', vilodag') : ''}">
+      <span class="${trained.has(k) ? 'on' : ''} ${rest ? 'rest' : ''} ${inj ? 'inj' : ''}">${cardio.has(k) ? '<i></i>' : ''}</span>${d}</button>`;
   }).join('');
   const done = goal && count >= goal;
+  const adj = fullGoal && goal < fullGoal ? ` ${L('(מותאם לפציעה)', '(anpassat efter skada)')}` : '';
   return `<div class="card">
-    <div class="row between"><h3>${L('השבוע', 'Den här veckan')}</h3><span class="muted small">${goal ? `<b class="${done ? 'goal-done' : ''}">${count}/${goal}</b> ${L('ימי אימון', 'träningsdagar')}` : count === 1 ? L('יום אימון אחד', '1 träningsdag') : `${count} ${L('ימי אימון', 'träningsdagar')}`}</span></div>
+    <div class="row between"><h3>${L('השבוע', 'Den här veckan')}</h3><span class="muted small">${goal ? `<b class="${done ? 'goal-done' : ''}">${count}/${goal}</b> ${L('ימי אימון', 'träningsdagar')}${adj}` : fullGoal ? L('שבוע פציעה, לא נספר ביעד', 'Skadevecka, räknas inte mot målet') : count === 1 ? L('יום אימון אחד', '1 träningsdag') : `${count} ${L('ימי אימון', 'träningsdagar')}`}</span></div>
     ${goal ? `<div class="goal-bar"><div style="width:${Math.min(100, (count / goal) * 100)}%"></div></div>` : ''}
     <div class="week">${cells}</div>
     <div class="row between muted small week-foot"><span>${L('לחיצה על יום מסמנת יום מנוחה', 'Tryck på en dag för att markera vilodag')}</span>${streak > 1 ? `<span>${L(`רצף <b>${streak}</b> שבועות ביעד`, `<b>${streak}</b> veckor i rad på målet`)}</span>` : done ? `<span>${L('היעד השבועי הושג ✓', 'Veckomålet nått ✓')}</span>` : ''}</div>
   </div>`;
 }
 
-// Quick actions for today: log cardio, or call it a rest day.
+// Quick actions for today: log cardio, call it a rest day, or mark an injury.
 function viewToday() {
   const today = isoDay(Date.now());
   const rest = db.rest.includes(today);
   const done = db.cardio.filter((c) => isoDay(c.t) === today);
+  const inj = activeInjury();
+  const injDays = inj ? Math.round((dayTs(today) - dayTs(inj.from)) / 86400000) + 1 : 0;
   return `
+    ${inj ? `<div class="card inj-card">
+      <div class="row between"><b>${L('בפציעה', 'Skadad')}${inj.note ? ` · ${esc(inj.note)}` : ''}</b><span class="muted small">${L(`מאז ${fmtDate(dayTs(inj.from))} · ${injDays === 1 ? 'יום אחד' : `${injDays} ימים`}`, `Sedan ${fmtDate(dayTs(inj.from))} · ${injDays} ${injDays === 1 ? 'dag' : 'dagar'}`)}</span></div>
+      <p class="muted small rest-note">${L('הימים האלה לא נספרים ביעד השבועי, ברצף ובממוצעים. החלמה מהירה!', 'De här dagarna räknas inte mot veckomålet, sviten eller snitten. Krya på dig!')}</p>
+      <button class="btn block primary" data-act="inj-end">${L('חזרתי להתאמן', 'Jag är tillbaka')}</button>
+    </div>` : ''}
     <div class="row">
       <button class="btn grow" data-act="c-new">${L('+ אירובי', '+ Kondition')}</button>
       <button class="btn grow ${rest ? 'primary' : ''}" data-act="day-rest" data-d="${today}">${rest ? L('✓ יום מנוחה', '✓ Vilodag') : L('היום יום מנוחה', 'Vilodag idag')}</button>
+      ${inj ? '' : `<button class="btn" data-act="inj-start">${L('פציעה', 'Skada')}</button>`}
     </div>
     ${rest ? `<p class="muted small rest-note">${L('השריר נבנה בזמן המנוחה: לישון טוב, לאכול מספיק חלבון ולשתות מים. הליכה קלה או מתיחות לא מקלקלות יום מנוחה.', 'Musklerna byggs under vilan: sov gott, ät tillräckligt med protein och drick vatten. En lugn promenad eller stretching förstör inte en vilodag.')}</p>` : ''}
     ${done.length ? `<p class="muted small rest-note">${L('היום', 'Idag')}: ${done.map((c) => `${CARDIO_BY[c.type].name} ${fmtMins(c.mins)} · ${c.kcal} ${L('קק״ל', 'kcal')}`).join(' | ')}</p>` : ''}`;
@@ -163,6 +182,31 @@ function toggleRest(iso) {
   db.rest = has ? db.rest.filter((x) => x !== iso) : [...db.rest, iso];
   save(); render();
   toast(has ? L('בוטל יום המנוחה', 'Vilodagen borttagen') : L('סומן יום מנוחה', 'Markerad som vilodag'));
+}
+
+// ---------- Injury ----------
+async function startInjury() {
+  const today = isoDay(Date.now());
+  const from = await ask({ title: L('מאיזה יום הפציעה?', 'Från vilken dag är du skadad?'), msg: L('מהיום הזה ועד שתסמן שחזרת, הימים לא נספרים ביעד השבועי, ברצף ובממוצעים.', 'Från den dagen tills du markerar att du är tillbaka räknas dagarna inte mot veckomålet, sviten eller snitten.'), ok: L('המשך', 'Fortsätt'), input: { type: 'date', value: today, max: today } });
+  if (from == null) return;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || from > today) { toast(L('תאריך לא תקין', 'Ogiltigt datum')); return; }
+  const note = await ask({ title: L('מה נפצע?', 'Vad är skadat?'), msg: L('לא חובה. למשל: כתף ימין', 'Valfritt. Till exempel: höger axel'), ok: L('שמור', 'Spara'), input: { type: 'text', value: '' } });
+  if (note == null) return;
+  db.injuries.push({ id: uid(), from, to: null, note });
+  save(); render();
+  toast(L('הפציעה נשמרה. החלמה מהירה!', 'Skadan sparades. Krya på dig!'));
+}
+
+// The injury ends yesterday, so today already counts as a training day. One that started today is simply removed.
+function endInjury() {
+  const inj = activeInjury();
+  if (!inj) return;
+  const prev = { ...inj };
+  const y = isoDay(addDays(new Date(), -1).getTime());
+  if (inj.from > y) db.injuries = db.injuries.filter((x) => x !== inj);
+  else inj.to = y;
+  save(); render();
+  toast(L('ברוך שובך! כדאי לחזור בהדרגה', 'Välkommen tillbaka! Börja försiktigt'), 5000, { ...UNDO, run: () => { db.injuries = db.injuries.filter((x) => x.id !== prev.id); db.injuries.push(prev); save(); render(); } });
 }
 
 // ---------- Workout music ----------
@@ -482,6 +526,15 @@ function viewSettings() {
         <span>${L('הצג "מוזיקה לאימון"', 'Visa "Träningsmusik"')}</span>
       </label>
     </div>
+
+    ${db.injuries.length ? `<h2>${L('פציעות', 'Skador')}</h2>
+    <div class="card">
+      ${[...db.injuries].sort((a, b) => (a.from < b.from ? 1 : -1)).map((x) => `<div class="row between inj-row">
+        <span>${fmtDate(dayTs(x.from))} – ${x.to ? fmtDate(dayTs(x.to)) : L('עכשיו', 'nu')}${x.note ? ` · ${esc(x.note)}` : ''}</span>
+        <button class="btn sm" data-act="inj-del" data-id="${x.id}">${L('מחק', 'Ta bort')}</button>
+      </div>`).join('')}
+      <p class="muted small" style="margin-bottom:0">${L('ימי פציעה לא נספרים ביעד השבועי, ברצף ובממוצע האימונים בשבוע. יום שבו בכל זאת התאמנת נספר רגיל.', 'Skadedagar räknas inte mot veckomålet, sviten eller snittet pass per vecka. En dag då du ändå tränade räknas som vanligt.')}</p>
+    </div>` : ''}
 
     <h2>${L('גיבוי', 'Säkerhetskopia')}</h2>
     <div class="card">
