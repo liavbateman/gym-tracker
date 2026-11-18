@@ -838,13 +838,19 @@ body.sheet-open { overflow: hidden; }
 }
 /* Grab handle: the sheet closes when pulled down from the top. */
 .sheet-grab { width: 38px; height: 5px; border-radius: 3px; background: var(--rule); margin: -8px auto 10px; }
-.demo-anim { position: relative; aspect-ratio: 4 / 3; border-radius: 8px; overflow: hidden; background: #fff; border: 1px solid var(--rule); }
+/* Until a photo arrives the frame is a soft block in the theme's colors (white was a glaring box in dark mode),
+   with a slow shimmer so it reads as loading. */
+.demo-anim { position: relative; aspect-ratio: 4 / 3; border-radius: 8px; overflow: hidden; border: 1px solid var(--rule);
+  background: linear-gradient(100deg, var(--rule) 30%, var(--sheet) 50%, var(--rule) 70%) 0 0 / 300% 100%; animation: demo-wait 1.6s linear infinite; }
+@keyframes demo-wait { to { background-position: -150% 0; } }
+@media (prefers-reduced-motion: reduce) { .demo-anim { animation: none; } }
+.demo-anim.demo-ok, .demo-anim.demo-off { animation: none; background: var(--field); }
 .demo-anim img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
 /* Two photos (start / end position) alternate so the movement plays like a GIF. */
 .demo-anim img + img { animation: demo-flip 1.6s infinite; }
 /* A photo that failed to load (offline, not cached yet): a short note instead of a broken-image box. */
 .demo-off img { display: none; }
-.demo-off::after { content: attr(data-off); position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 8px; text-align: center; font-size: 12px; color: #555; direction: rtl; }
+.demo-off::after { content: attr(data-off); position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 8px; text-align: center; font-size: 12px; color: var(--ink-soft); direction: rtl; }
 @keyframes demo-flip { 0%, 42% { opacity: 0; } 50%, 92% { opacity: 1; } 100% { opacity: 0; } }
 .demo-en { display: block; font-weight: 600; font-size: 14px; margin-top: 8px; text-align: left; }
 .demo-anim.big + .demo-en { font-size: 16px; }

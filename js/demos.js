@@ -203,7 +203,7 @@ function loadExercises() {
 // Big demos open in overlays, where Safari can leave lazy images unloaded – so those load right away.
 const demoAnim = (images, big) => `
   <div class="demo-anim ${big ? 'big' : ''}" dir="ltr" data-off="${L('אין חיבור – ההדגמה תיטען כשתהיה רשת', 'Ingen anslutning – demon laddas när nätet är tillbaka')}">
-    <img src="${esc(exImg(images[0]))}" alt="" loading="${big ? 'eager' : 'lazy'}" crossorigin="anonymous" onerror="this.parentElement.classList.add('demo-off')">
+    <img src="${esc(exImg(images[0]))}" alt="" loading="${big ? 'eager' : 'lazy'}" crossorigin="anonymous" onload="this.parentElement.classList.add('demo-ok')" onerror="this.parentElement.classList.add('demo-off')">
     ${images[1] ? `<img src="${esc(exImg(images[1]))}" alt="" loading="${big ? 'eager' : 'lazy'}" crossorigin="anonymous" onerror="this.parentElement.classList.add('demo-off')">` : ''}
   </div>`;
 
