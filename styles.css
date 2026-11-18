@@ -474,6 +474,15 @@ input[type=date].pill-in, .pill-in {
 .ex-card .muscle-figs svg { width: 30px; height: 62px; }
 .ex-card .body-fig figcaption { display: none; }
 .ex-card .muscle-list { font-size: 12px; line-height: 1.45; }
+/* Save and cancel stay pinned just above the tab bar, side by side, so a long template doesn't need a scroll to
+   the end to save. */
+.tpl-actions {
+  position: sticky; bottom: calc(var(--nav-h) + var(--safe-b) + 8px); z-index: 5;
+  display: flex; gap: 8px; margin-top: 10px; padding: 8px; border-radius: 14px;
+  background: var(--sheet); border: 1px solid var(--rule); box-shadow: 0 6px 18px -8px rgba(15, 20, 28, .45);
+}
+.tpl-actions .btn { margin: 0; }
+.tpl-actions .primary { flex: 1; }
 /* Template card head: the name gets the room and weight; the demo button is a small square, up/down are one
    joined control, and remove is a quiet x at the end. */
 .tex > .row { gap: 6px; align-items: stretch; }

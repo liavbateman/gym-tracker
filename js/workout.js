@@ -590,8 +590,10 @@ function viewEditor() {
     ${exs}
     ${datalist()}
     <button class="btn ghost block" data-act="tex-add">${L('+ הוסף תרגיל', '+ Lägg till övning')}</button>
-    <button class="btn primary block" data-act="tpl-save">${L('שמור תבנית', 'Spara mall')}</button>
-    <button class="btn block" data-act="tpl-cancel">${L('ביטול', 'Avbryt')}</button>
+    <div class="tpl-actions">
+      <button class="btn" data-act="tpl-cancel">${L('ביטול', 'Avbryt')}</button>
+      <button class="btn primary" data-act="tpl-save">${L('שמור תבנית', 'Spara mall')}</button>
+    </div>
     ${d.isNew ? '' : d.confirmDel ? `
     <div class="card confirm-del">
       <div><b>${L(`למחוק את "${esc(d.name || 'התבנית')}"?`, `Ta bort "${esc(d.name || 'mallen')}"?`)}</b><br><span class="muted small">${L('אימונים שכבר נשמרו לא יימחקו.', 'Pass som redan sparats tas inte bort.')}</span></div>
