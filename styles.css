@@ -442,6 +442,25 @@ input[type=date].pill-in, .pill-in {
 .area-div b { font-family: var(--display); font-size: 28px; line-height: 1; }
 .area-div span { font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
 .area-div::after { content: ''; flex: 1; border-top: 2px solid var(--ink); align-self: center; }
+/* Workout exercise card head: name, then last time, then the demo and note as two small pills side by side
+   (they were underlined links stacked under each other); rest and the move arrows grouped on the other side. */
+.ex-card > .row > .grow { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; }
+.ex-card > .row > .grow > .ex-name, .ex-card > .row > .grow > .muted, .ex-card > .row > .grow > .prev,
+.ex-card > .row > .grow > .ex-note, .ex-card > .row > .grow > .note-edit { flex-basis: 100%; }
+.ex-card > .row > .grow > .ex-name { order: 0; }
+.ex-card > .row > .grow > .muted { order: 1; }
+.ex-card > .row > .grow > .prev { order: 2; margin: 2px 0 4px; }
+.ex-card > .row > .grow > .demo-link, .ex-card > .row > .grow > .note-add { order: 3; }
+.ex-card > .row > .grow > .ex-note, .ex-card > .row > .grow > .note-edit { order: 4; }
+.ex-card .demo-link, .ex-card .note-add {
+  display: inline-flex; align-items: center; gap: 4px; margin: 0; padding: 4px 11px;
+  border: 1px solid var(--rule); border-radius: 999px; background: var(--field);
+  font-size: 12px; font-weight: 600; color: var(--ink); text-decoration: none;
+}
+.ex-card .col-end { gap: 8px; }
+.ex-card .ex-move { gap: 0; border: 1px solid var(--rule); border-radius: 999px; overflow: hidden; background: var(--field); }
+.ex-card .ex-move .icon-btn { padding: 4px 10px; font-size: 12px; }
+.ex-card .ex-move .icon-btn + .icon-btn { border-inline-start: 1px solid var(--rule); }
 /* Workout exercise card: the muscles as a slim dashed strip at the bottom, not a big framed box. */
 .ex-card .muscles { margin-top: 10px; padding: 6px 8px; gap: 10px; border-style: dashed; }
 .ex-card .muscle-figs svg { width: 30px; height: 62px; }
