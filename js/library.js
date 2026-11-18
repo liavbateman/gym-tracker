@@ -7,134 +7,135 @@
 // Body areas in the strip at the top, and which side of the figure shows each one best.
 const LIB_AREAS = [['חזה', 'front'], ['גב', 'back'], ['כתפיים', 'front'], ['יד קדמית', 'front'], ['יד אחורית', 'back'], ['בטן', 'front'], ['רגליים', 'front']];
 // Per area: [part, figure side, exercises]. The part is a muscle or a "muscle:part" key (MUSCLE_NAMES names it).
-// Each exercise: [the app's name, free-exercise-db id, primary muscles, secondary muscles], muscles comma-separated.
+// Each exercise: [the app's name, free-exercise-db id, equipment (EQUIP_KINDS key), primary muscles, secondary muscles],
+// muscles comma-separated.
 const LIBRARY = {
   'חזה': [
     ['chest:upper', 'front', [
-      ['לחיצת חזה בשיפוע במשקולות', 'Incline_Dumbbell_Press', 'chest:upper', 'chest:mid,shoulders:front,triceps'],
-      ['לחיצת חזה בשיפוע במוט', 'Barbell_Incline_Bench_Press_-_Medium_Grip', 'chest:upper', 'chest:mid,shoulders:front,triceps'],
-      ['פרפר בשיפוע במשקולות', 'Incline_Dumbbell_Flyes', 'chest:upper', 'shoulders:front'],
-      ['פרפר בשיפוע בכבל', 'Incline_Cable_Flye', 'chest:upper', 'shoulders:front']]],
+      ['לחיצת חזה בשיפוע במשקולות', 'Incline_Dumbbell_Press', 'd', 'chest:upper', 'chest:mid,shoulders:front,triceps'],
+      ['לחיצת חזה בשיפוע במוט', 'Barbell_Incline_Bench_Press_-_Medium_Grip', 'b', 'chest:upper', 'chest:mid,shoulders:front,triceps'],
+      ['פרפר בשיפוע במשקולות', 'Incline_Dumbbell_Flyes', 'd', 'chest:upper', 'shoulders:front'],
+      ['פרפר בשיפוע בכבל', 'Incline_Cable_Flye', 'c', 'chest:upper', 'shoulders:front']]],
     ['chest:mid', 'front', [
-      ['לחיצת חזה במוט', 'Barbell_Bench_Press_-_Medium_Grip', 'chest:mid', 'chest:upper,chest:lower,shoulders:front,triceps'],
-      ['לחיצת חזה במשקולות', 'Dumbbell_Bench_Press', 'chest:mid', 'chest:upper,chest:lower,shoulders:front,triceps'],
-      ['לחיצת חזה במכונה', 'Machine_Bench_Press', 'chest:mid', 'chest:upper,chest:lower,shoulders:front,triceps'],
-      ['פק דק', 'Butterfly', 'chest:mid', 'chest:upper,chest:lower,shoulders:front'],
-      ['פרפר במשקולות', 'Dumbbell_Flyes', 'chest:mid', 'chest:upper,chest:lower,shoulders:front'],
-      ['שכיבות סמיכה', 'Pushups', 'chest:mid', 'chest:upper,chest:lower,shoulders:front,triceps,abdominals']]],
+      ['לחיצת חזה במוט', 'Barbell_Bench_Press_-_Medium_Grip', 'b', 'chest:mid', 'chest:upper,chest:lower,shoulders:front,triceps'],
+      ['לחיצת חזה במשקולות', 'Dumbbell_Bench_Press', 'd', 'chest:mid', 'chest:upper,chest:lower,shoulders:front,triceps'],
+      ['לחיצת חזה במכונה', 'Machine_Bench_Press', 'm', 'chest:mid', 'chest:upper,chest:lower,shoulders:front,triceps'],
+      ['פק דק', 'Butterfly', 'm', 'chest:mid', 'chest:upper,chest:lower,shoulders:front'],
+      ['פרפר במשקולות', 'Dumbbell_Flyes', 'd', 'chest:mid', 'chest:upper,chest:lower,shoulders:front'],
+      ['שכיבות סמיכה', 'Pushups', 'w', 'chest:mid', 'chest:upper,chest:lower,shoulders:front,triceps,abdominals']]],
     ['chest:lower', 'front', [
-      ['מקבילים', 'Dips_-_Chest_Version', 'chest:lower', 'chest:mid,triceps,shoulders:front'],
-      ['לחיצת חזה בירידה', 'Decline_Barbell_Bench_Press', 'chest:lower', 'chest:mid,triceps,shoulders:front'],
-      ['לחיצת חזה בירידה במשקולות', 'Decline_Dumbbell_Bench_Press', 'chest:lower', 'chest:mid,triceps,shoulders:front'],
-      ['פרפר בכבל', 'Cable_Crossover', 'chest:lower', 'chest:mid,shoulders:front']]],
+      ['מקבילים', 'Dips_-_Chest_Version', 'w', 'chest:lower', 'chest:mid,triceps,shoulders:front'],
+      ['לחיצת חזה בירידה', 'Decline_Barbell_Bench_Press', 'b', 'chest:lower', 'chest:mid,triceps,shoulders:front'],
+      ['לחיצת חזה בירידה במשקולות', 'Decline_Dumbbell_Bench_Press', 'd', 'chest:lower', 'chest:mid,triceps,shoulders:front'],
+      ['פרפר בכבל', 'Cable_Crossover', 'c', 'chest:lower', 'chest:mid,shoulders:front']]],
   ],
   'גב': [
     ['lats', 'back', [
-      ['מתח', 'Pullups', 'lats', 'middle back,biceps,shoulders:rear'],
-      ['מתח באחיזה הפוכה', 'Chin-Up', 'lats,biceps', 'middle back'],
-      ['פולי עליון', 'Wide-Grip_Lat_Pulldown', 'lats', 'middle back,biceps'],
-      ['פולי עליון באחיזה צרה', 'Close-Grip_Front_Lat_Pulldown', 'lats', 'middle back,biceps'],
-      ['פול אובר בכבל', 'Straight-Arm_Pulldown', 'lats', 'triceps:long,chest']]],
+      ['מתח', 'Pullups', 'w', 'lats', 'middle back,biceps,shoulders:rear'],
+      ['מתח באחיזה הפוכה', 'Chin-Up', 'w', 'lats,biceps', 'middle back'],
+      ['פולי עליון', 'Wide-Grip_Lat_Pulldown', 'c', 'lats', 'middle back,biceps'],
+      ['פולי עליון באחיזה צרה', 'Close-Grip_Front_Lat_Pulldown', 'c', 'lats', 'middle back,biceps'],
+      ['פול אובר בכבל', 'Straight-Arm_Pulldown', 'c', 'lats', 'triceps:long,chest']]],
     ['middle back', 'back', [
-      ['חתירה במוט', 'Bent_Over_Barbell_Row', 'middle back,lats', 'shoulders:rear,biceps,lower back'],
-      ['חתירה במשקולת', 'One-Arm_Dumbbell_Row', 'middle back,lats', 'shoulders:rear,biceps'],
-      ['פולי תחתון', 'Seated_Cable_Rows', 'middle back', 'lats,shoulders:rear,biceps'],
-      ['חתירה במכונה', 'Leverage_Iso_Row', 'middle back', 'lats,shoulders:rear,biceps'],
-      ['חתירת טי בר', 'T-Bar_Row_with_Handle', 'middle back,lats', 'shoulders:rear,biceps,lower back']]],
+      ['חתירה במוט', 'Bent_Over_Barbell_Row', 'b', 'middle back,lats', 'shoulders:rear,biceps,lower back'],
+      ['חתירה במשקולת', 'One-Arm_Dumbbell_Row', 'd', 'middle back,lats', 'shoulders:rear,biceps'],
+      ['פולי תחתון', 'Seated_Cable_Rows', 'c', 'middle back', 'lats,shoulders:rear,biceps'],
+      ['חתירה במכונה', 'Leverage_Iso_Row', 'm', 'middle back', 'lats,shoulders:rear,biceps'],
+      ['חתירת טי בר', 'T-Bar_Row_with_Handle', 'b', 'middle back,lats', 'shoulders:rear,biceps,lower back']]],
     ['traps', 'back', [
-      ['שראג', 'Barbell_Shrug', 'traps', 'forearms'],
-      ['שראג במשקולות', 'Dumbbell_Shrug', 'traps', 'forearms']]],
+      ['שראג', 'Barbell_Shrug', 'b', 'traps', 'forearms'],
+      ['שראג במשקולות', 'Dumbbell_Shrug', 'd', 'traps', 'forearms']]],
     ['lower back', 'back', [
-      ['פשיטת גב', 'Hyperextensions_Back_Extensions', 'lower back', 'glutes,hamstrings'],
-      ['דדליפט', 'Barbell_Deadlift', 'lower back,glutes,hamstrings', 'quadriceps,traps,forearms,lats']]],
+      ['פשיטת גב', 'Hyperextensions_Back_Extensions', 'w', 'lower back', 'glutes,hamstrings'],
+      ['דדליפט', 'Barbell_Deadlift', 'b', 'lower back,glutes,hamstrings', 'quadriceps,traps,forearms,lats']]],
   ],
   'כתפיים': [
     ['shoulders:front', 'front', [
-      ['לחיצת כתפיים במשקולות', 'Dumbbell_Shoulder_Press', 'shoulders:front', 'shoulders:side,triceps,traps'],
-      ['לחיצה צבאית', 'Standing_Military_Press', 'shoulders:front', 'shoulders:side,triceps,traps'],
-      ['לחיצת כתפיים במכונה', 'Machine_Shoulder_Military_Press', 'shoulders:front', 'shoulders:side,triceps'],
-      ['ארנולד פרס', 'Arnold_Dumbbell_Press', 'shoulders:front', 'shoulders:side,triceps'],
-      ['הרמה קדמית במשקולות', 'Front_Dumbbell_Raise', 'shoulders:front', 'shoulders:side,chest:upper']]],
+      ['לחיצת כתפיים במשקולות', 'Dumbbell_Shoulder_Press', 'd', 'shoulders:front', 'shoulders:side,triceps,traps'],
+      ['לחיצה צבאית', 'Standing_Military_Press', 'b', 'shoulders:front', 'shoulders:side,triceps,traps'],
+      ['לחיצת כתפיים במכונה', 'Machine_Shoulder_Military_Press', 'm', 'shoulders:front', 'shoulders:side,triceps'],
+      ['ארנולד פרס', 'Arnold_Dumbbell_Press', 'd', 'shoulders:front', 'shoulders:side,triceps'],
+      ['הרמה קדמית במשקולות', 'Front_Dumbbell_Raise', 'd', 'shoulders:front', 'shoulders:side,chest:upper']]],
     ['shoulders:side', 'front', [
-      ['הרחקה לצדדים', 'Side_Lateral_Raise', 'shoulders:side', 'shoulders:front,traps'],
-      ['הרחקה לצדדים בכבל', 'Cable_Seated_Lateral_Raise', 'shoulders:side', 'traps'],
-      ['חתירה לסנטר', 'Upright_Barbell_Row', 'shoulders:side,traps', 'shoulders:front,biceps']]],
+      ['הרחקה לצדדים', 'Side_Lateral_Raise', 'd', 'shoulders:side', 'shoulders:front,traps'],
+      ['הרחקה לצדדים בכבל', 'Cable_Seated_Lateral_Raise', 'c', 'shoulders:side', 'traps'],
+      ['חתירה לסנטר', 'Upright_Barbell_Row', 'b', 'shoulders:side,traps', 'shoulders:front,biceps']]],
     ['shoulders:rear', 'back', [
-      ['פרפר הפוך', 'Reverse_Machine_Flyes', 'shoulders:rear', 'middle back,traps'],
-      ['פייס פול', 'Face_Pull', 'shoulders:rear', 'middle back,traps'],
-      ['פרפר הפוך במשקולות', 'Seated_Bent-Over_Rear_Delt_Raise', 'shoulders:rear', 'middle back,traps'],
-      ['פרפר הפוך בכבל', 'Cable_Rear_Delt_Fly', 'shoulders:rear', 'middle back']]],
+      ['פרפר הפוך', 'Reverse_Machine_Flyes', 'm', 'shoulders:rear', 'middle back,traps'],
+      ['פייס פול', 'Face_Pull', 'c', 'shoulders:rear', 'middle back,traps'],
+      ['פרפר הפוך במשקולות', 'Seated_Bent-Over_Rear_Delt_Raise', 'd', 'shoulders:rear', 'middle back,traps'],
+      ['פרפר הפוך בכבל', 'Cable_Rear_Delt_Fly', 'c', 'shoulders:rear', 'middle back']]],
   ],
   'יד קדמית': [
     ['biceps', 'front', [
-      ['כפיפת מרפקים', 'Barbell_Curl', 'biceps', 'forearms'],
-      ['כפיפת מרפקים במשקולות', 'Dumbbell_Bicep_Curl', 'biceps', 'forearms'],
-      ['כפיפת מרפקים בכבל', 'Standing_Biceps_Cable_Curl', 'biceps', 'forearms']]],
+      ['כפיפת מרפקים', 'Barbell_Curl', 'b', 'biceps', 'forearms'],
+      ['כפיפת מרפקים במשקולות', 'Dumbbell_Bicep_Curl', 'd', 'biceps', 'forearms'],
+      ['כפיפת מרפקים בכבל', 'Standing_Biceps_Cable_Curl', 'c', 'biceps', 'forearms']]],
     ['biceps:long', 'front', [
-      ['כפיפת מרפקים בשיפוע', 'Incline_Dumbbell_Curl', 'biceps:long', 'biceps:short,forearms'],
-      ['כפיפת מרפקים באחיזה צרה', 'Close-Grip_Standing_Barbell_Curl', 'biceps:long', 'biceps:short,forearms']]],
+      ['כפיפת מרפקים בשיפוע', 'Incline_Dumbbell_Curl', 'd', 'biceps:long', 'biceps:short,forearms'],
+      ['כפיפת מרפקים באחיזה צרה', 'Close-Grip_Standing_Barbell_Curl', 'b', 'biceps:long', 'biceps:short,forearms']]],
     ['biceps:short', 'front', [
-      ['כפיפת מרפקים בכיסא כומר', 'Preacher_Curl', 'biceps:short', 'biceps:long'],
-      ['כפיפת מרפקים בריכוז', 'Concentration_Curls', 'biceps:short', 'biceps:long']]],
+      ['כפיפת מרפקים בכיסא כומר', 'Preacher_Curl', 'b', 'biceps:short', 'biceps:long'],
+      ['כפיפת מרפקים בריכוז', 'Concentration_Curls', 'd', 'biceps:short', 'biceps:long']]],
     ['forearms', 'front', [
-      ['פטיש', 'Hammer_Curls', 'forearms,biceps:long', 'biceps:short'],
-      ['כפיפת מרפקים באחיזה הפוכה', 'Reverse_Barbell_Curl', 'forearms', 'biceps'],
-      ['כפיפת שורש כף היד', 'Palms-Up_Barbell_Wrist_Curl_Over_A_Bench', 'forearms', '']]],
+      ['פטיש', 'Hammer_Curls', 'd', 'forearms,biceps:long', 'biceps:short'],
+      ['כפיפת מרפקים באחיזה הפוכה', 'Reverse_Barbell_Curl', 'b', 'forearms', 'biceps'],
+      ['כפיפת שורש כף היד', 'Palms-Up_Barbell_Wrist_Curl_Over_A_Bench', 'b', 'forearms', '']]],
   ],
   'יד אחורית': [
     ['triceps:long', 'back', [
-      ['פשיטת מרפקים מעל הראש בכבל', 'Cable_Rope_Overhead_Triceps_Extension', 'triceps:long', 'triceps:lat'],
-      ['פרנץ', 'Standing_Dumbbell_Triceps_Extension', 'triceps:long', 'triceps:lat'],
-      ['סקאל קראשר', 'EZ-Bar_Skullcrusher', 'triceps:long,triceps:lat', '']]],
+      ['פשיטת מרפקים מעל הראש בכבל', 'Cable_Rope_Overhead_Triceps_Extension', 'c', 'triceps:long', 'triceps:lat'],
+      ['פרנץ', 'Standing_Dumbbell_Triceps_Extension', 'd', 'triceps:long', 'triceps:lat'],
+      ['סקאל קראשר', 'EZ-Bar_Skullcrusher', 'b', 'triceps:long,triceps:lat', '']]],
     ['triceps:lat', 'back', [
-      ['פשיטת מרפקים בכבל', 'Triceps_Pushdown', 'triceps:lat', 'triceps:long'],
-      ['פשיטת מרפקים בכבל עם חבל', 'Triceps_Pushdown_-_Rope_Attachment', 'triceps:lat', 'triceps:long'],
-      ['פשיטת מרפקים לאחור במשקולת', 'Tricep_Dumbbell_Kickback', 'triceps:lat', 'triceps:long']]],
+      ['פשיטת מרפקים בכבל', 'Triceps_Pushdown', 'c', 'triceps:lat', 'triceps:long'],
+      ['פשיטת מרפקים בכבל עם חבל', 'Triceps_Pushdown_-_Rope_Attachment', 'c', 'triceps:lat', 'triceps:long'],
+      ['פשיטת מרפקים לאחור במשקולת', 'Tricep_Dumbbell_Kickback', 'd', 'triceps:lat', 'triceps:long']]],
     ['triceps', 'back', [
-      ['מקבילים', 'Dips_-_Triceps_Version', 'triceps', 'chest:lower,shoulders:front'],
-      ['לחיצת חזה צרה', 'Close-Grip_Barbell_Bench_Press', 'triceps', 'chest,shoulders:front']]],
+      ['מקבילים', 'Dips_-_Triceps_Version', 'w', 'triceps', 'chest:lower,shoulders:front'],
+      ['לחיצת חזה צרה', 'Close-Grip_Barbell_Bench_Press', 'b', 'triceps', 'chest,shoulders:front']]],
   ],
   'בטן': [
     ['abdominals:upper', 'front', [
-      ['כפיפות בטן', 'Crunches', 'abdominals:upper', 'abdominals:lower'],
-      ['כפיפות בטן בכבל', 'Cable_Crunch', 'abdominals:upper', 'abdominals:lower,abdominals:obliques'],
-      ['כפיפות בטן במכונה', 'Ab_Crunch_Machine', 'abdominals:upper', 'abdominals:lower']]],
+      ['כפיפות בטן', 'Crunches', 'w', 'abdominals:upper', 'abdominals:lower'],
+      ['כפיפות בטן בכבל', 'Cable_Crunch', 'c', 'abdominals:upper', 'abdominals:lower,abdominals:obliques'],
+      ['כפיפות בטן במכונה', 'Ab_Crunch_Machine', 'm', 'abdominals:upper', 'abdominals:lower']]],
     ['abdominals:lower', 'front', [
-      ['הרמות רגליים בתלייה', 'Hanging_Leg_Raise', 'abdominals:lower', 'abdominals:upper,abdominals:obliques'],
-      ['הרמות רגליים בשכיבה', 'Flat_Bench_Lying_Leg_Raise', 'abdominals:lower', 'abdominals:upper'],
-      ['כפיפות בטן הפוכות', 'Reverse_Crunch', 'abdominals:lower', 'abdominals:upper']]],
+      ['הרמות רגליים בתלייה', 'Hanging_Leg_Raise', 'w', 'abdominals:lower', 'abdominals:upper,abdominals:obliques'],
+      ['הרמות רגליים בשכיבה', 'Flat_Bench_Lying_Leg_Raise', 'w', 'abdominals:lower', 'abdominals:upper'],
+      ['כפיפות בטן הפוכות', 'Reverse_Crunch', 'w', 'abdominals:lower', 'abdominals:upper']]],
     ['abdominals:obliques', 'front', [
-      ['טוויסט רוסי', 'Russian_Twist', 'abdominals:obliques', 'abdominals:upper,abdominals:lower'],
-      ['פלאנק צידי', 'Side_Bridge', 'abdominals:obliques', 'abdominals,shoulders:side'],
-      ['כפיפות צד במשקולת', 'Dumbbell_Side_Bend', 'abdominals:obliques', 'lower back']]],
+      ['טוויסט רוסי', 'Russian_Twist', 'w', 'abdominals:obliques', 'abdominals:upper,abdominals:lower'],
+      ['פלאנק צידי', 'Side_Bridge', 'w', 'abdominals:obliques', 'abdominals,shoulders:side'],
+      ['כפיפות צד במשקולת', 'Dumbbell_Side_Bend', 'd', 'abdominals:obliques', 'lower back']]],
     ['abdominals', 'front', [
-      ['פלאנק', 'Plank', 'abdominals', 'shoulders:front,lower back'],
-      ['גלגלת בטן', 'Ab_Roller', 'abdominals', 'lats,shoulders:front']]],
+      ['פלאנק', 'Plank', 'w', 'abdominals', 'shoulders:front,lower back'],
+      ['גלגלת בטן', 'Ab_Roller', 'w', 'abdominals', 'lats,shoulders:front']]],
   ],
   'רגליים': [
     ['quadriceps', 'front', [
-      ['סקוואט', 'Barbell_Squat', 'quadriceps,glutes', 'hamstrings,adductors,lower back,calves'],
-      ['לחיצת רגליים', 'Leg_Press', 'quadriceps', 'glutes,hamstrings,adductors'],
-      ['סקוואט בסמית', 'Smith_Machine_Squat', 'quadriceps', 'glutes,hamstrings'],
-      ['האק סקוואט', 'Hack_Squat', 'quadriceps', 'glutes'],
-      ['סקוואט גובלט', 'Goblet_Squat', 'quadriceps,glutes', 'adductors,abdominals'],
-      ['פשיטת ברכיים', 'Leg_Extensions', 'quadriceps', '']]],
+      ['סקוואט', 'Barbell_Squat', 'b', 'quadriceps,glutes', 'hamstrings,adductors,lower back,calves'],
+      ['לחיצת רגליים', 'Leg_Press', 'm', 'quadriceps', 'glutes,hamstrings,adductors'],
+      ['סקוואט בסמית', 'Smith_Machine_Squat', 'm', 'quadriceps', 'glutes,hamstrings'],
+      ['האק סקוואט', 'Hack_Squat', 'm', 'quadriceps', 'glutes'],
+      ['סקוואט גובלט', 'Goblet_Squat', 'd', 'quadriceps,glutes', 'adductors,abdominals'],
+      ['פשיטת ברכיים', 'Leg_Extensions', 'm', 'quadriceps', '']]],
     ['glutes', 'back', [
-      ['היפ טראסט', 'Barbell_Hip_Thrust', 'glutes', 'hamstrings'],
-      ['סקוואט בולגרי', 'Split_Squat_with_Dumbbells', 'glutes,quadriceps', 'hamstrings,adductors'],
-      ['מכרעים', 'Dumbbell_Lunges', 'quadriceps,glutes', 'hamstrings,calves'],
-      ['בעיטת ישבן בכבל', 'One-Legged_Cable_Kickback', 'glutes', 'hamstrings']]],
+      ['היפ טראסט', 'Barbell_Hip_Thrust', 'b', 'glutes', 'hamstrings'],
+      ['סקוואט בולגרי', 'Split_Squat_with_Dumbbells', 'd', 'glutes,quadriceps', 'hamstrings,adductors'],
+      ['מכרעים', 'Dumbbell_Lunges', 'd', 'quadriceps,glutes', 'hamstrings,calves'],
+      ['בעיטת ישבן בכבל', 'One-Legged_Cable_Kickback', 'c', 'glutes', 'hamstrings']]],
     ['hamstrings', 'back', [
-      ['דדליפט רומני', 'Romanian_Deadlift', 'hamstrings,glutes', 'lower back'],
-      ['כפיפת ברכיים', 'Lying_Leg_Curls', 'hamstrings', 'calves'],
-      ['כפיפת ברכיים בישיבה', 'Seated_Leg_Curl', 'hamstrings', 'calves']]],
+      ['דדליפט רומני', 'Romanian_Deadlift', 'b', 'hamstrings,glutes', 'lower back'],
+      ['כפיפת ברכיים', 'Lying_Leg_Curls', 'm', 'hamstrings', 'calves'],
+      ['כפיפת ברכיים בישיבה', 'Seated_Leg_Curl', 'm', 'hamstrings', 'calves']]],
     ['adductors', 'front', [
-      ['מקרבים במכונה', 'Thigh_Adductor', 'adductors', ''],
-      ['מרחיקים במכונה', 'Thigh_Abductor', 'abductors', 'glutes']]],
+      ['מקרבים במכונה', 'Thigh_Adductor', 'm', 'adductors', ''],
+      ['מרחיקים במכונה', 'Thigh_Abductor', 'm', 'abductors', 'glutes']]],
     ['calves', 'back', [
-      ['הרמת עקבים', 'Standing_Calf_Raises', 'calves', ''],
-      ['הרמת עקבים בישיבה', 'Seated_Calf_Raise', 'calves', ''],
-      ['הרמת עקבים בלחיצת רגליים', 'Calf_Press_On_The_Leg_Press_Machine', 'calves', '']]],
+      ['הרמת עקבים', 'Standing_Calf_Raises', 'm', 'calves', ''],
+      ['הרמת עקבים בישיבה', 'Seated_Calf_Raise', 'm', 'calves', ''],
+      ['הרמת עקבים בלחיצת רגליים', 'Calf_Press_On_The_Leg_Press_Machine', 'm', 'calves', '']]],
   ],
 };
 // Section names where the muscle's own name says too little.
@@ -143,11 +144,15 @@ const PART_LABEL = {
   forearms: L('ברכיאליס ואמות', 'Brachialis och underarmar'), abdominals: L('ליבה', 'Bål'),
   adductors: L('מקרבים ומרחיקים', 'Adduktorer och abduktorer'),
 };
+// Equipment, so you can pick what's free at the gym right now.
+const EQUIP_KINDS = { m: L('מכונה', 'Maskin'), c: L('כבל', 'Kabel'), d: L('משקולות', 'Hantlar'), b: L('מוט', 'Skivstång'), w: L('משקל גוף', 'Kroppsvikt') };
+const DB_EQUIP = { machine: 'm', cable: 'c', dumbbell: 'd', kettlebells: 'd', barbell: 'b', 'e-z curl bar': 'b', 'body only': 'w', other: 'w' };
+const eqOk = (eq) => !ui.libEq || ui.libEq === eq;
 const partName = (k) => PART_LABEL[k] || MUSCLE_NAMES[k] || k;
 const splitMus = (s) => (s ? s.split(',') : []);
-// id -> {name, area, part, side, p, s}
+// id -> {name, area, part, side, eq, p, s}
 const LIB_ITEMS = new Map(Object.entries(LIBRARY).flatMap(([area, parts]) => parts.flatMap(([part, side, list]) =>
-  list.map(([name, id, p, s]) => [id, { name, area, part, side, p: splitMus(p), s: splitMus(s) }]))));
+  list.map(([name, id, eq, p, s]) => [id, { name, area, part, side, eq, p: splitMus(p), s: splitMus(s) }]))));
 const LIB_IDS = new Set(LIB_ITEMS.keys());
 const libImages = (id) => [`${id}/0.jpg`, `${id}/1.jpg`];
 // Bookmarked library exercises: name -> {id, area}. Created on first use, so an imported backup without it still works.
@@ -214,14 +219,16 @@ function libCard(name, id, area, sub, english, hist) {
 }
 
 // One part of an area: a figure with that part lit, its name, and its exercises.
-function libSection(area, [part, side, list], hist) {
+function libSection(area, [part, side, all], hist) {
+  const list = all.filter(([, , eq]) => eqOk(eq));
+  if (!list.length) return '';
   return `
     <section class="lib-sec">
       <div class="lib-sec-head">
         <span class="lib-sec-fig">${bodyFig(side, { p: [part], s: [] })}</span>
         <div><h2>${esc(partName(part))}</h2><span class="muted small">${list.length} ${L('תרגילים', 'övningar')}</span></div>
       </div>
-      <div class="lib-grid">${list.map(([n, id]) => libCard(n, id, area, partName(part), false, hist)).join('')}</div>
+      <div class="lib-grid">${list.map(([n, id, eq]) => libCard(n, id, area, EQUIP_KINDS[eq], false, hist)).join('')}</div>
     </section>`;
 }
 
@@ -254,13 +261,19 @@ function viewLibrary() {
       <div class="lib-parts">
         <button class="lib-part ${!lb.part ? 'on' : ''}" data-act="lib-part" data-k="">${L('הכל', 'Alla')}</button>
         ${parts.map(([k]) => `<button class="lib-part ${lb.part === k ? 'on' : ''}" data-act="lib-part" data-k="${esc(k)}">${esc(partName(k))}</button>`).join('')}
+      </div>
+      <div class="lib-eqs">
+        <span class="muted small">${L('ציוד:', 'Utrustning:')}</span>
+        ${Object.entries(EQUIP_KINDS).map(([k, label]) => `<button class="lib-eq ${ui.libEq === k ? 'on' : ''}" data-act="lib-eq" data-k="${k}" aria-pressed="${ui.libEq === k}">${label}</button>`).join('')}
       </div>`;
+    const sections = shown.map((p) => libSection(area, p, hist)).join('');
     let more = '';
     if (!lb.more) more = `<button class="btn ghost block" data-act="lib-more">${L('עוד תרגילים מהמאגר (באנגלית)', 'Fler övningar från databasen (på engelska)')}</button>`;
     else if (lb.moreErr) more = `<p class="muted small">${L('אין חיבור לאינטרנט. המאגר צריך רשת.', 'Ingen internetanslutning. Databasen behöver nätet.')}</p>`;
     else if (!lb.extra) more = '<div class="center" style="padding:24px 0"><div class="spinner"></div></div>';
-    else more = `<h2>${L('עוד מהמאגר', 'Mer från databasen')}</h2><div class="lib-grid">${lb.extra.map((x) => libCard(x.name, x.id, area, x.equipment || '', true, hist)).join('')}</div>`;
-    body = `${chips}${shown.map((p) => libSection(area, p, hist)).join('')}${lb.part ? '' : more}`;
+    else more = `<h2>${L('עוד מהמאגר', 'Mer från databasen')}</h2><div class="lib-grid">${lb.extra.filter((x) => eqOk(DB_EQUIP[x.equipment] || 'w')).map((x) => libCard(x.name, x.id, area, EQUIP_KINDS[DB_EQUIP[x.equipment] || 'w'], true, hist)).join('')}</div>`;
+    const none = `<p class="muted" style="margin-top:16px">${L(`אין כאן תרגילים עם ${EQUIP_KINDS[ui.libEq]}.`, `Inga övningar med ${EQUIP_KINDS[ui.libEq]} här.`)} <button class="link-btn" data-act="lib-eq" data-k="${ui.libEq}">${L('הצג הכל', 'Visa alla')}</button></p>`;
+    body = `${chips}${sections || none}${lb.part ? '' : more}`;
   }
   return `
     ${strip}

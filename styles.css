@@ -911,6 +911,9 @@ body.sheet-open { overflow: hidden; }
 .lib-parts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
 .lib-part { border: 1px solid var(--rule); border-radius: 999px; padding: 6px 12px; background: var(--field); color: var(--ink); font: inherit; font-size: 13px; font-weight: 600; }
 .lib-part.on { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.lib-eqs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.lib-eq { border: 1px dashed var(--ink-soft); border-radius: 6px; padding: 4px 10px; background: none; color: var(--ink-soft); font: inherit; font-size: 13px; font-weight: 600; }
+.lib-eq.on { border-style: solid; border-color: var(--hl); background: var(--hl); color: var(--hl-ink); }
 .lib-sec-head { display: flex; align-items: center; gap: 10px; margin: 22px 0 10px; }
 .lib-sec-head h2 { margin: 0 0 4px; }
 .lib-sec-fig svg { width: 34px; height: 70px; display: block; }

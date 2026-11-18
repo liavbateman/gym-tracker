@@ -566,6 +566,7 @@ document.addEventListener('click', (ev) => {
     case 'lib-open': openLibrary(); break;
     case 'lib-close': closeLibrary(); break;
     case 'lib-area': ui.lib = { area: el.dataset.a, part: null, more: false }; if (el.dataset.a !== 'saved') ui.libArea = el.dataset.a; render(); break;
+    case 'lib-eq': ui.libEq = ui.libEq === el.dataset.k ? null : el.dataset.k; render(); break;
     case 'lib-part': ui.lib.part = el.dataset.k || null; render(); break;
     case 'lib-more': libMore(); break;
     case 'lib-ex': openLibEx(el.dataset.name, el.dataset.id, el.dataset.area); break;
