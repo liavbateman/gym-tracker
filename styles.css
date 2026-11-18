@@ -1098,6 +1098,12 @@ html.lib-compact .lib-wk { display: none; }
 .lib-steps ol { list-style: none; counter-reset: step; margin: 0; padding: 4px 14px 14px; border-top: 1px dashed var(--rule); }
 .lib-steps li { counter-increment: step; position: relative; padding: 10px 0 0 32px; font-size: 14px; line-height: 1.5; text-align: left; }
 .lib-steps li::before { content: counter(step); position: absolute; left: 0; top: 10px; width: 22px; height: 22px; border-radius: 50%; background: var(--ink); color: var(--paper); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.lib-empty { margin-top: 18px; padding: 28px 20px 24px; text-align: center; border: 1px dashed var(--rule); border-radius: 16px; }
+.lib-empty-icon { display: inline-flex; width: 56px; height: 56px; padding: 14px; border-radius: 50%; background: var(--field); border: 1px solid var(--rule); color: var(--ink-soft); }
+.lib-empty-icon svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.lib-empty b { display: block; margin-top: 12px; font-size: 16px; }
+.lib-empty p { margin: 4px auto 0; max-width: 260px; font-size: 13px; line-height: 1.5; color: var(--ink-soft); }
+.lib-empty .btn { margin-top: 12px; }
 .lib-mine-box { margin-top: 14px; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 10px; background: var(--field); }
 .lib-mine-box .chips { margin-top: 8px; }
 .lib-save-btn { display: inline-flex; align-items: center; gap: 6px; }

@@ -358,6 +358,15 @@ function partView(part) {
   return PART_VIEWS.torso;
 }
 
+// An empty screen: a round icon, what's missing, and what to do about it.
+const libEmpty = (icon, title, text, extra = '') => `
+  <div class="lib-empty">
+    <span class="lib-empty-icon"><svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg></span>
+    <b>${title}</b>
+    <p>${text}</p>
+    ${extra}
+  </div>`;
+
 function libSection(area, [part, side, all], hist) {
   const list = all.filter(([, , eq]) => eqOk(eq));
   if (!list.length) return '';
@@ -388,7 +397,7 @@ function libSearch(q, hist) {
     }
   }
   return hits.length ? `<div class="lib-grid" style="margin-top:14px">${hits.join('')}</div>`
-    : `<p class="muted" style="margin-top:16px">${L('לא נמצאו תרגילים. נסה מילה אחרת, למשל "פרפר" או "כבל".', 'Inga övningar hittades. Prova ett annat ord, t.ex. "flyes" eller "kabel".')}</p>`;
+    : libEmpty('<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>', L('לא נמצאו תרגילים', 'Inga övningar hittades'), L('נסה מילה אחרת, למשל "פרפר", "כבל" או "כתף אחורית".', 'Prova ett annat ord, t.ex. "flyes", "kabel" eller "bakre axel".'));
 }
 
 function viewLibrary() {
@@ -433,7 +442,7 @@ function libBody() {
         return libCard(n, s.id, s.area, it ? partName(it.part) : gName(s.area), !it, hist);
       }).join('')}</div>
       <button class="btn primary block" data-act="lib-saved-tpl">${L(`צור תבנית מ-${list.length} השמורים`, `Skapa en mall av de ${list.length} sparade`)}</button>`
-      : `<p class="muted">${L('עוד לא שמרת תרגילים. לחץ על הסימנייה בכרטיס של תרגיל כדי לשמור אותו כאן.', 'Inga sparade övningar än. Tryck på bokmärket på en övning för att spara den här.')}</p>`;
+      : libEmpty('<path d="M6.5 3.5h11v17l-5.5-4-5.5 4z"/>', L('אין עדיין תרגילים שמורים', 'Inga sparade övningar än'), L('לחץ על הסימנייה בכרטיס של תרגיל, והוא יחכה לך כאן.', 'Tryck på bokmärket på en övning så väntar den här.'));
   } else {
     const parts = LIBRARY[area];
     const shown = lb.part ? parts.filter(([k]) => k === lb.part) : parts;
@@ -451,7 +460,7 @@ function libBody() {
     else if (lb.moreErr) more = `<p class="muted small">${L('אין חיבור לאינטרנט. המאגר צריך רשת.', 'Ingen internetanslutning. Databasen behöver nätet.')}</p>`;
     else if (!lb.extra) more = '<div class="center" style="padding:24px 0"><div class="spinner"></div></div>';
     else more = `<h2>${L('עוד מהמאגר', 'Mer från databasen')}</h2><div class="lib-grid">${lb.extra.filter((x) => eqOk(DB_EQUIP[x.equipment] || 'w')).map((x) => libCard(x.name, x.id, area, EQUIP_KINDS[DB_EQUIP[x.equipment] || 'w'], true, hist)).join('')}</div>`;
-    const none = `<p class="muted" style="margin-top:16px">${L(`אין כאן תרגילים עם ${EQUIP_KINDS[ui.libEq]}.`, `Inga övningar med ${EQUIP_KINDS[ui.libEq]} här.`)} <button class="link-btn" data-act="lib-eq" data-k="${ui.libEq}">${L('הצג הכל', 'Visa alla')}</button></p>`;
+    const none = libEmpty(EQUIP_ICONS[ui.libEq] || '', L(`אין כאן תרגילים עם ${EQUIP_KINDS[ui.libEq]}`, `Inga övningar med ${EQUIP_KINDS[ui.libEq]} här`), L('נסה ציוד אחר, או הצג את כל התרגילים.', 'Prova annan utrustning, eller visa alla övningar.'), `<button class="btn sm" data-act="lib-eq" data-k="${ui.libEq}">${L('הצג הכל', 'Visa alla')}</button>`);
     body = `${lb.part ? '' : libForMe(hist)}${chips}${sections || none}${lb.part ? '' : more}`;
   }
   return body;
