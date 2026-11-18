@@ -397,6 +397,7 @@ function viewLibEx(d) {
       </div>
       ${libHowBox(id)}
       ${libMineBox(d.name)}
+      ${libSimilar(id)}
       <h3 style="margin-top:16px">${L('שרירי מטרה', 'Målmuskler')}</h3>
       ${m.p.length ? `
         <div class="lib-target">
@@ -558,6 +559,24 @@ function libHowBox(id) {
         <span><b>${restText(pr.rest)}</b>${L('מנוחה', 'vila')}</span>
       </div>` : ''}
       ${cue ? `<p class="lib-cue">${esc(cue)}</p>` : ''}
+    </div>`;
+}
+
+// Other exercises for the same part, other equipment first: what to do when this station is taken.
+function libSimilar(id) {
+  const it = LIB_ITEMS.get(id);
+  if (!it) return '';
+  const list = LIBRARY[it.area].find(([k]) => k === it.part)[2].filter(([, x]) => x !== id)
+    .sort((a, b) => (a[2] === it.eq) - (b[2] === it.eq));
+  if (!list.length) return '';
+  return `
+    <h3 style="margin-top:16px">${L('תפוס? אפשר במקום', 'Upptagen? Gör i stället')}</h3>
+    <div class="lib-similar">${list.map(([n, x, eq]) => `
+      <button class="lib-sim" data-act="lib-ex" data-name="${esc(n)}" data-id="${esc(x)}" data-area="${esc(it.area)}">
+        ${demoAnim(libImages(x))}
+        <span class="lib-sim-name">${esc(exName(n))}</span>
+        <span class="muted small">${EQUIP_KINDS[eq]}${inWorkout(n) ? ` · ${L('באימון', 'i passet')}` : ''}</span>
+      </button>`).join('')}
     </div>`;
 }
 

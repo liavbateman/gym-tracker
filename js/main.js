@@ -569,7 +569,7 @@ document.addEventListener('click', (ev) => {
     case 'lib-eq': ui.libEq = ui.libEq === el.dataset.k ? null : el.dataset.k; render(); break;
     case 'lib-part': ui.lib.part = el.dataset.k || null; render(); break;
     case 'lib-more': libMore(); break;
-    case 'lib-ex': openLibEx(el.dataset.name, el.dataset.id, el.dataset.area); break;
+    case 'lib-ex': openLibEx(el.dataset.name, el.dataset.id, el.dataset.area); $('#sheet .sheet-panel')?.scrollTo(0, 0); break;
     case 'lib-save': libToggleSave(el.dataset.name, el.dataset.id, el.dataset.area); render(); if (ui.demo?.lib) renderSheet(); break;
     case 'lib-add': libAdd(el.dataset.name, el.dataset.id, el.dataset.area); break;
     case 'clock': clockMenu(); break;

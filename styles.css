@@ -962,6 +962,11 @@ body.sheet-open { overflow: hidden; }
 .lib-presc span + span { border-inline-start: 1px dashed var(--rule); }
 .lib-presc b { font-family: var(--display); font-size: 26px; line-height: 1.05; color: var(--ink); }
 .lib-cue { margin: 10px 0 0; padding-top: 10px; border-top: 1px dashed var(--rule); font-size: 14px; line-height: 1.5; }
+.lib-similar { display: flex; gap: 8px; overflow-x: auto; margin: 8px -16px 0; padding: 0 16px 4px; scrollbar-width: none; }
+.lib-similar::-webkit-scrollbar { display: none; }
+.lib-sim { flex: none; width: 128px; text-align: start; padding: 6px; background: var(--field); border: 1px solid var(--rule); border-radius: 10px; color: var(--ink); font: inherit; }
+.lib-sim:active { border-color: var(--ink); }
+.lib-sim-name { display: block; font-size: 13px; font-weight: 700; line-height: 1.3; margin-top: 6px; }
 .lib-mine-box { margin-top: 14px; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 10px; background: var(--field); }
 .lib-mine-box .chips { margin-top: 8px; }
 .lib-save-btn { display: inline-flex; align-items: center; gap: 6px; }
